@@ -1,0 +1,16 @@
+# build output
+bin/
+obj/
+publish/
+publish-portable/
+portable/
+*.zip
+
+# IDE / user files
+.vs/
+*.user
+.claude/
+
+# superseded artwork kept locally only
+assets/icon-preview.png
+assets/logo-source.png

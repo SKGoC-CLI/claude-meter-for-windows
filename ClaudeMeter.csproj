@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>ClaudeMeter</RootNamespace>
+    <AssemblyName>ClaudeMeter</AssemblyName>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <Version>1.0.1</Version>
+    <ApplicationIcon>assets\app.ico</ApplicationIcon>
+    <Product>Claude Usage Meter for Windows</Product>
+    <AssemblyTitle>Claude Usage Meter for Windows</AssemblyTitle>
+    <Company>SKGoC</Company>
+    <Copyright>Copyright (c) 2026 SKGoC — MIT License</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="assets\logo.png" />
+  </ItemGroup>
+
+</Project>
