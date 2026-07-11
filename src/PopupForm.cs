@@ -415,7 +415,16 @@ sealed class PopupForm : Form
             string msg = _error ?? "Loading…";
             using var brush = new SolidBrush(_error is null ? MutedColor : IconRenderer.Danger);
             g.DrawString(msg, _labelFont, brush,
-                new RectangleF(pad, y, contentWidth, S(64)));
+                new RectangleF(pad, y, contentWidth, S(28)));
+
+            // when the last successful contact is known, show it under the error
+            if (_error is not null && History?.LastSampleTime() is { } lastOk)
+            {
+                string lastText = "Last session at " +
+                    (lastOk.Date == DateTimeOffset.Now.Date ? lastOk.ToString("HH:mm") : lastOk.ToString("d MMM HH:mm"));
+                using var lastBrush = new SolidBrush(MutedColor);
+                g.DrawString(lastText, _smallFont, lastBrush, pad, y + S(30));
+            }
         }
         else
         {

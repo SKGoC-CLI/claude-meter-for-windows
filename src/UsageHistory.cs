@@ -56,4 +56,14 @@ sealed class UsageHistory
 
     public IReadOnlyList<double[]> Samples(string key) =>
         _data.TryGetValue(key, out var list) ? list : Array.Empty<double[]>();
+
+    /// <summary>Timestamp of the most recent successful data fetch, if any.</summary>
+    public DateTimeOffset? LastSampleTime()
+    {
+        double max = 0;
+        foreach (var list in _data.Values)
+            foreach (var p in list)
+                if (p[0] > max) max = p[0];
+        return max > 0 ? DateTimeOffset.FromUnixTimeSeconds((long)max).ToLocalTime() : null;
+    }
 }

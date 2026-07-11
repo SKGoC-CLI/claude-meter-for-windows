@@ -37,10 +37,10 @@ sealed class UsageClient
     public async Task<UsageSnapshot> FetchAsync()
     {
         if (!_credentials.CredentialsFileExists)
-            throw new UsageException("Claude Code is not logged in.\nRight-click tray icon → Fix Claude login…");
+            throw new UsageException("Claude Code is not logged in.");
 
         var token = await _credentials.GetAccessTokenAsync()
-            ?? throw new UsageException("Claude login expired.\nRight-click tray icon → Fix Claude login…");
+            ?? throw new UsageException("Claude login expired.");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, UsageUrl);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -52,7 +52,7 @@ sealed class UsageClient
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
             throw new UsageException("Rate limited by the usage endpoint.", response.Headers.RetryAfter?.Delta);
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            throw new UsageException("Token rejected.\nRight-click tray icon → Fix Claude login…");
+            throw new UsageException("Token rejected.");
         if (!response.IsSuccessStatusCode)
             throw new UsageException($"Usage endpoint returned HTTP {(int)response.StatusCode}.");
 
