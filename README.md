@@ -16,16 +16,15 @@ Claude Code's `/usage`, always one click away.
 
 ## Features
 
-- 🟦 **Tray icon** with the highest usage % drawn live, color-coded (blue → orange → red)
-- 🖱 **Left-click** opens a dark popup with a progress bar, reset countdown and actual reset time per limit window
-- 📌 **Always on top** — pin the popup anywhere on screen (drag to move, position remembered)
-- 👻 **Pin (Click-through)** — pinned popup lets mouse clicks pass through to windows behind it
-- 📈 **Usage Remaining graph** — session remaining % over the last 24 h with an hourly time axis (toggleable)
-- 🔍 **3 sizes** (Small / Medium / Big) and **5 opacity levels** (hover restores full opacity)
-- 🔔 **Usage alert** — Windows notification at a threshold you pick (50–95 %, or off)
-- ⏱ Live countdown to the next data refresh
-- 🚀 Starts with Windows (toggleable), single instance, ~200 KB framework-dependent build
-- 💾 All preferences persist across restarts
+- Tray icon renders your highest usage percentage live, shifting color as you approach the limit
+- Popup shows a progress bar, reset countdown and exact reset time for every limit window
+- Usage graph plots session remaining over a 12 or 24 hour axis, with hourly ticks, reset markers for both past and upcoming resets, and an adjustable "now" position
+- Pin the popup anywhere on screen; optionally let mouse clicks pass through it while pinned
+- Dark and light themes, three popup sizes, five opacity levels with full opacity restored on hover
+- Usage alert notifications at any threshold from 50 to 95 percent
+- One-click login recovery when the Claude session expires, plus local diagnostic logs for troubleshooting
+- Global hotkey (Ctrl+Alt+U), autostart with Windows, automatic update check, single instance
+- Every preference persists across restarts
 
 ## Download
 
