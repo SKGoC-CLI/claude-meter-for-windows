@@ -81,7 +81,14 @@ sealed class PopupForm : Form
 
     int HeaderHeight => _showLogo && LogoStore.Logo is not null ? S(42) : 0;
 
-    int GraphHeight => _showRemainingGraph ? S(162) : 0;
+    // chart hidden while there is no current data (loading / error state)
+    int GraphHeight => _showRemainingGraph && _snapshot is { Windows.Count: > 0 } ? S(162) : 0;
+
+    bool _showFixLogin;
+    readonly Button _fixLoginButton;
+
+    /// <summary>Raised when the user clicks the in-popup "Fix Claude login" button.</summary>
+    public event Action? FixLoginRequested;
 
     int _graphRangeHours = 24;
 
@@ -121,7 +128,27 @@ sealed class PopupForm : Form
         BackColor = Background;
         DoubleBuffered = true;
         _tick.Tick += (_, _) => Invalidate(); // live countdown + "resets in" refresh
+
+        _fixLoginButton = new Button
+        {
+            Text = "🔑 Fix Claude login",
+            FlatStyle = FlatStyle.Flat,
+            Visible = false,
+        };
+        _fixLoginButton.FlatAppearance.BorderSize = 0;
+        _fixLoginButton.Click += (_, _) => FixLoginRequested?.Invoke();
+        Controls.Add(_fixLoginButton);
+
         ApplyScale(1f);
+        StyleFixLoginButton();
+    }
+
+    void StyleFixLoginButton()
+    {
+        _fixLoginButton.BackColor = Theme.Track;
+        _fixLoginButton.ForeColor = Theme.Label;
+        _fixLoginButton.Font = _labelFont;
+        _fixLoginButton.Size = new Size(S(190), S(34));
     }
 
     int S(float v) => (int)Math.Round(v * _scale);
@@ -184,6 +211,7 @@ sealed class PopupForm : Form
     public void ApplyTheme()
     {
         BackColor = Theme.Background;
+        StyleFixLoginButton();
         Invalidate();
     }
 
@@ -281,13 +309,21 @@ sealed class PopupForm : Form
 
     // -- data & layout ------------------------------------------------------
 
-    public void UpdateData(UsageSnapshot? snapshot, string? error, bool stale)
+    public void UpdateData(UsageSnapshot? snapshot, string? error, bool stale, bool showFixLogin = false)
     {
         _snapshot = snapshot;
         _error = error;
         _stale = stale;
+        _showFixLogin = showFixLogin && snapshot is null; // full-error view only
         Width = ComputeWidth();
         Height = ComputeHeight();
+
+        _fixLoginButton.Visible = _showFixLogin;
+        if (_showFixLogin)
+            _fixLoginButton.Location = new Point(
+                (Width - _fixLoginButton.Width) / 2,
+                S(16) + HeaderHeight + S(58));
+
         if (Visible)
         {
             if (!Pinned) Reposition();      // unpinned popup re-anchors above the tray
@@ -308,6 +344,7 @@ sealed class PopupForm : Form
     {
         int rows = _snapshot?.Windows.Count ?? 0;
         int body = rows > 0 ? rows * RowHeight : S(64); // space for error/loading text
+        if (_showFixLogin) body += S(48);               // room for the fix-login button
         return S(16) + HeaderHeight + body + GraphHeight + S(26) + S(8);
     }
 
@@ -406,10 +443,9 @@ sealed class PopupForm : Form
         using var footerBrush = new SolidBrush(_stale || (_error is not null && _snapshot is not null) ? IconRenderer.Warning : MutedColor);
         g.DrawString(footer, _smallFont, footerBrush, pad, footerY);
 
-        // live countdown to the next poll, right-aligned (skipped while an
-        // error occupies the left side — the two would overlap)
-        bool errorShown = _error is not null && _snapshot is not null;
-        if (!errorShown && NextUpdateAt is { } next)
+        // live countdown to the next poll, right-aligned (hidden during any
+        // error state so it never collides with error text or the fix button)
+        if (_error is null && NextUpdateAt is { } next)
         {
             var left = next - DateTimeOffset.Now;
             if (left < TimeSpan.Zero) left = TimeSpan.Zero;

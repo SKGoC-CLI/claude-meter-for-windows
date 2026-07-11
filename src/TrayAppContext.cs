@@ -236,6 +236,7 @@ sealed class TrayAppContext : ApplicationContext
         _popup.ClickThrough = _settings.AlwaysOnTop && _settings.ClickThrough;
         if (_settings.PinnedX is { } px && _settings.PinnedY is { } py)
             _popup.PinnedLocation = new Point(px, py);
+        _popup.FixLoginRequested += OpenLoginTerminal;
         _popup.UserMoved += () =>
         {
             _settings.PinnedX = _popup.PinnedLocation?.X;
@@ -547,7 +548,7 @@ sealed class TrayAppContext : ApplicationContext
     void UpdateUi()
     {
         bool stale = _lastError is not null && _lastSnapshot is not null;
-        _popup.UpdateData(_lastSnapshot, _lastError, stale);
+        _popup.UpdateData(_lastSnapshot, _lastError, stale, IsLoginError(_lastError));
         _fixLoginItem.Visible = IsLoginError(_lastError);
 
         double? max = _lastSnapshot?.Windows.Max(w => w.Utilization);
