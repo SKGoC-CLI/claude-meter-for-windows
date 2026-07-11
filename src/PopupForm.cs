@@ -406,8 +406,10 @@ sealed class PopupForm : Form
         using var footerBrush = new SolidBrush(_stale || (_error is not null && _snapshot is not null) ? IconRenderer.Warning : MutedColor);
         g.DrawString(footer, _smallFont, footerBrush, pad, footerY);
 
-        // live countdown to the next poll, right-aligned
-        if (NextUpdateAt is { } next)
+        // live countdown to the next poll, right-aligned (skipped while an
+        // error occupies the left side — the two would overlap)
+        bool errorShown = _error is not null && _snapshot is not null;
+        if (!errorShown && NextUpdateAt is { } next)
         {
             var left = next - DateTimeOffset.Now;
             if (left < TimeSpan.Zero) left = TimeSpan.Zero;

@@ -67,6 +67,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly ToolStripMenuItem _hotkeyItem;
     readonly ToolStripMenuItem _updateCheckItem;
     readonly ToolStripMenuItem _updateAvailableItem;
+    readonly ToolStripMenuItem _fixLoginItem;
     HotkeyWindow? _hotkeyWindow;
     DateTimeOffset _lastUpdateCheck = DateTimeOffset.MinValue;
     string? _updateUrl;
@@ -160,8 +161,14 @@ sealed class TrayAppContext : ApplicationContext
             Visible = false,
         };
 
+        _fixLoginItem = new ToolStripMenuItem("🔑 Fix Claude login…", null, (_, _) => OpenLoginTerminal())
+        {
+            Visible = false, // shown only while the login is broken
+        };
+
         var menu = new ContextMenuStrip();
         menu.Items.Add(_updateAvailableItem);
+        menu.Items.Add(_fixLoginItem);
         menu.Items.Add(new ToolStripMenuItem("Refresh now", null, async (_, _) => await RefreshAsync()));
         menu.Items.Add(new ToolStripSeparator());
         _showGraphItem = new ToolStripMenuItem("Show Usage Remaining Graph", null, OnToggleShowGraph)
@@ -513,10 +520,35 @@ sealed class TrayAppContext : ApplicationContext
         }
     }
 
+    static bool IsLoginError(string? error) =>
+        error is not null &&
+        (error.Contains("login", StringComparison.OrdinalIgnoreCase) ||
+         error.Contains("Token rejected", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Opens a terminal running the Claude CLI so the user can /login.</summary>
+    void OpenLoginTerminal()
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo("cmd.exe", "/k claude")
+            {
+                UseShellExecute = true,
+            });
+            _trayIcon.ShowBalloonTip(6000, "Claude Meter",
+                "Type /login in the terminal, sign in, then click Refresh now.", ToolTipIcon.Info);
+        }
+        catch
+        {
+            _trayIcon.ShowBalloonTip(6000, "Claude Meter",
+                "Could not open a terminal. Run 'claude' manually and /login.", ToolTipIcon.Warning);
+        }
+    }
+
     void UpdateUi()
     {
         bool stale = _lastError is not null && _lastSnapshot is not null;
         _popup.UpdateData(_lastSnapshot, _lastError, stale);
+        _fixLoginItem.Visible = IsLoginError(_lastError);
 
         double? max = _lastSnapshot?.Windows.Max(w => w.Utilization);
         SetIcon(max);
