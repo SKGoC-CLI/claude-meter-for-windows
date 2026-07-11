@@ -2,6 +2,7 @@
 
 <img src="assets/logo.png" width="96" align="right" alt="logo">
 
+[![Build](https://github.com/SKGoC-CLI/claude-meter-for-windows/actions/workflows/build.yml/badge.svg)](https://github.com/SKGoC-CLI/claude-meter-for-windows/actions)
 ![Windows 10/11](https://img.shields.io/badge/Windows-10%2F11-0078d4)
 ![.NET 8](https://img.shields.io/badge/.NET-8.0-512bd4)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
