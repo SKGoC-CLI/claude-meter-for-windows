@@ -41,8 +41,12 @@ sealed class CredentialStore
 
         var refreshToken = cached?.RefreshToken ?? fileToken?.RefreshToken;
         if (string.IsNullOrEmpty(refreshToken))
+        {
+            Log.Warn("no refresh token available (file token expired, no usable cache)");
             return null;
+        }
 
+        Log.Info($"file token expired; attempting refresh (using {(cached?.RefreshToken is not null ? "cached" : "file")} refresh token)");
         var refreshed = await RefreshAsync(refreshToken);
         return refreshed?.AccessToken;
     }
@@ -100,7 +104,12 @@ sealed class CredentialStore
             // without the claude-code UA this endpoint rate-limits aggressively
             request.Headers.TryAddWithoutValidation("User-Agent", "claude-code/2.1.202");
             using var response = await _http.SendAsync(request);
-            if (!response.IsSuccessStatusCode) return null;
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorBody = await response.Content.ReadAsStringAsync();
+                Log.Warn($"token refresh failed: HTTP {(int)response.StatusCode} {Truncate(errorBody, 300)}");
+                return null;
+            }
 
             var body = JsonNode.Parse(await response.Content.ReadAsStringAsync());
             var access = body?["access_token"]?.GetValue<string>();
@@ -114,11 +123,15 @@ sealed class CredentialStore
 
             Directory.CreateDirectory(Path.GetDirectoryName(CachePath)!);
             File.WriteAllText(CachePath, JsonSerializer.Serialize(token));
+            Log.Info($"token refresh OK, new expiry {DateTimeOffset.FromUnixTimeMilliseconds(token.ExpiresAtMs).ToLocalTime():HH:mm}");
             return token;
         }
-        catch
+        catch (Exception ex)
         {
+            Log.Warn($"token refresh exception: {ex.Message}");
             return null;
         }
     }
+
+    static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "…";
 }

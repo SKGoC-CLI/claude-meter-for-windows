@@ -219,6 +219,7 @@ sealed class TrayAppContext : ApplicationContext
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(_autostartItem);
         menu.Items.Add(_updateCheckItem);
+        menu.Items.Add(new ToolStripMenuItem("Open log folder", null, (_, _) => OpenLogFolder()));
         menu.Items.Add(new ToolStripMenuItem("About…", null, (_, _) => ShowAbout()));
         menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => ExitThread()));
 
@@ -354,8 +355,11 @@ sealed class TrayAppContext : ApplicationContext
             _hotkeyWindow = new HotkeyWindow();
             _hotkeyWindow.Pressed += TogglePopup;
             if (!_hotkeyWindow.Registered)
+            {
+                Log.Warn("hotkey Ctrl+Alt+U registration failed (already in use)");
                 _trayIcon.ShowBalloonTip(4000, "Claude Meter",
                     "Ctrl+Alt+U is already in use by another app.", ToolTipIcon.Warning);
+            }
         }
         else if (!_settings.HotkeyEnabled && _hotkeyWindow is not null)
         {
@@ -476,19 +480,23 @@ sealed class TrayAppContext : ApplicationContext
             _lastError = null;
             _history.Add(snapshot);
             NotifyIfNearLimit(snapshot);
+            Log.Info("usage ok: " + string.Join(", ", snapshot.Windows.Select(w => $"{w.Label} {Math.Round(w.Utilization)}%")));
         }
         catch (UsageException ex)
         {
             _lastError = ex.Message;
+            Log.Warn("usage fetch failed: " + ex.Message.Replace('\n', ' '));
             if (ex.RetryAfter is { } retry && retry > TimeSpan.FromMilliseconds(PollIntervalMs))
             {
                 // back off: skip polls until the endpoint says we may retry
                 _pollTimer.Interval = (int)Math.Min(retry.TotalMilliseconds, int.MaxValue);
+                Log.Warn($"rate limited; backing off {retry.TotalSeconds:0}s");
             }
         }
         catch (Exception ex)
         {
             _lastError = "Network error: " + ex.Message;
+            Log.Error("usage fetch network error", ex);
         }
         finally
         {
@@ -542,6 +550,19 @@ sealed class TrayAppContext : ApplicationContext
         {
             _trayIcon.ShowBalloonTip(6000, "Claude Meter",
                 "Could not open a terminal. Run 'claude' manually and /login.", ToolTipIcon.Warning);
+        }
+    }
+
+    void OpenLogFolder()
+    {
+        try
+        {
+            Directory.CreateDirectory(Log.Dir);
+            Process.Start(new ProcessStartInfo("explorer.exe", $"\"{Log.Dir}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            Log.Error("failed to open log folder", ex);
         }
     }
 

@@ -86,6 +86,11 @@ If the token expires, it is refreshed **in-memory only** and cached under
 **Privacy:** no telemetry, no third-party servers. The only network calls are to
 Anthropic's own API. Settings and history live in `%APPDATA%\ClaudeMeter\`.
 
+**Troubleshooting:** the app writes small daily logs (activity + errors, never
+tokens) to `%APPDATA%\ClaudeMeter\logs` — tray menu → **Open log folder**.
+Logs older than 7 days are deleted automatically. Attach the latest log when
+reporting an issue.
+
 ## Disclaimer
 
 This is an unofficial hobby project, not affiliated with Anthropic.
