@@ -14,6 +14,8 @@ Claude Code's `/usage`, always one click away.
 
 ![screenshot](docs/screenshot.png)
 
+![demo](docs/demo.gif)
+
 ## Features
 
 - Tray icon renders your highest usage percentage live, shifting color as you approach the limit
