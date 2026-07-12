@@ -15,6 +15,7 @@ sealed class AppSettings
     public int GraphRangeHours { get; set; } = 24;       // total axis width: 24 or 12
     public int NowPositionPercent { get; set; } = 75;    // where "now" sits on the axis: 50 | 75 | 100
     public string Theme { get; set; } = "dark";          // dark | light
+    public string TrayShows { get; set; } = "session";   // session | weekly | highest (≥90% always overrides)
     public bool HotkeyEnabled { get; set; } = true;      // Ctrl+Alt+U toggles the popup
     public bool CheckUpdates { get; set; } = true;       // daily GitHub release check
     public bool ShowLogo { get; set; } = true;       // logo header in the popup

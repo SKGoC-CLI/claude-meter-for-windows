@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Changed
+- Tray icon now shows the Session (5h) percentage by default instead of the
+  highest window — new "Tray icon shows" menu (Session / Weekly / Highest);
+  any window reaching 90 % still takes over the icon
 - Token refresh now backs off politely when rate-limited: honors `Retry-After`,
   otherwise waits 10 minutes doubling up to a 2-hour cap, and retries
   immediately after a fresh login (previously it retried every 3 minutes)

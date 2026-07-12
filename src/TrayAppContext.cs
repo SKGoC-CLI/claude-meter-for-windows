@@ -64,6 +64,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly Dictionary<int, ToolStripMenuItem> _rangeItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _nowPosItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _themeItems = new();
+    readonly Dictionary<string, ToolStripMenuItem> _trayShowsItems = new();
     readonly ToolStripMenuItem _hotkeyItem;
     readonly ToolStripMenuItem _updateCheckItem;
     readonly ToolStripMenuItem _updateAvailableItem;
@@ -213,7 +214,20 @@ sealed class TrayAppContext : ApplicationContext
         menu.Items.Add(_showLogoItem);
         menu.Items.Add(sizeMenu);
         menu.Items.Add(opacityMenu);
+        var trayShowsMenu = new ToolStripMenuItem("Tray icon shows");
+        foreach (var (key, label) in new[] { ("session", "Session (5h)"), ("weekly", "Weekly"), ("highest", "Highest") })
+        {
+            string k = key;
+            var item = new ToolStripMenuItem(label, null, (_, _) => SetTrayShows(k))
+            {
+                Checked = _settings.TrayShows == k,
+            };
+            _trayShowsItems[k] = item;
+            trayShowsMenu.DropDownItems.Add(item);
+        }
+
         menu.Items.Add(themeMenu);
+        menu.Items.Add(trayShowsMenu);
         menu.Items.Add(notifyMenu);
         menu.Items.Add(_hotkeyItem);
         menu.Items.Add(new ToolStripSeparator());
@@ -572,14 +586,43 @@ sealed class TrayAppContext : ApplicationContext
         _popup.UpdateData(_lastSnapshot, _lastError, stale, IsLoginError(_lastError));
         _fixLoginItem.Visible = IsLoginError(_lastError);
 
-        double? max = _lastSnapshot?.Windows.Max(w => w.Utilization);
-        SetIcon(max);
+        SetIcon(TrayDisplayValue());
 
         string tooltip = _lastSnapshot is null
             ? "Claude Meter — " + (_lastError is null ? "loading…" : "error")
             : string.Join("\n", _lastSnapshot.Windows.Select(w => $"{w.Label}: {Math.Round(w.Utilization)}%"));
         // NotifyIcon.Text caps at 127 chars
         _trayIcon.Text = tooltip.Length > 127 ? tooltip[..127] : tooltip;
+    }
+
+    /// <summary>
+    /// Which percentage the tray icon shows: the user's chosen window
+    /// (Session by default), except anything at ≥90 % always takes over —
+    /// at that point it is the number that matters.
+    /// </summary>
+    double? TrayDisplayValue()
+    {
+        var windows = _lastSnapshot?.Windows;
+        if (windows is null || windows.Count == 0) return null;
+
+        double max = windows.Max(w => w.Utilization);
+        if (max >= 90) return max;
+
+        var pick = _settings.TrayShows switch
+        {
+            "weekly" => windows.FirstOrDefault(w => w.Key == "seven_day"),
+            "highest" => null,
+            _ => windows.FirstOrDefault(w => w.Key == "five_hour"),
+        };
+        return pick?.Utilization ?? max;
+    }
+
+    void SetTrayShows(string key)
+    {
+        _settings.TrayShows = key;
+        foreach (var (k, item) in _trayShowsItems) item.Checked = k == key;
+        UpdateUi();
+        _settings.Save();
     }
 
     void SetIcon(double? maxUtilization)
