@@ -4,6 +4,14 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Context row**: shows how full the active Claude Code session's context
+  window is (read locally from the session transcript — no network), with
+  project name, model, tokens until auto-compact and session age; toggleable
+  via "Show session context"
+
 ## [1.2.0] - 2026-07-12
 
 ### Fixed

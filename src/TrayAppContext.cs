@@ -58,6 +58,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly ToolStripMenuItem _clickThroughItem;
     readonly ToolStripMenuItem _showGraphItem;
     readonly ToolStripMenuItem _showLogoItem;
+    readonly ToolStripMenuItem _showContextItem;
     readonly Dictionary<string, ToolStripMenuItem> _sizeItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _opacityItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _notifyItems = new();
@@ -182,6 +183,11 @@ sealed class TrayAppContext : ApplicationContext
             Checked = _settings.ShowLogo,
         };
 
+        _showContextItem = new ToolStripMenuItem("Show session context", null, OnToggleShowContext)
+        {
+            Checked = _settings.ShowContext,
+        };
+
         menu.Items.Add(_alwaysOnTopItem);
         menu.Items.Add(_clickThroughItem);
         var rangeMenu = new ToolStripMenuItem("Graph range");
@@ -211,6 +217,7 @@ sealed class TrayAppContext : ApplicationContext
         menu.Items.Add(_showGraphItem);
         menu.Items.Add(rangeMenu);
         menu.Items.Add(nowPosMenu);
+        menu.Items.Add(_showContextItem);
         menu.Items.Add(_showLogoItem);
         menu.Items.Add(sizeMenu);
         menu.Items.Add(opacityMenu);
@@ -313,6 +320,21 @@ sealed class TrayAppContext : ApplicationContext
         _showGraphItem.Checked = _settings.ShowRemainingGraph;
         _popup.ShowRemainingGraph = _settings.ShowRemainingGraph;
         _settings.Save();
+    }
+
+    void OnToggleShowContext(object? sender, EventArgs e)
+    {
+        _settings.ShowContext = !_settings.ShowContext;
+        _showContextItem.Checked = _settings.ShowContext;
+        RefreshSessionContext();
+        _settings.Save();
+    }
+
+    void RefreshSessionContext()
+    {
+        _popup.SessionCtx = _settings.ShowContext
+            ? ContextMonitor.GetActive(TimeSpan.FromMinutes(10))
+            : null;
     }
 
     void OnToggleShowLogo(object? sender, EventArgs e)
@@ -480,6 +502,7 @@ sealed class TrayAppContext : ApplicationContext
         {
             _ = RefreshAsync();
         }
+        if (!_popup.Visible) RefreshSessionContext(); // cheap local read, keep it fresh on open
         _popup.ToggleNearTray();
     }
 
@@ -518,6 +541,7 @@ sealed class TrayAppContext : ApplicationContext
             if (_pollTimer.Interval != PollIntervalMs && _lastError is null)
                 _pollTimer.Interval = PollIntervalMs;
             _popup.NextUpdateAt = DateTimeOffset.Now + TimeSpan.FromMilliseconds(_pollTimer.Interval);
+            RefreshSessionContext();
             UpdateUi();
             if (_settings.CheckUpdates) _ = CheckUpdatesAsync(notifyBalloon: true); // throttled to ~daily internally
         }

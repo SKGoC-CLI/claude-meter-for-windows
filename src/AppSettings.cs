@@ -19,6 +19,7 @@ sealed class AppSettings
     public bool HotkeyEnabled { get; set; } = true;      // Ctrl+Alt+U toggles the popup
     public bool CheckUpdates { get; set; } = true;       // daily GitHub release check
     public bool ShowLogo { get; set; } = true;       // logo header in the popup
+    public bool ShowContext { get; set; } = true;    // context-window row for the active Claude Code session
 
     static readonly string FilePath =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ClaudeMeter", "settings.json");

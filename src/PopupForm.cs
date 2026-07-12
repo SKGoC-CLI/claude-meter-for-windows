@@ -87,6 +87,20 @@ sealed class PopupForm : Form
     bool _showFixLogin;
     readonly Button _fixLoginButton;
 
+    SessionContext? _sessionCtx;
+
+    /// <summary>Context-window info of the active Claude Code session (null hides the row).</summary>
+    public SessionContext? SessionCtx
+    {
+        get => _sessionCtx;
+        set { _sessionCtx = value; RecomputeLayout(); }
+    }
+
+    int ContextRowHeight => _sessionCtx is not null ? S(74) : 0;
+
+    static Color ContextColor(double pct) =>
+        pct >= 85 ? IconRenderer.Danger : pct >= 60 ? IconRenderer.Warning : IconRenderer.Accent;
+
     /// <summary>Raised when the user clicks the in-popup "Fix Claude login" button.</summary>
     public event Action? FixLoginRequested;
 
@@ -345,7 +359,7 @@ sealed class PopupForm : Form
         int rows = _snapshot?.Windows.Count ?? 0;
         int body = rows > 0 ? rows * RowHeight : S(64); // space for error/loading text
         if (_showFixLogin) body += S(48);               // room for the fix-login button
-        return S(16) + HeaderHeight + body + GraphHeight + S(26) + S(8);
+        return S(16) + HeaderHeight + body + ContextRowHeight + GraphHeight + S(26) + S(8);
     }
 
     public void ShowNearTray()
@@ -435,6 +449,12 @@ sealed class PopupForm : Form
             }
         }
 
+        if (ContextRowHeight > 0)
+        {
+            DrawContextRow(g, _sessionCtx!, y, pad, contentWidth);
+            y += ContextRowHeight;
+        }
+
         if (GraphHeight > 0) DrawRemainingChart(g, pad, y, contentWidth);
 
         DrawFooter(g, pad, contentWidth);
@@ -507,6 +527,49 @@ sealed class PopupForm : Form
             using var fillBrush = new SolidBrush(barColor);
             FillRounded(g, fillBrush, new Rectangle(pad, barY, fillW, barH), barH / 2);
         }
+    }
+
+    /// <summary>Context-window row: fill %, project + model, bar, compact distance and session age.</summary>
+    void DrawContextRow(Graphics g, SessionContext ctx, int y, int pad, int contentWidth)
+    {
+        var color = ContextColor(ctx.Percent);
+
+        using var labelBrush = new SolidBrush(LabelColor);
+        g.DrawString("Context:", _labelFont, labelBrush, pad, y);
+
+        string pct = $"{Math.Round(ctx.Percent)}%";
+        using var pctBrush = new SolidBrush(color);
+        var labelSize = g.MeasureString("Context:", _labelFont);
+        g.DrawString(pct, _valueFont, pctBrush, pad + labelSize.Width + S(2), y);
+
+        // project · model, right-aligned on the label line
+        string source = $"{ctx.Project} · {ctx.Model}";
+        using var mutedBrush = new SolidBrush(MutedColor);
+        var srcSize = g.MeasureString(source, _smallFont);
+        g.DrawString(source, _smallFont, mutedBrush, pad + contentWidth - srcSize.Width, y + S(3));
+
+        // progress bar
+        int barY = y + S(28);
+        int barH = Math.Max(4, S(6));
+        using (var trackBrush = new SolidBrush(TrackColor))
+            FillRounded(g, trackBrush, new Rectangle(pad, barY, contentWidth, barH), barH / 2);
+        int fillW = (int)Math.Round(contentWidth * ctx.Percent / 100.0);
+        if (fillW >= barH)
+        {
+            using var fillBrush = new SolidBrush(color);
+            FillRounded(g, fillBrush, new Rectangle(pad, barY, fillW, barH), barH / 2);
+        }
+
+        // detail line: distance to auto-compact (~80 % of the window) + session age
+        long compactAt = (long)(ctx.WindowSize * 0.8);
+        string compactText = ctx.Tokens < compactAt
+            ? $"~{(compactAt - ctx.Tokens) / 1000}k tokens until auto-compact"
+            : "past auto-compact threshold";
+        var age = DateTimeOffset.Now - ctx.StartedAt;
+        string ageText = age.TotalDays >= 1 ? $"{(int)age.TotalDays}d old"
+            : age.TotalHours >= 1 ? $"{(int)age.TotalHours}h old"
+            : $"{Math.Max(1, (int)age.TotalMinutes)}m old";
+        g.DrawString($"{compactText}  ·  {ageText}", _smallFont, mutedBrush, pad, barY + S(10));
     }
 
     /// <summary>Session-remaining line chart with hourly time axis, "now" marker and reset markers.</summary>
