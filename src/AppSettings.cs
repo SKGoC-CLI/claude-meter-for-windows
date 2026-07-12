@@ -16,8 +16,10 @@ sealed class AppSettings
     public int NowPositionPercent { get; set; } = 75;    // where "now" sits on the axis: 50 | 75 | 100
     public string Theme { get; set; } = "dark";          // dark | light
     public string TrayShows { get; set; } = "auto";      // auto (server's active limit) | session | weekly | highest (≥90% always overrides)
-    public bool HotkeyEnabled { get; set; } = true;      // Ctrl+Alt+U toggles the popup
+    public bool HotkeyEnabled { get; set; } = true;      // global hotkey toggles the popup
+    public string Hotkey { get; set; } = "Ctrl+Alt+U";   // which combo (see hotkey menu presets)
     public bool CheckUpdates { get; set; } = true;       // daily GitHub release check
+    public bool AutostartConfigured { get; set; }        // autostart already defaulted on first run (or user chose)
     public bool ShowLogo { get; set; } = true;       // logo header in the popup
     public bool ShowContext { get; set; } = true;    // context-window row for the active Claude Code session
     public List<string> HiddenLimits { get; set; } = new(); // limit keys the user unticked in "Show limits"

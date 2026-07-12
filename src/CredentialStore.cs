@@ -28,7 +28,7 @@ sealed class CredentialStore
     static readonly TimeSpan MaxBackoff = TimeSpan.FromHours(2);
     TimeSpan _backoff = TimeSpan.Zero;
     DateTimeOffset _nextRefreshAllowed = DateTimeOffset.MinValue;
-    string? _lastFailedRefreshToken;
+    readonly HashSet<string> _failedRefreshTokens = new();
 
     public CredentialStore(HttpClient http) => _http = http;
 
@@ -46,24 +46,29 @@ sealed class CredentialStore
         if (cached is { IsExpired: false })
             return cached.AccessToken;
 
-        var refreshToken = cached?.RefreshToken ?? fileToken?.RefreshToken;
-        if (string.IsNullOrEmpty(refreshToken))
+        // Our cache may hold a rotated token newer than Claude Code's file, but a
+        // fresh /login in Claude Code revokes our family — so keep both as candidates
+        // and never let a dead cached token permanently shadow the file's.
+        var candidates = new List<string>();
+        if (cached?.RefreshToken is { Length: > 0 } cachedRt) candidates.Add(cachedRt);
+        if (fileToken?.RefreshToken is { Length: > 0 } fileRt && !candidates.Contains(fileRt)) candidates.Add(fileRt);
+        if (candidates.Count == 0)
         {
             Log.Warn("no refresh token available (file token expired, no usable cache)");
             return null;
         }
 
-        // a different refresh token means a fresh login — worth trying immediately
-        if (refreshToken != _lastFailedRefreshToken)
+        // an untried token (fresh login or rotation) is worth trying immediately
+        var refreshToken = candidates.Find(t => !_failedRefreshTokens.Contains(t));
+        if (refreshToken is null)
         {
-            _backoff = TimeSpan.Zero;
-            _nextRefreshAllowed = DateTimeOffset.MinValue;
+            if (DateTimeOffset.Now < _nextRefreshAllowed)
+                return null; // every candidate failed recently — cooling down
+            _failedRefreshTokens.Clear(); // backoff elapsed; give them another chance
+            refreshToken = candidates[0];
         }
 
-        if (DateTimeOffset.Now < _nextRefreshAllowed)
-            return null; // cooling down after a failed attempt
-
-        Log.Info($"file token expired; attempting refresh (using {(cached?.RefreshToken is not null ? "cached" : "file")} refresh token)");
+        Log.Info($"file token expired; attempting refresh (using {(refreshToken == cached?.RefreshToken ? "cached" : "file")} refresh token)");
         var refreshed = await RefreshAsync(refreshToken);
         return refreshed?.AccessToken;
     }
@@ -144,7 +149,7 @@ sealed class CredentialStore
             File.WriteAllText(CachePath, JsonSerializer.Serialize(token));
             _backoff = TimeSpan.Zero;
             _nextRefreshAllowed = DateTimeOffset.MinValue;
-            _lastFailedRefreshToken = null;
+            _failedRefreshTokens.Clear();
             Log.Info($"token refresh OK, new expiry {DateTimeOffset.FromUnixTimeMilliseconds(token.ExpiresAtMs).ToLocalTime():HH:mm}");
             return token;
         }
@@ -165,7 +170,7 @@ sealed class CredentialStore
                 ? InitialBackoff
                 : TimeSpan.FromTicks(Math.Min(_backoff.Ticks * 2, MaxBackoff.Ticks)));
         _nextRefreshAllowed = DateTimeOffset.Now + _backoff;
-        _lastFailedRefreshToken = refreshToken;
+        _failedRefreshTokens.Add(refreshToken);
     }
 
     static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "…";

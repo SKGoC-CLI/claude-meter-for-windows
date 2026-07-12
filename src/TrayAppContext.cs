@@ -12,15 +12,38 @@ sealed class HotkeyWindow : NativeWindow, IDisposable
 {
     const int WM_HOTKEY = 0x0312;
     const int HotkeyId = 1;
-    const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2;
+    const uint MOD_ALT = 0x1, MOD_CONTROL = 0x2, MOD_SHIFT = 0x4, MOD_WIN = 0x8;
 
     public event Action? Pressed;
     public bool Registered { get; private set; }
 
-    public HotkeyWindow()
+    public HotkeyWindow(uint modifiers, uint key)
     {
         CreateHandle(new CreateParams());
-        Registered = RegisterHotKey(Handle, HotkeyId, MOD_CONTROL | MOD_ALT, (uint)Keys.U);
+        Registered = RegisterHotKey(Handle, HotkeyId, modifiers, key);
+    }
+
+    /// <summary>Parses combos like "Ctrl+Alt+U" into RegisterHotKey arguments.</summary>
+    public static bool TryParse(string? combo, out uint modifiers, out uint key)
+    {
+        modifiers = 0;
+        key = 0;
+        if (string.IsNullOrWhiteSpace(combo)) return false; // settings.json may carry an explicit null
+        foreach (var part in combo.Split('+', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
+        {
+            switch (part.ToUpperInvariant())
+            {
+                case "CTRL": modifiers |= MOD_CONTROL; break;
+                case "ALT": modifiers |= MOD_ALT; break;
+                case "SHIFT": modifiers |= MOD_SHIFT; break;
+                case "WIN": modifiers |= MOD_WIN; break;
+                default:
+                    if (key != 0 || !Enum.TryParse<Keys>(part, ignoreCase: true, out var k)) return false;
+                    key = (uint)k;
+                    break;
+            }
+        }
+        return key != 0 && modifiers != 0;
     }
 
     protected override void WndProc(ref Message m)
@@ -47,6 +70,7 @@ sealed class TrayAppContext : ApplicationContext
     const int PollIntervalMs = 180_000; // endpoint rate-limits aggressively below ~180 s
     const string RunKeyPath = @"Software\Microsoft\Windows\CurrentVersion\Run";
     const string RunValueName = "ClaudeMeter";
+    const string DefaultHotkey = "Ctrl+Alt+U"; // must match AppSettings.Hotkey default
 
     readonly HttpClient _http = new() { Timeout = TimeSpan.FromSeconds(30) };
     readonly UsageClient _usage;
@@ -67,12 +91,13 @@ sealed class TrayAppContext : ApplicationContext
     readonly Dictionary<int, ToolStripMenuItem> _nowPosItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _themeItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _trayShowsItems = new();
-    readonly ToolStripMenuItem _hotkeyItem;
+    readonly Dictionary<string, ToolStripMenuItem> _hotkeyItems = new();
     readonly ToolStripMenuItem _updateCheckItem;
     readonly ToolStripMenuItem _updateAvailableItem;
     readonly ToolStripMenuItem _fixLoginItem;
     HotkeyWindow? _hotkeyWindow;
     DateTimeOffset _lastUpdateCheck = DateTimeOffset.MinValue;
+    DateTime _lastLogCleanup = DateTime.Now; // startup cleanup already ran in Program.Main
     string? _updateUrl;
     readonly AppSettings _settings = AppSettings.Load();
     readonly UsageHistory _history = new();
@@ -149,10 +174,15 @@ sealed class TrayAppContext : ApplicationContext
             themeMenu.DropDownItems.Add(item);
         }
 
-        _hotkeyItem = new ToolStripMenuItem("Hotkey (Ctrl+Alt+U)", null, OnToggleHotkey)
+        var hotkeyMenu = new ToolStripMenuItem("Hotkey");
+        foreach (var combo in new[] { "Off", "Ctrl+Alt+U", "Ctrl+Alt+C", "Ctrl+Alt+M", "Ctrl+Shift+U", "Ctrl+Shift+M", "Ctrl+U", "Alt+U" })
         {
-            Checked = _settings.HotkeyEnabled,
-        };
+            string c = combo;
+            var item = new ToolStripMenuItem(c, null, (_, _) => SetHotkey(c));
+            _hotkeyItems[c] = item;
+            hotkeyMenu.DropDownItems.Add(item);
+        }
+        SyncHotkeyMenu();
 
         _updateCheckItem = new ToolStripMenuItem("Check for updates", null, OnToggleUpdateCheck)
         {
@@ -238,7 +268,7 @@ sealed class TrayAppContext : ApplicationContext
         menu.Items.Add(themeMenu);
         menu.Items.Add(trayShowsMenu);
         menu.Items.Add(notifyMenu);
-        menu.Items.Add(_hotkeyItem);
+        menu.Items.Add(hotkeyMenu);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(_autostartItem);
         menu.Items.Add(_updateCheckItem);
@@ -288,7 +318,13 @@ sealed class TrayAppContext : ApplicationContext
         _pollTimer.Tick += async (_, _) => await RefreshAsync();
         _pollTimer.Start();
 
-        if (!IsAutostartEnabled()) EnableAutostart(); // default on first run, per plan
+        // autostart defaults on, but only on true first run — never override a user choice
+        if (!_settings.AutostartConfigured)
+        {
+            EnableAutostart();
+            _settings.AutostartConfigured = true;
+            _settings.Save();
+        }
         _autostartItem.Checked = IsAutostartEnabled();
 
         _ = RefreshAsync();
@@ -378,31 +414,45 @@ sealed class TrayAppContext : ApplicationContext
         _settings.Save();
     }
 
-    void OnToggleHotkey(object? sender, EventArgs e)
+    void SetHotkey(string combo)
     {
-        _settings.HotkeyEnabled = !_settings.HotkeyEnabled;
-        _hotkeyItem.Checked = _settings.HotkeyEnabled;
+        _settings.HotkeyEnabled = combo != "Off";
+        if (combo != "Off") _settings.Hotkey = combo;
+        SyncHotkeyMenu();
         ApplyHotkey();
         _settings.Save();
     }
 
+    void SyncHotkeyMenu()
+    {
+        foreach (var (key, item) in _hotkeyItems)
+            item.Checked = _settings.HotkeyEnabled ? key == _settings.Hotkey : key == "Off";
+    }
+
     void ApplyHotkey()
     {
-        if (_settings.HotkeyEnabled && _hotkeyWindow is null)
+        _hotkeyWindow?.Dispose();
+        _hotkeyWindow = null;
+        if (!_settings.HotkeyEnabled) return;
+
+        if (!HotkeyWindow.TryParse(_settings.Hotkey, out var modifiers, out var key))
         {
-            _hotkeyWindow = new HotkeyWindow();
-            _hotkeyWindow.Pressed += TogglePopup;
-            if (!_hotkeyWindow.Registered)
-            {
-                Log.Warn("hotkey Ctrl+Alt+U registration failed (already in use)");
-                _trayIcon.ShowBalloonTip(4000, "Claude Meter",
-                    "Ctrl+Alt+U is already in use by another app.", ToolTipIcon.Warning);
-            }
+            // a blank/corrupt value (bad upgrade, hand-edited settings) would leave the
+            // hotkey silently dead with the menu unchecked — self-heal back to the default
+            Log.Warn($"invalid hotkey '{_settings.Hotkey}' in settings; resetting to {DefaultHotkey}");
+            _settings.Hotkey = DefaultHotkey;
+            _settings.Save();
+            SyncHotkeyMenu();
+            if (!HotkeyWindow.TryParse(_settings.Hotkey, out modifiers, out key)) return;
         }
-        else if (!_settings.HotkeyEnabled && _hotkeyWindow is not null)
+
+        _hotkeyWindow = new HotkeyWindow(modifiers, key);
+        _hotkeyWindow.Pressed += TogglePopup;
+        if (!_hotkeyWindow.Registered)
         {
-            _hotkeyWindow.Dispose();
-            _hotkeyWindow = null;
+            Log.Warn($"hotkey {_settings.Hotkey} registration failed (already in use)");
+            _trayIcon.ShowBalloonTip(4000, "Claude Meter",
+                $"{_settings.Hotkey} is already in use by another app.", ToolTipIcon.Warning);
         }
     }
 
@@ -546,6 +596,13 @@ sealed class TrayAppContext : ApplicationContext
             RefreshSessionContext();
             UpdateUi();
             if (_settings.CheckUpdates) _ = CheckUpdatesAsync(notifyBalloon: true); // throttled to ~daily internally
+
+            // log retention would otherwise only run at startup, and the app runs for months
+            if (DateTime.Now - _lastLogCleanup > TimeSpan.FromHours(24))
+            {
+                _lastLogCleanup = DateTime.Now;
+                Log.CleanupOldLogs(); // never throws
+            }
         }
     }
 
@@ -732,6 +789,8 @@ sealed class TrayAppContext : ApplicationContext
         if (IsAutostartEnabled()) DisableAutostart();
         else EnableAutostart();
         _autostartItem.Checked = IsAutostartEnabled();
+        _settings.AutostartConfigured = true; // explicit choice — never re-default
+        _settings.Save();
     }
 
     protected override void ExitThreadCore()

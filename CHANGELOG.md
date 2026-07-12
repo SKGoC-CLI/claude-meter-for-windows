@@ -4,6 +4,33 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- The Hotkey menu is now a picker: choose between Ctrl+Alt+U (default),
+  Ctrl+Alt+C, Ctrl+Alt+M, Ctrl+Shift+U, Ctrl+Shift+M, Ctrl+U, Alt+U or Off —
+  handy when the default combo clashes with another app (note: single-modifier
+  combos like Ctrl+U take that key over system-wide, e.g. underline in editors)
+
+### Fixed
+- "Start with Windows" is no longer silently re-enabled on every launch —
+  turning it off now sticks (it was being re-applied as a first-run default
+  each time the app started)
+- After re-running Claude Code's login, the meter now recovers automatically
+  instead of staying stuck on "login expired": it no longer clings to a stale
+  cached refresh token and will use the newer one
+- The "Fix Claude login" button no longer renders broken (or throws) after
+  changing the popup Size, which previously left it holding a disposed font
+- A blank or unrecognized hotkey value in settings is now self-healed back to
+  the default (Ctrl+Alt+U) instead of leaving the hotkey silently inactive;
+  a null hotkey value also no longer crashes the app at startup
+- Fixed a duplicate "Extra usage" row that could appear when the usage endpoint
+  returned the older response shape
+- The usage endpoint's rate-limit backoff now also honors a Retry-After header
+  given as an HTTP date, not just a delay in seconds
+- The About dialog no longer leaks a few font handles each time it's opened
+- Old log files are now cleaned up daily while the app runs, not only at startup
+
 ## [1.3.0] - 2026-07-12
 
 ### Added

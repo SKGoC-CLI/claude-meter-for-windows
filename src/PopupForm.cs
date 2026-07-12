@@ -153,8 +153,7 @@ sealed class PopupForm : Form
         _fixLoginButton.Click += (_, _) => FixLoginRequested?.Invoke();
         Controls.Add(_fixLoginButton);
 
-        ApplyScale(1f);
-        StyleFixLoginButton();
+        ApplyScale(1f); // also styles the fix-login button
     }
 
     void StyleFixLoginButton()
@@ -180,6 +179,7 @@ sealed class PopupForm : Form
         _smallFont = new Font("Segoe UI", 8f * scale);
         _tinyFont = new Font("Segoe UI", 7f * scale);
         _headerFont = new Font("Segoe UI", 10f * scale, FontStyle.Bold);
+        StyleFixLoginButton(); // the button held the old (now disposed) label font
         Width = ComputeWidth();
         Height = ComputeHeight();
         if (Visible) Reposition();

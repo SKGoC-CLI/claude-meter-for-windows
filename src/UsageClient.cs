@@ -56,7 +56,9 @@ sealed class UsageClient
         using var response = await _http.SendAsync(request);
 
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
-            throw new UsageException("Rate limited by the usage endpoint.", response.Headers.RetryAfter?.Delta);
+            throw new UsageException("Rate limited by the usage endpoint.",
+                response.Headers.RetryAfter?.Delta
+                    ?? (response.Headers.RetryAfter?.Date is { } date ? date - DateTimeOffset.Now : null));
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
             throw new UsageException("Token rejected.");
         if (!response.IsSuccessStatusCode)
@@ -110,6 +112,7 @@ sealed class UsageClient
         {
             foreach (var (key, value) in root)
             {
+                if (key == "extra_usage") continue; // handled by the dedicated block below
                 if (value is not JsonObject obj || obj["utilization"] is null)
                     continue;
                 windows.Add(new UsageWindow(key, LabelFor(key),

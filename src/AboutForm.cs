@@ -5,6 +5,8 @@ namespace ClaudeMeter;
 /// <summary>Dark-themed About dialog matching the popup style.</summary>
 sealed class AboutForm : Form
 {
+    readonly List<Font> _fonts = new(); // labels don't own their fonts; dispose them with the form
+
     public AboutForm()
     {
         Text = "About";
@@ -45,17 +47,29 @@ sealed class AboutForm : Form
         return base.ProcessCmdKey(ref msg, keyData);
     }
 
-    Label MakeLabel(string text, float size, FontStyle style, Color color, int y) => new()
+    Label MakeLabel(string text, float size, FontStyle style, Color color, int y)
     {
-        Text = text,
-        Font = new Font("Segoe UI", size, style),
-        ForeColor = color,
-        AutoSize = false,
-        TextAlign = ContentAlignment.MiddleCenter,
-        Size = new Size(ClientSize.Width, 24),
-        Location = new Point(0, y),
-        BackColor = Color.Transparent,
-    };
+        var font = new Font("Segoe UI", size, style);
+        _fonts.Add(font);
+        return new()
+        {
+            Text = text,
+            Font = font,
+            ForeColor = color,
+            AutoSize = false,
+            TextAlign = ContentAlignment.MiddleCenter,
+            Size = new Size(ClientSize.Width, 24),
+            Location = new Point(0, y),
+            BackColor = Color.Transparent,
+        };
+    }
+
+    protected override void Dispose(bool disposing)
+    {
+        if (disposing)
+            foreach (var font in _fonts) font.Dispose();
+        base.Dispose(disposing);
+    }
 }
 
 /// <summary>Loads the embedded logo once and shares it app-wide.</summary>

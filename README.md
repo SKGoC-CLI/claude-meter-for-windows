@@ -31,7 +31,7 @@ Claude Code's `/usage`, always one click away.
 - Dark and light themes, three popup sizes, five opacity levels with full opacity restored on hover
 - Usage alert notifications at any threshold from 50 to 95 percent
 - One-click login recovery when the Claude session expires, plus local diagnostic logs for troubleshooting
-- Global hotkey (Ctrl+Alt+U), autostart with Windows, automatic update check, single instance
+- Global hotkey to toggle the popup — Ctrl+Alt+U by default, seven combos to pick from — plus autostart with Windows, automatic update check, single instance
 - Every preference persists across restarts
 
 ## Download
