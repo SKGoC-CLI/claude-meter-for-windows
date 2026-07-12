@@ -722,10 +722,10 @@ sealed class TrayAppContext : ApplicationContext
     }
 
     /// <summary>
-    /// Which percentage the tray icon shows. Default "auto" trusts the
-    /// server's is_active flag (the limit currently binding), falling back
-    /// to Session. Anything at ≥90 % always takes over — at that point it
-    /// is the number that matters.
+    /// Which percentage the tray icon shows. An explicit pin (Session / Weekly)
+    /// always shows that window, even when another is maxed out — if you asked
+    /// for Session, you get Session. Only "auto" yields to a ≥90 % window so a
+    /// limit about to bind can't be missed; "highest" shows the max by design.
     /// </summary>
     double? TrayDisplayValue()
     {
@@ -733,16 +733,17 @@ sealed class TrayAppContext : ApplicationContext
         if (windows is null || windows.Count == 0) return null;
 
         double max = windows.Max(w => w.Utilization);
-        if (max >= 90) return max;
 
         return _settings.TrayShows switch
         {
             "session" => windows.FirstOrDefault(w => w.Key == "five_hour")?.Utilization ?? max,
             "weekly" => windows.FirstOrDefault(w => w.Key == "seven_day")?.Utilization ?? max,
             "highest" => max,
-            _ => windows.FirstOrDefault(w => w.IsActive)?.Utilization
-                 ?? windows.FirstOrDefault(w => w.Key == "five_hour")?.Utilization
-                 ?? max,
+            _ => max >= 90
+                ? max
+                : windows.FirstOrDefault(w => w.IsActive)?.Utilization
+                  ?? windows.FirstOrDefault(w => w.Key == "five_hour")?.Utilization
+                  ?? max,
         };
     }
 
