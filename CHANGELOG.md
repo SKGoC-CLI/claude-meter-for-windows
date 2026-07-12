@@ -4,13 +4,17 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.4.0] - 2026-07-12
 
 ### Changed
 - The Hotkey menu is now a picker: choose between Ctrl+Alt+U (default),
   Ctrl+Alt+C, Ctrl+Alt+M, Ctrl+Shift+U, Ctrl+Shift+M, Ctrl+U, Alt+U or Off —
   handy when the default combo clashes with another app (note: single-modifier
   combos like Ctrl+U take that key over system-wide, e.g. underline in editors)
+- Tray icon now honors an explicit "Tray icon shows" pin: choosing Session (5h)
+  or Weekly always shows that window, instead of a near-maxed window
+  (e.g. Fable Weekly at 99%) taking over the icon. "Active limit (auto)" still
+  switches to any window that reaches 90% so a binding limit isn't missed
 
 ### Fixed
 - "Start with Windows" is no longer silently re-enabled on every launch —
