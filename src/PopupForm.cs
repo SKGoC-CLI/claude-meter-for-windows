@@ -96,7 +96,7 @@ sealed class PopupForm : Form
         set { _sessionCtx = value; RecomputeLayout(); }
     }
 
-    int ContextRowHeight => _sessionCtx is not null ? S(74) : 0;
+    int ContextRowHeight => _sessionCtx is not null ? S(56) : 0;
 
     static Color ContextColor(double pct) =>
         pct >= 85 ? IconRenderer.Danger : pct >= 60 ? IconRenderer.Warning : IconRenderer.Accent;
@@ -357,7 +357,10 @@ sealed class PopupForm : Form
     int ComputeHeight()
     {
         int rows = _snapshot?.Windows.Count ?? 0;
-        int body = rows > 0 ? rows * RowHeight : S(64); // space for error/loading text
+        // zero rows with data and no error means every limit is hidden by choice
+        int body = rows > 0 ? rows * RowHeight
+            : (_snapshot is not null && _error is null) ? S(4)
+            : S(64); // space for error/loading text
         if (_showFixLogin) body += S(48);               // room for the fix-login button
         return S(16) + HeaderHeight + body + ContextRowHeight + GraphHeight + S(26) + S(8);
     }
@@ -424,7 +427,11 @@ sealed class PopupForm : Form
             y += HeaderHeight;
         }
 
-        if (_snapshot is null || _snapshot.Windows.Count == 0)
+        if (_snapshot is not null && _error is null && _snapshot.Windows.Count == 0)
+        {
+            y += S(4); // all limits hidden by user choice — just a small gap
+        }
+        else if (_snapshot is null || _snapshot.Windows.Count == 0)
         {
             string msg = _error ?? "Loading…";
             using var brush = new SolidBrush(_error is null ? MutedColor : IconRenderer.Danger);
@@ -439,6 +446,9 @@ sealed class PopupForm : Form
                 using var lastBrush = new SolidBrush(MutedColor);
                 g.DrawString(lastText, _smallFont, lastBrush, pad, y + S(30));
             }
+
+            y += S(64);
+            if (_showFixLogin) y += S(48);
         }
         else
         {
@@ -529,28 +539,45 @@ sealed class PopupForm : Form
         }
     }
 
-    /// <summary>Context-window row: fill %, project + model, bar, compact distance and session age.</summary>
+    /// <summary>
+    /// Compact context section, visually separated from the usage limits:
+    /// divider + tiny caps header, one info line, thin bar.
+    /// </summary>
     void DrawContextRow(Graphics g, SessionContext ctx, int y, int pad, int contentWidth)
     {
         var color = ContextColor(ctx.Percent);
+        using var mutedBrush = new SolidBrush(MutedColor);
 
-        using var labelBrush = new SolidBrush(LabelColor);
-        g.DrawString("Context:", _labelFont, labelBrush, pad, y);
+        // divider marks this as a different kind of information than the limits
+        using (var sepPen = new Pen(Theme.Grid, 1))
+            g.DrawLine(sepPen, pad, y + S(3), pad + contentWidth, y + S(3));
 
+        // tiny caps section header + source on the right
+        g.DrawString("SESSION CONTEXT", _tinyFont, mutedBrush, pad, y + S(8));
+        string source = $"{ctx.Project} · {ctx.Model}";
+        var srcSize = g.MeasureString(source, _tinyFont);
+        g.DrawString(source, _tinyFont, mutedBrush, pad + contentWidth - srcSize.Width, y + S(8));
+
+        // info line: percentage + compact distance + age, all small
         string pct = $"{Math.Round(ctx.Percent)}%";
         using var pctBrush = new SolidBrush(color);
-        var labelSize = g.MeasureString("Context:", _labelFont);
-        g.DrawString(pct, _valueFont, pctBrush, pad + labelSize.Width + S(2), y);
+        g.DrawString(pct, _smallFont, pctBrush, pad, y + S(21));
+        var pctSize = g.MeasureString(pct, _smallFont);
 
-        // project · model, right-aligned on the label line
-        string source = $"{ctx.Project} · {ctx.Model}";
-        using var mutedBrush = new SolidBrush(MutedColor);
-        var srcSize = g.MeasureString(source, _smallFont);
-        g.DrawString(source, _smallFont, mutedBrush, pad + contentWidth - srcSize.Width, y + S(3));
+        long compactAt = (long)(ctx.WindowSize * 0.8);
+        string compactText = ctx.Tokens < compactAt
+            ? $"~{(compactAt - ctx.Tokens) / 1000}k to auto-compact"
+            : "past auto-compact";
+        var age = DateTimeOffset.Now - ctx.StartedAt;
+        string ageText = age.TotalDays >= 1 ? $"{(int)age.TotalDays}d old"
+            : age.TotalHours >= 1 ? $"{(int)age.TotalHours}h old"
+            : $"{Math.Max(1, (int)age.TotalMinutes)}m old";
+        g.DrawString($"{compactText}  ·  {ageText}", _tinyFont, mutedBrush,
+            pad + pctSize.Width + S(6), y + S(23));
 
-        // progress bar
-        int barY = y + S(28);
-        int barH = Math.Max(4, S(6));
+        // thin bar
+        int barY = y + S(40);
+        int barH = Math.Max(3, S(4));
         using (var trackBrush = new SolidBrush(TrackColor))
             FillRounded(g, trackBrush, new Rectangle(pad, barY, contentWidth, barH), barH / 2);
         int fillW = (int)Math.Round(contentWidth * ctx.Percent / 100.0);
@@ -559,17 +586,6 @@ sealed class PopupForm : Form
             using var fillBrush = new SolidBrush(color);
             FillRounded(g, fillBrush, new Rectangle(pad, barY, fillW, barH), barH / 2);
         }
-
-        // detail line: distance to auto-compact (~80 % of the window) + session age
-        long compactAt = (long)(ctx.WindowSize * 0.8);
-        string compactText = ctx.Tokens < compactAt
-            ? $"~{(compactAt - ctx.Tokens) / 1000}k tokens until auto-compact"
-            : "past auto-compact threshold";
-        var age = DateTimeOffset.Now - ctx.StartedAt;
-        string ageText = age.TotalDays >= 1 ? $"{(int)age.TotalDays}d old"
-            : age.TotalHours >= 1 ? $"{(int)age.TotalHours}h old"
-            : $"{Math.Max(1, (int)age.TotalMinutes)}m old";
-        g.DrawString($"{compactText}  ·  {ageText}", _smallFont, mutedBrush, pad, barY + S(10));
     }
 
     /// <summary>Session-remaining line chart with hourly time axis, "now" marker and reset markers.</summary>

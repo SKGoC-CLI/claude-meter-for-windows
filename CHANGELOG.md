@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- **Context row**: shows how full the active Claude Code session's context
-  window is (read locally from the session transcript — no network), with
-  project name, model, tokens until auto-compact and session age; toggleable
-  via "Show session context"
+- **Session context section**: shows how full the active Claude Code session's
+  context window is (read locally from the session transcript — no network),
+  with project name, model, tokens until auto-compact and session age;
+  rendered as a compact, visually separated section so it is clearly not a
+  usage limit; toggleable via "Show session context"
+- **Show limits menu**: tick/untick each usage limit row individually — hidden
+  rows still count for the tray icon and alerts
 
 ## [1.2.0] - 2026-07-12
 

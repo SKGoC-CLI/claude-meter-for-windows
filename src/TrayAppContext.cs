@@ -59,6 +59,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly ToolStripMenuItem _showGraphItem;
     readonly ToolStripMenuItem _showLogoItem;
     readonly ToolStripMenuItem _showContextItem;
+    readonly ToolStripMenuItem _limitsMenu = new("Show limits");
     readonly Dictionary<string, ToolStripMenuItem> _sizeItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _opacityItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _notifyItems = new();
@@ -214,6 +215,7 @@ sealed class TrayAppContext : ApplicationContext
             nowPosMenu.DropDownItems.Add(item);
         }
 
+        menu.Items.Add(_limitsMenu);
         menu.Items.Add(_showGraphItem);
         menu.Items.Add(rangeMenu);
         menu.Items.Add(nowPosMenu);
@@ -604,10 +606,53 @@ sealed class TrayAppContext : ApplicationContext
         }
     }
 
+    /// <summary>Keeps the "Show limits" submenu in sync with the limits the API reports.</summary>
+    void SyncLimitsMenu()
+    {
+        var windows = _lastSnapshot?.Windows;
+        if (windows is null || windows.Count == 0) return;
+
+        var keys = windows.Select(w => w.Key).ToList();
+        bool changed = _limitsMenu.DropDownItems.Count != keys.Count;
+        if (!changed)
+            for (int i = 0; i < keys.Count; i++)
+                if ((_limitsMenu.DropDownItems[i].Tag as string) != keys[i]) { changed = true; break; }
+
+        if (changed)
+        {
+            _limitsMenu.DropDownItems.Clear();
+            foreach (var w in windows)
+            {
+                var item = new ToolStripMenuItem(w.Label) { Tag = w.Key };
+                item.Click += (_, _) => ToggleLimit(item);
+                _limitsMenu.DropDownItems.Add(item);
+            }
+        }
+
+        foreach (ToolStripMenuItem item in _limitsMenu.DropDownItems)
+            item.Checked = !_settings.HiddenLimits.Contains((string)item.Tag!);
+    }
+
+    void ToggleLimit(ToolStripMenuItem item)
+    {
+        string key = (string)item.Tag!;
+        if (!_settings.HiddenLimits.Remove(key)) _settings.HiddenLimits.Add(key);
+        item.Checked = !_settings.HiddenLimits.Contains(key);
+        _settings.Save();
+        UpdateUi();
+    }
+
     void UpdateUi()
     {
         bool stale = _lastError is not null && _lastSnapshot is not null;
-        _popup.UpdateData(_lastSnapshot, _lastError, stale, IsLoginError(_lastError));
+
+        // popup shows only the limits the user left ticked; tray/alerts use the full set
+        var visible = _lastSnapshot;
+        if (visible is not null && _settings.HiddenLimits.Count > 0)
+            visible = visible with { Windows = visible.Windows.Where(w => !_settings.HiddenLimits.Contains(w.Key)).ToList() };
+
+        SyncLimitsMenu();
+        _popup.UpdateData(visible, _lastError, stale, IsLoginError(_lastError));
         _fixLoginItem.Visible = IsLoginError(_lastError);
 
         SetIcon(TrayDisplayValue());

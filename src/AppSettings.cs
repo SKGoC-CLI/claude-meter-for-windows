@@ -20,6 +20,7 @@ sealed class AppSettings
     public bool CheckUpdates { get; set; } = true;       // daily GitHub release check
     public bool ShowLogo { get; set; } = true;       // logo header in the popup
     public bool ShowContext { get; set; } = true;    // context-window row for the active Claude Code session
+    public List<string> HiddenLimits { get; set; } = new(); // limit keys the user unticked in "Show limits"
 
     static readonly string FilePath =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ClaudeMeter", "settings.json");
