@@ -4,16 +4,19 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.3.0] - 2026-07-12
 
 ### Added
 - **Session context section**: shows how full the active Claude Code session's
   context window is (read locally from the session transcript — no network),
   with project name, model, tokens until auto-compact and session age;
-  rendered as a compact, visually separated section so it is clearly not a
-  usage limit; toggleable via "Show session context"
+  toggleable via "Show session context"
 - **Show limits menu**: tick/untick each usage limit row individually — hidden
   rows still count for the tray icon and alerts
+
+### Changed
+- Popup reorganized into clearly divided sections (limits / session context /
+  session graph) with matching small-caps headers
 
 ## [1.2.0] - 2026-07-12
 
@@ -71,6 +74,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Global hotkey (Ctrl+Alt+U), autostart with Windows, single instance
 - Automatic update check against GitHub Releases
 
+[1.3.0]: https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.3.0
 [1.2.0]: https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.2.0
 [1.1.0]: https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.1.0
 [1.0.1]: https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.0.1
