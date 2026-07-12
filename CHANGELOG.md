@@ -4,7 +4,7 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.2.0] - 2026-07-12
 
 ### Fixed
 - Model-scoped weekly limits (e.g. "Fable Weekly") disappeared after Anthropic
@@ -60,5 +60,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Global hotkey (Ctrl+Alt+U), autostart with Windows, single instance
 - Automatic update check against GitHub Releases
 
+[1.2.0]: https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.2.0
 [1.1.0]: https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.1.0
 [1.0.1]: https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.0.1
