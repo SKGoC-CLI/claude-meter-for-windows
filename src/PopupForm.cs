@@ -592,7 +592,11 @@ sealed class PopupForm : Form
     void DrawRemainingChart(Graphics g, int pad, int top, int contentWidth)
     {
         using var mutedBrush = new SolidBrush(MutedColor);
-        g.DrawString($"Session Graph ({_graphRangeHours}h)", _smallFont, mutedBrush, pad, top + S(2));
+
+        // divider + tiny caps header, matching the SESSION CONTEXT section style
+        using (var sepPen = new Pen(Theme.Grid, 1))
+            g.DrawLine(sepPen, pad, top + S(3), pad + contentWidth, top + S(3));
+        g.DrawString($"SESSION GRAPH ({_graphRangeHours}H)", _tinyFont, mutedBrush, pad, top + S(8));
 
         // plot starts below two text rows: title/remaining row, then reset-time labels row
         int labelGutter = S(24);
@@ -715,7 +719,7 @@ sealed class PopupForm : Form
                 double lastRemaining = Math.Clamp(100 - samples[^1][1], 0, 100);
                 string cur = $"{Math.Round(lastRemaining)}% remaining";
                 var cs = g.MeasureString(cur, _smallFont);
-                g.DrawString(cur, _smallFont, curBrush, pad + contentWidth - cs.Width, top + S(2));
+                g.DrawString(cur, _smallFont, curBrush, pad + contentWidth - cs.Width, top + S(5));
             }
         }
         else
