@@ -6,7 +6,13 @@ using System.Text.Json.Nodes;
 
 namespace ClaudeMeter;
 
-sealed record UsageWindow(string Key, string Label, double Utilization, DateTimeOffset? ResetsAt);
+sealed record UsageWindow(
+    string Key,
+    string Label,
+    double Utilization,
+    DateTimeOffset? ResetsAt,
+    bool IsActive = false,      // server marks the limit currently binding
+    string Severity = "normal");
 
 sealed record UsageSnapshot(IReadOnlyList<UsageWindow> Windows, DateTimeOffset FetchedAt);
 
@@ -69,32 +75,82 @@ sealed class UsageClient
     static List<UsageWindow> ParseWindows(JsonObject root)
     {
         var windows = new List<UsageWindow>();
-        foreach (var (key, value) in root)
+
+        // modern shape: "limits" array — includes model-scoped weeklies (e.g. Fable)
+        // that no longer appear as top-level fields
+        if (root["limits"] is JsonArray limits)
         {
-            if (value is not JsonObject obj || obj["utilization"] is null)
-                continue;
-
-            double utilization = obj["utilization"]!.GetValue<double>();
-
-            DateTimeOffset? resetsAt = null;
-            var resetsRaw = obj["resets_at"];
-            if (resetsRaw is not null)
+            foreach (var node in limits)
             {
-                var s = resetsRaw.ToString();
-                if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto))
-                    resetsAt = dto.ToLocalTime();
-                else if (long.TryParse(s, out var epoch))
-                    resetsAt = DateTimeOffset.FromUnixTimeSeconds(epoch).ToLocalTime();
-            }
+                if (node is not JsonObject lim || lim["percent"] is null) continue;
 
-            windows.Add(new UsageWindow(key, LabelFor(key), utilization, resetsAt));
+                string kind = lim["kind"]?.GetValue<string>() ?? "unknown";
+                string? model = lim["scope"]?["model"]?["display_name"]?.GetValue<string>();
+
+                // keys stay compatible with the legacy shape so history carries over
+                var (key, label) = kind switch
+                {
+                    "session" => ("five_hour", "Session (5h)"),
+                    "weekly_all" => ("seven_day", "Weekly"),
+                    "weekly_scoped" when model is not null =>
+                        ("seven_day_" + model.ToLowerInvariant().Replace(' ', '_'), model + " Weekly"),
+                    _ => (kind, Capitalize(kind.Replace('_', ' '))),
+                };
+
+                windows.Add(new UsageWindow(key, label,
+                    lim["percent"]!.GetValue<double>(),
+                    ParseResetTime(lim["resets_at"]),
+                    lim["is_active"]?.GetValue<bool>() ?? false,
+                    lim["severity"]?.GetValue<string>() ?? "normal"));
+            }
         }
 
-        // Session first, plain weekly second, model-specific weeklies after.
+        // legacy shape fallback: top-level objects holding "utilization"
+        if (windows.Count == 0)
+        {
+            foreach (var (key, value) in root)
+            {
+                if (value is not JsonObject obj || obj["utilization"] is null)
+                    continue;
+                windows.Add(new UsageWindow(key, LabelFor(key),
+                    obj["utilization"]!.GetValue<double>(), ParseResetTime(obj["resets_at"])));
+            }
+        }
+
+        // optional wallets, shown only when enabled on the account
+        if (root["extra_usage"] is JsonObject extra &&
+            (extra["is_enabled"]?.GetValue<bool>() ?? false) &&
+            extra["utilization"] is not null)
+        {
+            windows.Add(new UsageWindow("extra_usage", "Extra usage",
+                extra["utilization"]!.GetValue<double>(), null));
+        }
+
+        if (root["spend"] is JsonObject spend &&
+            (spend["enabled"]?.GetValue<bool>() ?? false) &&
+            spend["percent"] is not null)
+        {
+            windows.Add(new UsageWindow("spend", "Spend",
+                spend["percent"]!.GetValue<double>(), null,
+                false, spend["severity"]?.GetValue<string>() ?? "normal"));
+        }
+
+        // Session first, plain weekly second, model-scoped after, wallets last.
         return windows
-            .OrderBy(w => w.Key switch { "five_hour" => 0, "seven_day" => 1, _ => 2 })
+            .OrderBy(w => w.Key switch { "five_hour" => 0, "seven_day" => 1, "extra_usage" => 8, "spend" => 9, _ => 2 })
             .ThenBy(w => w.Label, StringComparer.Ordinal)
             .ToList();
+    }
+
+    static DateTimeOffset? ParseResetTime(JsonNode? node)
+    {
+        if (node is null) return null;
+        var s = node.ToString();
+        if (DateTimeOffset.TryParse(s, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var dto))
+            return dto.ToLocalTime();
+        if (long.TryParse(s, out var epoch))
+            return DateTimeOffset.FromUnixTimeSeconds(epoch).ToLocalTime();
+        return null;
     }
 
     static string LabelFor(string key) => key switch

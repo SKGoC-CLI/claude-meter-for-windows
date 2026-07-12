@@ -215,7 +215,7 @@ sealed class TrayAppContext : ApplicationContext
         menu.Items.Add(sizeMenu);
         menu.Items.Add(opacityMenu);
         var trayShowsMenu = new ToolStripMenuItem("Tray icon shows");
-        foreach (var (key, label) in new[] { ("session", "Session (5h)"), ("weekly", "Weekly"), ("highest", "Highest") })
+        foreach (var (key, label) in new[] { ("auto", "Active limit (auto)"), ("session", "Session (5h)"), ("weekly", "Weekly"), ("highest", "Highest") })
         {
             string k = key;
             var item = new ToolStripMenuItem(label, null, (_, _) => SetTrayShows(k))
@@ -596,9 +596,10 @@ sealed class TrayAppContext : ApplicationContext
     }
 
     /// <summary>
-    /// Which percentage the tray icon shows: the user's chosen window
-    /// (Session by default), except anything at ≥90 % always takes over —
-    /// at that point it is the number that matters.
+    /// Which percentage the tray icon shows. Default "auto" trusts the
+    /// server's is_active flag (the limit currently binding), falling back
+    /// to Session. Anything at ≥90 % always takes over — at that point it
+    /// is the number that matters.
     /// </summary>
     double? TrayDisplayValue()
     {
@@ -608,13 +609,15 @@ sealed class TrayAppContext : ApplicationContext
         double max = windows.Max(w => w.Utilization);
         if (max >= 90) return max;
 
-        var pick = _settings.TrayShows switch
+        return _settings.TrayShows switch
         {
-            "weekly" => windows.FirstOrDefault(w => w.Key == "seven_day"),
-            "highest" => null,
-            _ => windows.FirstOrDefault(w => w.Key == "five_hour"),
+            "session" => windows.FirstOrDefault(w => w.Key == "five_hour")?.Utilization ?? max,
+            "weekly" => windows.FirstOrDefault(w => w.Key == "seven_day")?.Utilization ?? max,
+            "highest" => max,
+            _ => windows.FirstOrDefault(w => w.IsActive)?.Utilization
+                 ?? windows.FirstOrDefault(w => w.Key == "five_hour")?.Utilization
+                 ?? max,
         };
-        return pick?.Utilization ?? max;
     }
 
     void SetTrayShows(string key)

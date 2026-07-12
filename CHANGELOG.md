@@ -6,6 +6,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+- Model-scoped weekly limits (e.g. "Fable Weekly") disappeared after Anthropic
+  moved them into the new `limits` array — the parser now reads that shape
+  first, with the legacy fields as fallback
+
+### Added
+- "Tray icon shows" gains **Active limit (auto)** — the new default trusts the
+  server's flag for whichever limit is currently binding
+- Extra-usage credits and spend are shown as extra rows when enabled on the
+  account
+
 ### Changed
 - Tray icon now shows the Session (5h) percentage by default instead of the
   highest window — new "Tray icon shows" menu (Session / Weekly / Highest);
