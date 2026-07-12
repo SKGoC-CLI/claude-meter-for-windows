@@ -18,6 +18,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   account
 
 ### Changed
+- Graph "Now" marker shows a live hh:mm:ss clock; graph title renamed to
+  "Session Graph" to reflect what it plots
 - Tray icon now shows the Session (5h) percentage by default instead of the
   highest window — new "Tray icon shows" menu (Session / Weekly / Highest);
   any window reaching 90 % still takes over the icon

@@ -513,7 +513,7 @@ sealed class PopupForm : Form
     void DrawRemainingChart(Graphics g, int pad, int top, int contentWidth)
     {
         using var mutedBrush = new SolidBrush(MutedColor);
-        g.DrawString($"Usage Graph ({_graphRangeHours}h)", _smallFont, mutedBrush, pad, top + S(2));
+        g.DrawString($"Session Graph ({_graphRangeHours}h)", _smallFont, mutedBrush, pad, top + S(2));
 
         // plot starts below two text rows: title/remaining row, then reset-time labels row
         int labelGutter = S(24);
@@ -569,9 +569,14 @@ sealed class PopupForm : Form
             g.DrawLine(nowPen, nowX, plot.Top, nowX, plot.Bottom);
         using (var nowBrush = new SolidBrush(Theme.NowText))
         {
+            // two lines: "Now" with a live hh:mm:ss clock under it
+            string clock = DateTimeOffset.Now.ToString("HH:mm:ss");
             var ns = g.MeasureString("Now", _tinyFont);
-            float nx = nowX + ns.Width + S(2) > plot.Right ? nowX - ns.Width - S(2) : nowX + S(2);
-            g.DrawString("Now", _tinyFont, nowBrush, nx, plot.Top);
+            var cs = g.MeasureString(clock, _tinyFont);
+            float widest = Math.Max(ns.Width, cs.Width);
+            bool flip = nowX + widest + S(2) > plot.Right;
+            g.DrawString("Now", _tinyFont, nowBrush, flip ? nowX - ns.Width - S(2) : nowX + S(2), plot.Top);
+            g.DrawString(clock, _tinyFont, nowBrush, flip ? nowX - cs.Width - S(2) : nowX + S(2), plot.Top + ns.Height);
         }
 
         // reset markers: green dashed line + time — future reset from the API,
