@@ -23,6 +23,13 @@ sealed class CredentialStore
 
     readonly HttpClient _http;
 
+    // polite retry: the refresh endpoint rate-limits hard, so back off on failure
+    static readonly TimeSpan InitialBackoff = TimeSpan.FromMinutes(10);
+    static readonly TimeSpan MaxBackoff = TimeSpan.FromHours(2);
+    TimeSpan _backoff = TimeSpan.Zero;
+    DateTimeOffset _nextRefreshAllowed = DateTimeOffset.MinValue;
+    string? _lastFailedRefreshToken;
+
     public CredentialStore(HttpClient http) => _http = http;
 
     public bool CredentialsFileExists => File.Exists(CredentialsPath);
@@ -45,6 +52,16 @@ sealed class CredentialStore
             Log.Warn("no refresh token available (file token expired, no usable cache)");
             return null;
         }
+
+        // a different refresh token means a fresh login — worth trying immediately
+        if (refreshToken != _lastFailedRefreshToken)
+        {
+            _backoff = TimeSpan.Zero;
+            _nextRefreshAllowed = DateTimeOffset.MinValue;
+        }
+
+        if (DateTimeOffset.Now < _nextRefreshAllowed)
+            return null; // cooling down after a failed attempt
 
         Log.Info($"file token expired; attempting refresh (using {(cached?.RefreshToken is not null ? "cached" : "file")} refresh token)");
         var refreshed = await RefreshAsync(refreshToken);
@@ -107,7 +124,9 @@ sealed class CredentialStore
             if (!response.IsSuccessStatusCode)
             {
                 string errorBody = await response.Content.ReadAsStringAsync();
-                Log.Warn($"token refresh failed: HTTP {(int)response.StatusCode} {Truncate(errorBody, 300)}");
+                ApplyBackoff(refreshToken, response.Headers.RetryAfter?.Delta
+                    ?? (response.Headers.RetryAfter?.Date is { } date ? date - DateTimeOffset.Now : null));
+                Log.Warn($"token refresh failed: HTTP {(int)response.StatusCode} {Truncate(errorBody, 300)}; next attempt after {_nextRefreshAllowed:HH:mm}");
                 return null;
             }
 
@@ -123,14 +142,30 @@ sealed class CredentialStore
 
             Directory.CreateDirectory(Path.GetDirectoryName(CachePath)!);
             File.WriteAllText(CachePath, JsonSerializer.Serialize(token));
+            _backoff = TimeSpan.Zero;
+            _nextRefreshAllowed = DateTimeOffset.MinValue;
+            _lastFailedRefreshToken = null;
             Log.Info($"token refresh OK, new expiry {DateTimeOffset.FromUnixTimeMilliseconds(token.ExpiresAtMs).ToLocalTime():HH:mm}");
             return token;
         }
         catch (Exception ex)
         {
-            Log.Warn($"token refresh exception: {ex.Message}");
+            ApplyBackoff(refreshToken, retryAfter: null);
+            Log.Warn($"token refresh exception: {ex.Message}; next attempt after {_nextRefreshAllowed:HH:mm}");
             return null;
         }
+    }
+
+    /// <summary>Honors Retry-After when given, otherwise doubles the wait (10 m → … → 2 h cap).</summary>
+    void ApplyBackoff(string refreshToken, TimeSpan? retryAfter)
+    {
+        _backoff = retryAfter is { } ra && ra > TimeSpan.Zero
+            ? (ra < MaxBackoff ? ra : MaxBackoff)
+            : (_backoff == TimeSpan.Zero
+                ? InitialBackoff
+                : TimeSpan.FromTicks(Math.Min(_backoff.Ticks * 2, MaxBackoff.Ticks)));
+        _nextRefreshAllowed = DateTimeOffset.Now + _backoff;
+        _lastFailedRefreshToken = refreshToken;
     }
 
     static string Truncate(string s, int max) => s.Length <= max ? s : s[..max] + "…";
