@@ -14,7 +14,13 @@ Claude Code's `/usage`, always one click away.
 
 ![screenshot](docs/screenshot.png)
 
+*Popup, usage graph and tray menu:*
+
 ![demo](docs/demo.gif)
+
+*Session context section, per-limit visibility and section dividers:*
+
+![demo — session context and customization](docs/demo2.gif)
 
 ## Features
 
