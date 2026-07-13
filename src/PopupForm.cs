@@ -85,6 +85,7 @@ sealed class PopupForm : Form
     int GraphHeight => _showRemainingGraph && _snapshot is { Windows.Count: > 0 } ? S(162) : 0;
 
     bool _showFixLogin;
+    bool _needsRelogin; // error is a real logout (red + Fix Login) vs a transient blip (plain stale)
     readonly Button _fixLoginButton;
 
     SessionContext? _sessionCtx;
@@ -323,12 +324,13 @@ sealed class PopupForm : Form
 
     // -- data & layout ------------------------------------------------------
 
-    public void UpdateData(UsageSnapshot? snapshot, string? error, bool stale, bool showFixLogin = false)
+    public void UpdateData(UsageSnapshot? snapshot, string? error, bool stale, bool needsRelogin = false)
     {
         _snapshot = snapshot;
         _error = error;
         _stale = stale;
-        _showFixLogin = showFixLogin && snapshot is null; // full-error view only
+        _needsRelogin = needsRelogin;
+        _showFixLogin = needsRelogin && snapshot is null; // full-error view only
         Width = ComputeWidth();
         Height = ComputeHeight();
 
@@ -434,7 +436,9 @@ sealed class PopupForm : Form
         else if (_snapshot is null || _snapshot.Windows.Count == 0)
         {
             string msg = _error ?? "Loading…";
-            using var brush = new SolidBrush(_error is null ? MutedColor : IconRenderer.Danger);
+            Color msgColor = _error is null ? MutedColor
+                : _needsRelogin ? IconRenderer.Danger : IconRenderer.Warning;
+            using var brush = new SolidBrush(msgColor);
             g.DrawString(msg, _labelFont, brush,
                 new RectangleF(pad, y, contentWidth, S(28)));
 
@@ -474,12 +478,17 @@ sealed class PopupForm : Form
     {
         float footerY = Height - S(26) - S(4);
 
+        // A real logout replaces the footer with the error; a transient blip keeps the
+        // "Updated HH:mm · ⚠ stale" line so saved usage still reads as usable, just old.
+        bool showErrorFooter = _error is not null && _snapshot is not null && _needsRelogin;
         string footer = _snapshot is null
             ? ""
             : $"Updated {_snapshot.FetchedAt:HH:mm}" + (_stale ? "  ·  ⚠ stale" : "");
-        if (_error is not null && _snapshot is not null)
-            footer = "⚠ " + Truncate(_error.Replace('\n', ' '), 32);
-        using var footerBrush = new SolidBrush(_stale || (_error is not null && _snapshot is not null) ? IconRenderer.Warning : MutedColor);
+        if (showErrorFooter)
+            footer = "⚠ " + Truncate(_error!.Replace('\n', ' '), 32);
+        // red for a real logout that needs the user; amber for merely-stale saved data
+        using var footerBrush = new SolidBrush(
+            showErrorFooter ? IconRenderer.Danger : _stale ? IconRenderer.Warning : MutedColor);
         g.DrawString(footer, _smallFont, footerBrush, pad, footerY);
 
         // live countdown to the next poll, right-aligned (hidden during any

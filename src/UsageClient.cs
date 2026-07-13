@@ -19,7 +19,17 @@ sealed record UsageSnapshot(IReadOnlyList<UsageWindow> Windows, DateTimeOffset F
 sealed class UsageException : Exception
 {
     public TimeSpan? RetryAfter { get; }
-    public UsageException(string message, TimeSpan? retryAfter = null) : base(message) => RetryAfter = retryAfter;
+
+    /// <summary>True only when the user must sign in again; false for transient
+    /// failures (rate limits, network) where the saved login still recovers on its own.</summary>
+    public bool NeedsRelogin { get; }
+
+    public UsageException(string message, TimeSpan? retryAfter = null, bool needsRelogin = false)
+        : base(message)
+    {
+        RetryAfter = retryAfter;
+        NeedsRelogin = needsRelogin;
+    }
 }
 
 /// <summary>
@@ -43,10 +53,15 @@ sealed class UsageClient
     public async Task<UsageSnapshot> FetchAsync()
     {
         if (!_credentials.CredentialsFileExists)
-            throw new UsageException("Claude Code is not logged in.");
+            throw new UsageException("Claude Code is not logged in.", needsRelogin: true);
 
-        var token = await _credentials.GetAccessTokenAsync()
-            ?? throw new UsageException("Claude login expired.");
+        var (token, needsRelogin) = await _credentials.GetAccessTokenAsync();
+        if (token is null)
+            throw needsRelogin
+                ? new UsageException("Claude login expired.", needsRelogin: true)
+                // still signed in — Claude Code's short-lived token just can't refresh
+                // right now (rate-limited). Recovers on its own; show saved usage meanwhile.
+                : new UsageException("Usage temporarily unavailable.");
 
         using var request = new HttpRequestMessage(HttpMethod.Get, UsageUrl);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
@@ -60,7 +75,7 @@ sealed class UsageClient
                 response.Headers.RetryAfter?.Delta
                     ?? (response.Headers.RetryAfter?.Date is { } date ? date - DateTimeOffset.Now : null));
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
-            throw new UsageException("Token rejected.");
+            throw new UsageException("Token rejected.", needsRelogin: true);
         if (!response.IsSuccessStatusCode)
             throw new UsageException($"Usage endpoint returned HTTP {(int)response.StatusCode}.");
 

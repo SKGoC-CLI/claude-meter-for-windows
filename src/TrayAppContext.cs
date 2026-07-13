@@ -105,6 +105,7 @@ sealed class TrayAppContext : ApplicationContext
 
     UsageSnapshot? _lastSnapshot;
     string? _lastError;
+    bool _lastErrorNeedsRelogin; // drives the red "login expired" view + Fix Login affordances
     bool _fetching;
     Icon? _currentIcon;
 
@@ -567,6 +568,7 @@ sealed class TrayAppContext : ApplicationContext
             var snapshot = await _usage.FetchAsync();
             _lastSnapshot = snapshot;
             _lastError = null;
+            _lastErrorNeedsRelogin = false;
             _history.Add(snapshot);
             NotifyIfNearLimit(snapshot);
             Log.Info("usage ok: " + string.Join(", ", snapshot.Windows.Select(w => $"{w.Label} {Math.Round(w.Utilization)}%")));
@@ -574,6 +576,7 @@ sealed class TrayAppContext : ApplicationContext
         catch (UsageException ex)
         {
             _lastError = ex.Message;
+            _lastErrorNeedsRelogin = ex.NeedsRelogin;
             Log.Warn("usage fetch failed: " + ex.Message.Replace('\n', ' '));
             if (ex.RetryAfter is { } retry && retry > TimeSpan.FromMilliseconds(PollIntervalMs))
             {
@@ -585,6 +588,7 @@ sealed class TrayAppContext : ApplicationContext
         catch (Exception ex)
         {
             _lastError = "Network error: " + ex.Message;
+            _lastErrorNeedsRelogin = false; // transient — never demand a re-login for a network blip
             Log.Error("usage fetch network error", ex);
         }
         finally
@@ -625,11 +629,6 @@ sealed class TrayAppContext : ApplicationContext
             }
         }
     }
-
-    static bool IsLoginError(string? error) =>
-        error is not null &&
-        (error.Contains("login", StringComparison.OrdinalIgnoreCase) ||
-         error.Contains("Token rejected", StringComparison.OrdinalIgnoreCase));
 
     /// <summary>Opens a terminal running the Claude CLI so the user can /login.</summary>
     void OpenLoginTerminal()
@@ -709,8 +708,8 @@ sealed class TrayAppContext : ApplicationContext
             visible = visible with { Windows = visible.Windows.Where(w => !_settings.HiddenLimits.Contains(w.Key)).ToList() };
 
         SyncLimitsMenu();
-        _popup.UpdateData(visible, _lastError, stale, IsLoginError(_lastError));
-        _fixLoginItem.Visible = IsLoginError(_lastError);
+        _popup.UpdateData(visible, _lastError, stale, _lastErrorNeedsRelogin);
+        _fixLoginItem.Visible = _lastErrorNeedsRelogin;
 
         SetIcon(TrayDisplayValue());
 

@@ -4,6 +4,18 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.4.1] - 2026-07-13
+
+### Fixed
+- The meter no longer shows a red "Claude login expired" when you are still
+  signed in. When Claude Code's short-lived token has expired and the token
+  refresh is temporarily rate-limited (or the network blips), the popup now
+  keeps showing your last-known usage as amber "stale" and recovers on its own
+  the next time you use Claude Code — instead of alarming you with a logout that
+  didn't happen. The red "login expired" view and "Fix Claude login" button are
+  now reserved for a genuine sign-out (credentials missing or the refresh token
+  actually rejected).
+
 ## [1.4.0] - 2026-07-12
 
 ### Changed

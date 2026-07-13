@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -30,21 +31,34 @@ sealed class CredentialStore
     DateTimeOffset _nextRefreshAllowed = DateTimeOffset.MinValue;
     readonly HashSet<string> _failedRefreshTokens = new();
 
+    // Was the most recent refresh failure a genuine auth rejection (revoked/invalid
+    // refresh token) rather than a transient rate-limit/network hiccup? Only the
+    // former means the user actually has to sign in again.
+    bool _lastRefreshFatal;
+
     public CredentialStore(HttpClient http) => _http = http;
 
     public bool CredentialsFileExists => File.Exists(CredentialsPath);
 
-    /// <summary>Returns a non-expired access token, or null when unavailable.</summary>
-    public async Task<string?> GetAccessTokenAsync()
+    /// <summary>
+    /// Outcome of a token request. <see cref="AccessToken"/> is null when we can't
+    /// hand back a usable token; <see cref="NeedsRelogin"/> then says whether that is
+    /// a real logged-out state (user must /login) or a transient one that recovers on
+    /// its own (rate-limited refresh, network blip — the saved login is still valid).
+    /// </summary>
+    public readonly record struct TokenResult(string? AccessToken, bool NeedsRelogin);
+
+    /// <summary>Returns a non-expired access token, or a reason it is unavailable.</summary>
+    public async Task<TokenResult> GetAccessTokenAsync()
     {
         var fileToken = ReadFileToken();
         if (fileToken is { IsExpired: false })
-            return fileToken.AccessToken;
+            return new TokenResult(fileToken.AccessToken, NeedsRelogin: false);
 
         // Claude Code's token is expired (or file missing) — try our own cached refresh.
         var cached = ReadCachedToken();
         if (cached is { IsExpired: false })
-            return cached.AccessToken;
+            return new TokenResult(cached.AccessToken, NeedsRelogin: false);
 
         // Our cache may hold a rotated token newer than Claude Code's file, but a
         // fresh /login in Claude Code revokes our family — so keep both as candidates
@@ -54,8 +68,9 @@ sealed class CredentialStore
         if (fileToken?.RefreshToken is { Length: > 0 } fileRt && !candidates.Contains(fileRt)) candidates.Add(fileRt);
         if (candidates.Count == 0)
         {
+            // No refresh token anywhere: a stored login this broken needs a real /login.
             Log.Warn("no refresh token available (file token expired, no usable cache)");
-            return null;
+            return new TokenResult(null, NeedsRelogin: true);
         }
 
         // an untried token (fresh login or rotation) is worth trying immediately
@@ -63,14 +78,18 @@ sealed class CredentialStore
         if (refreshToken is null)
         {
             if (DateTimeOffset.Now < _nextRefreshAllowed)
-                return null; // every candidate failed recently — cooling down
+                // every candidate failed recently — cooling down. Carry the last verdict
+                // so a rate-limited wait stays "transient", not a false "login expired".
+                return new TokenResult(null, NeedsRelogin: _lastRefreshFatal);
             _failedRefreshTokens.Clear(); // backoff elapsed; give them another chance
             refreshToken = candidates[0];
         }
 
         Log.Info($"file token expired; attempting refresh (using {(refreshToken == cached?.RefreshToken ? "cached" : "file")} refresh token)");
         var refreshed = await RefreshAsync(refreshToken);
-        return refreshed?.AccessToken;
+        if (refreshed is not null)
+            return new TokenResult(refreshed.AccessToken, NeedsRelogin: false);
+        return new TokenResult(null, NeedsRelogin: _lastRefreshFatal);
     }
 
     sealed record TokenInfo(string AccessToken, string? RefreshToken, long ExpiresAtMs)
@@ -129,6 +148,12 @@ sealed class CredentialStore
             if (!response.IsSuccessStatusCode)
             {
                 string errorBody = await response.Content.ReadAsStringAsync();
+                // A 400/401 (typically invalid_grant) means the refresh token is dead —
+                // a fresh /login is the only cure. A 429 or 5xx is transient: the saved
+                // login is still valid and will recover once the endpoint lets us in.
+                _lastRefreshFatal =
+                    response.StatusCode is HttpStatusCode.BadRequest or HttpStatusCode.Unauthorized
+                    || errorBody.Contains("invalid_grant", StringComparison.OrdinalIgnoreCase);
                 ApplyBackoff(refreshToken, response.Headers.RetryAfter?.Delta
                     ?? (response.Headers.RetryAfter?.Date is { } date ? date - DateTimeOffset.Now : null));
                 Log.Warn($"token refresh failed: HTTP {(int)response.StatusCode} {Truncate(errorBody, 300)}; next attempt after {_nextRefreshAllowed:HH:mm}");
@@ -150,11 +175,13 @@ sealed class CredentialStore
             _backoff = TimeSpan.Zero;
             _nextRefreshAllowed = DateTimeOffset.MinValue;
             _failedRefreshTokens.Clear();
+            _lastRefreshFatal = false;
             Log.Info($"token refresh OK, new expiry {DateTimeOffset.FromUnixTimeMilliseconds(token.ExpiresAtMs).ToLocalTime():HH:mm}");
             return token;
         }
         catch (Exception ex)
         {
+            _lastRefreshFatal = false; // a network/timeout blip is transient, not a logout
             ApplyBackoff(refreshToken, retryAfter: null);
             Log.Warn($"token refresh exception: {ex.Message}; next attempt after {_nextRefreshAllowed:HH:mm}");
             return null;
