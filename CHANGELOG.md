@@ -6,15 +6,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [1.4.1] - 2026-07-13
 
+### Changed
+- The meter no longer refreshes Claude Code's OAuth token itself — the credentials
+  file is now strictly read-only. This removes all traffic to the rate-limited token
+  endpoint and guarantees the meter can never disrupt Claude Code's own login session.
+  While Claude Code keeps its token fresh the meter updates as usual; when Claude Code
+  has been closed long enough for the token to expire, the meter shows its last-known
+  usage as stale and updates again the next time you use Claude Code.
+
 ### Fixed
-- The meter no longer shows a red "Claude login expired" when you are still
-  signed in. When Claude Code's short-lived token has expired and the token
-  refresh is temporarily rate-limited (or the network blips), the popup now
-  keeps showing your last-known usage as amber "stale" and recovers on its own
-  the next time you use Claude Code — instead of alarming you with a logout that
-  didn't happen. The red "login expired" view and "Fix Claude login" button are
-  now reserved for a genuine sign-out (credentials missing or the refresh token
-  actually rejected).
+- The meter no longer shows a red "Claude login expired" when you are still signed in.
+  That alarming state (and the "Fix Claude login" button) is now reserved for a genuine
+  sign-out — the credentials file being gone, or the usage endpoint rejecting the token
+  — while temporary conditions just keep showing your last-known usage as amber "stale".
 
 ## [1.4.0] - 2026-07-12
 

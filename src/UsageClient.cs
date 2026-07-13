@@ -55,7 +55,7 @@ sealed class UsageClient
         if (!_credentials.CredentialsFileExists)
             throw new UsageException("Claude Code is not logged in.", needsRelogin: true);
 
-        var (token, needsRelogin) = await _credentials.GetAccessTokenAsync();
+        var (token, needsRelogin) = _credentials.GetAccessToken();
         if (token is null)
             throw needsRelogin
                 ? new UsageException("Claude login expired.", needsRelogin: true)

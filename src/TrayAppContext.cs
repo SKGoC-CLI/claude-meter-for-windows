@@ -111,7 +111,7 @@ sealed class TrayAppContext : ApplicationContext
 
     public TrayAppContext()
     {
-        _usage = new UsageClient(_http, new CredentialStore(_http));
+        _usage = new UsageClient(_http, new CredentialStore());
 
         _autostartItem = new ToolStripMenuItem("Start with Windows", null, OnToggleAutostart)
         {

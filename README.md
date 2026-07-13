@@ -88,8 +88,10 @@ The app calls Anthropic's OAuth usage endpoint
 (`https://api.anthropic.com/api/oauth/usage`) with the token from your local
 Claude Code login — the same source that powers `/usage`. Usage windows are
 parsed dynamically, so new limit types added by Anthropic appear automatically.
-If the token expires, it is refreshed **in-memory only** and cached under
-`%APPDATA%\ClaudeMeter\` — Claude Code's credentials file is treated as read-only.
+If the token expires (for example, when Claude Code has been closed for a while),
+the app does not refresh it — Claude Code's credentials file is strictly read-only.
+The meter shows your last-known usage as stale and updates again automatically
+the next time you use Claude Code.
 
 **Privacy:** no telemetry, no third-party servers. The only network calls are to
 Anthropic's own API. Settings and history live in `%APPDATA%\ClaudeMeter\`.
