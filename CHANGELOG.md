@@ -4,21 +4,29 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [1.4.1] - 2026-07-13
+## [1.5.0] - 2026-07-13
+
+### Added
+- The meter now also reads the login from the **Claude Desktop app**, not just the
+  Claude Code CLI. If you work in Desktop's Code tab and never run the CLI, the CLI
+  token would go stale within hours; the meter now falls back to Desktop's own token
+  (which Desktop keeps fresh), so your usage stays live without ever opening a terminal.
+  Read-only like the CLI source — it decrypts Desktop's local token cache in place and
+  never writes or refreshes anything.
 
 ### Changed
-- The meter no longer refreshes Claude Code's OAuth token itself — the credentials
-  file is now strictly read-only. This removes all traffic to the rate-limited token
+- The meter no longer refreshes Claude Code's OAuth token itself — every login source
+  is now strictly read-only. This removes all traffic to the rate-limited token
   endpoint and guarantees the meter can never disrupt Claude Code's own login session.
-  While Claude Code keeps its token fresh the meter updates as usual; when Claude Code
-  has been closed long enough for the token to expire, the meter shows its last-known
-  usage as stale and updates again the next time you use Claude Code.
+  While a login source keeps its token fresh the meter updates as usual; when every
+  source has gone stale, the meter shows its last-known usage as stale and updates
+  again the next time you use Claude.
 
 ### Fixed
 - The meter no longer shows a red "Claude login expired" when you are still signed in.
   That alarming state (and the "Fix Claude login" button) is now reserved for a genuine
-  sign-out — the credentials file being gone, or the usage endpoint rejecting the token
-  — while temporary conditions just keep showing your last-known usage as amber "stale".
+  sign-out — no login found at all, or the usage endpoint rejecting the token — while
+  temporary conditions just keep showing your last-known usage as amber "stale".
 
 ## [1.4.0] - 2026-07-12
 

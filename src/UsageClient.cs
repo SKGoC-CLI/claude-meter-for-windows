@@ -52,7 +52,7 @@ sealed class UsageClient
 
     public async Task<UsageSnapshot> FetchAsync()
     {
-        if (!_credentials.CredentialsFileExists)
+        if (!_credentials.HasAnyLogin)
             throw new UsageException("Claude Code is not logged in.", needsRelogin: true);
 
         var (token, needsRelogin) = _credentials.GetAccessToken();

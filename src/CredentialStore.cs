@@ -3,19 +3,22 @@ using System.Text.Json.Nodes;
 namespace ClaudeMeter;
 
 /// <summary>
-/// Reads a Claude OAuth access token from Claude Code's credentials file.
-/// The file is treated as strictly read-only: we never refresh or rotate the
-/// token ourselves, so we can't invalidate Claude Code's own login (refresh-token
-/// rotation would risk a token-family revocation — anthropics/claude-code#54443).
-/// When the token has expired, Claude Code refreshes it the next time you use it;
-/// until then the meter simply shows its last-known usage as stale.
+/// Provides a Claude OAuth access token from whichever local login is fresh:
+/// the Claude Code CLI's credentials file, or — for people who work in the Claude
+/// Desktop app and never touch the CLI — Desktop's own token cache
+/// (<see cref="DesktopCredentialStore"/>). Both sources are strictly read-only:
+/// we never refresh or rotate a token, so we can't invalidate anyone's login
+/// (refresh-token rotation would risk a family revocation — anthropics/claude-code#54443).
+/// When every source is expired we simply show the last-known usage as stale until
+/// Claude Code (or Desktop) refreshes its own token the next time you use it.
 /// </summary>
 sealed class CredentialStore
 {
     static readonly string CredentialsPath =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", ".credentials.json");
 
-    public bool CredentialsFileExists => File.Exists(CredentialsPath);
+    /// <summary>True when any local login exists (CLI file or Desktop cache).</summary>
+    public bool HasAnyLogin => File.Exists(CredentialsPath) || DesktopCredentialStore.Exists;
 
     /// <summary>
     /// Outcome of a token request. <see cref="AccessToken"/> is null when we can't
@@ -25,20 +28,25 @@ sealed class CredentialStore
     /// </summary>
     public readonly record struct TokenResult(string? AccessToken, bool NeedsRelogin);
 
-    /// <summary>Returns Claude Code's current access token, or a reason it is unavailable.</summary>
+    /// <summary>Returns the freshest available access token, or a reason none is usable.</summary>
     public TokenResult GetAccessToken()
     {
+        // Prefer the CLI file when its token is live, otherwise fall back to Desktop's
+        // (kept fresh by the Desktop app). Either is a valid key to the same account's usage.
         var fileToken = ReadFileToken();
         if (fileToken is { IsExpired: false })
             return new TokenResult(fileToken.AccessToken, NeedsRelogin: false);
 
-        // Either the file couldn't be read/parsed (Claude Code may be mid-write), or the
-        // token is expired. Both are transient from our read-only vantage point — Claude
-        // Code refreshes the file the next time it runs. We deliberately never raise
-        // "needs relogin" from the file alone, because a busy/torn file is indistinguishable
-        // from a revoked one here; the authoritative logout signals live elsewhere and stay
-        // reliable: a missing file (CredentialsFileExists) and a 401/403 from the usage
-        // endpoint (UsageClient). So an expired/unreadable file just shows stale usage.
+        if (DesktopCredentialStore.TryRead() is { } dt &&
+            DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() <= dt.ExpiresAtMs - 60_000)
+            return new TokenResult(dt.AccessToken, NeedsRelogin: false);
+
+        // Every source is expired or unreadable (a source may be mid-write). This is
+        // transient from our read-only vantage point — Claude Code / Desktop refreshes its
+        // own token next time you use it. We deliberately never raise "needs relogin" from
+        // reading the stores, because a busy/torn file is indistinguishable from a revoked
+        // one here; the authoritative logout signals live elsewhere and stay reliable: no
+        // login at all (HasAnyLogin) and a 401/403 from the usage endpoint (UsageClient).
         return new TokenResult(null, NeedsRelogin: false);
     }
 
