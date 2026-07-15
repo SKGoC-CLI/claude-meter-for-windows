@@ -44,10 +44,11 @@ static class ContextMonitor
             long tokens = input + cacheCreate + cacheRead;
             if (tokens <= 0) return null;
 
-            long window = tokens > 200_000 ? 1_000_000 : 200_000;
-
             string modelId = LastString(tail, "\"model\":\\s*\"([^\"]+)\"") ?? "";
-            if (modelId.Contains("[1m]")) window = 1_000_000;
+            // ponytail: transcript ไม่ระบุ window; Opus/Sonnet ปัจจุบัน = 1M, Haiku = 200k.
+            // เดาจาก token ไม่ได้ (จะผิดทุกครั้งที่ยังไม่ถึง 200k บน account ที่ได้ 1M)
+            long window = modelId.Contains("haiku", StringComparison.OrdinalIgnoreCase) ? 200_000 : 1_000_000;
+            if (tokens > window) window = 1_000_000; // safety: ห้าม % เกิน 100 เพราะเดา window ต่ำไป
 
             string cwd = LastString(tail, "\"cwd\":\\s*\"((?:[^\"\\\\]|\\\\.)+)\"") ?? "";
             string project = cwd.Length > 0

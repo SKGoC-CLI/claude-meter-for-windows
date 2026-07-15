@@ -4,6 +4,15 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- **SESSION CONTEXT percentage was wrong** on accounts with a 1M context window.
+  The meter guessed the window from the token count (`>200k ⇒ 1M, else 200k`), so a
+  session at 168k tokens on a 1M window showed **84%** instead of the correct **17%**.
+  The window is now inferred from the model (Opus/Sonnet ⇒ 1M, Haiku ⇒ 200k), matching
+  what Claude itself reports.
+
 ## [1.5.0] - 2026-07-13
 
 ### Added
