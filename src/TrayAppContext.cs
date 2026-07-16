@@ -207,7 +207,7 @@ sealed class TrayAppContext : ApplicationContext
         menu.Items.Add(_fixLoginItem);
         menu.Items.Add(new ToolStripMenuItem("Refresh now", null, async (_, _) => await RefreshAsync()));
         menu.Items.Add(new ToolStripSeparator());
-        _showGraphItem = new ToolStripMenuItem("Show Usage Remaining Graph", null, OnToggleShowGraph)
+        _showGraphItem = new ToolStripMenuItem("Show", null, OnToggleShowGraph)
         {
             Checked = _settings.ShowRemainingGraph,
         };
@@ -217,14 +217,12 @@ sealed class TrayAppContext : ApplicationContext
             Checked = _settings.ShowLogo,
         };
 
-        _showContextItem = new ToolStripMenuItem("Show session context", null, OnToggleShowContext)
+        _showContextItem = new ToolStripMenuItem("Show", null, OnToggleShowContext)
         {
             Checked = _settings.ShowContext,
         };
 
-        menu.Items.Add(_alwaysOnTopItem);
-        menu.Items.Add(_clickThroughItem);
-        var rangeMenu = new ToolStripMenuItem("Graph range");
+        var rangeMenu = new ToolStripMenuItem("Range");
         foreach (var hours in new[] { 24, 12 })
         {
             int h = hours;
@@ -248,11 +246,7 @@ sealed class TrayAppContext : ApplicationContext
             nowPosMenu.DropDownItems.Add(item);
         }
 
-        menu.Items.Add(_limitsMenu);
-        menu.Items.Add(_showGraphItem);
-        menu.Items.Add(rangeMenu);
-        menu.Items.Add(nowPosMenu);
-        var maxContextMenu = new ToolStripMenuItem("Context: max shown");
+        var maxContextMenu = new ToolStripMenuItem("Max shown");
         foreach (var n in new[] { 1, 2, 3, 5 })
         {
             int c = n;
@@ -264,7 +258,7 @@ sealed class TrayAppContext : ApplicationContext
             maxContextMenu.DropDownItems.Add(item);
         }
 
-        var contextSortMenu = new ToolStripMenuItem("Context: sort by");
+        var contextSortMenu = new ToolStripMenuItem("Sort by");
         foreach (var (key, label) in new[] { ("active", "Last active"), ("name", "Name (A–Z)"), ("context", "Context (high→low)") })
         {
             string k = key;
@@ -276,12 +270,6 @@ sealed class TrayAppContext : ApplicationContext
             contextSortMenu.DropDownItems.Add(item);
         }
 
-        menu.Items.Add(_showContextItem);
-        menu.Items.Add(maxContextMenu);
-        menu.Items.Add(contextSortMenu);
-        menu.Items.Add(_showLogoItem);
-        menu.Items.Add(sizeMenu);
-        menu.Items.Add(opacityMenu);
         var trayShowsMenu = new ToolStripMenuItem("Tray icon shows");
         foreach (var (key, label) in new[] { ("auto", "Active limit (auto)"), ("session", "Session (5h)"), ("weekly", "Weekly"), ("highest", "Highest") })
         {
@@ -294,15 +282,42 @@ sealed class TrayAppContext : ApplicationContext
             trayShowsMenu.DropDownItems.Add(item);
         }
 
-        menu.Items.Add(themeMenu);
+        // feature submenus: each popup section owns its toggle + its options
+        var sessionContextMenu = new ToolStripMenuItem("Session context");
+        sessionContextMenu.DropDownItems.Add(_showContextItem);
+        sessionContextMenu.DropDownItems.Add(maxContextMenu);
+        sessionContextMenu.DropDownItems.Add(contextSortMenu);
+
+        var graphMenu = new ToolStripMenuItem("Usage graph");
+        graphMenu.DropDownItems.Add(_showGraphItem);
+        graphMenu.DropDownItems.Add(rangeMenu);
+        graphMenu.DropDownItems.Add(nowPosMenu);
+
+        var appearanceMenu = new ToolStripMenuItem("Appearance");
+        appearanceMenu.DropDownItems.Add(themeMenu);
+        appearanceMenu.DropDownItems.Add(sizeMenu);
+        appearanceMenu.DropDownItems.Add(opacityMenu);
+        appearanceMenu.DropDownItems.Add(_showLogoItem);
+
+        // popup content
+        menu.Items.Add(_limitsMenu);
+        menu.Items.Add(sessionContextMenu);
+        menu.Items.Add(graphMenu);
+        menu.Items.Add(appearanceMenu);
+        menu.Items.Add(new ToolStripSeparator());
+        // window & tray behavior
+        menu.Items.Add(_alwaysOnTopItem);
+        menu.Items.Add(_clickThroughItem);
         menu.Items.Add(trayShowsMenu);
         menu.Items.Add(notifyMenu);
         menu.Items.Add(hotkeyMenu);
         menu.Items.Add(new ToolStripSeparator());
+        // app
         menu.Items.Add(_autostartItem);
         menu.Items.Add(_updateCheckItem);
         menu.Items.Add(new ToolStripMenuItem("Open log folder", null, (_, _) => OpenLogFolder()));
         menu.Items.Add(new ToolStripMenuItem("About…", null, (_, _) => ShowAbout()));
+        menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => ExitThread()));
 
         // restore persisted popup state

@@ -65,7 +65,7 @@ a single self-contained exe, no .NET installation required.
 | Action | Result |
 |---|---|
 | Left-click tray icon | Show/hide the usage popup |
-| Right-click tray icon | Refresh now · Always on top · Pin (Click-through) · Show Usage Remaining Graph · Show logo · Size ▸ · Opacity ▸ · Notify at ▸ · Start with Windows · About… · Exit |
+| Right-click tray icon | Refresh now · Show limits ▸ · Session context ▸ · Usage graph ▸ · Appearance ▸ · Always on top · Pin (Click-through) · Tray icon shows ▸ · Notify at ▸ · Hotkey ▸ · Start with Windows · About… · Exit |
 | Drag (while pinned) | Move the popup anywhere; position is remembered |
 | Esc | Hide the popup |
 
