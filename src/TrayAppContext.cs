@@ -89,6 +89,8 @@ sealed class TrayAppContext : ApplicationContext
     readonly Dictionary<int, ToolStripMenuItem> _notifyItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _rangeItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _nowPosItems = new();
+    readonly Dictionary<int, ToolStripMenuItem> _maxContextItems = new();
+    readonly Dictionary<string, ToolStripMenuItem> _contextSortItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _themeItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _trayShowsItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _hotkeyItems = new();
@@ -250,7 +252,33 @@ sealed class TrayAppContext : ApplicationContext
         menu.Items.Add(_showGraphItem);
         menu.Items.Add(rangeMenu);
         menu.Items.Add(nowPosMenu);
+        var maxContextMenu = new ToolStripMenuItem("Context: max shown");
+        foreach (var n in new[] { 1, 2, 3, 5 })
+        {
+            int c = n;
+            var item = new ToolStripMenuItem(c.ToString(), null, (_, _) => SetMaxContext(c))
+            {
+                Checked = _settings.MaxContextSessions == c,
+            };
+            _maxContextItems[c] = item;
+            maxContextMenu.DropDownItems.Add(item);
+        }
+
+        var contextSortMenu = new ToolStripMenuItem("Context: sort by");
+        foreach (var (key, label) in new[] { ("active", "Last active"), ("name", "Name (A–Z)"), ("context", "Context (high→low)") })
+        {
+            string k = key;
+            var item = new ToolStripMenuItem(label, null, (_, _) => SetContextSort(k))
+            {
+                Checked = _settings.ContextSort == k,
+            };
+            _contextSortItems[k] = item;
+            contextSortMenu.DropDownItems.Add(item);
+        }
+
         menu.Items.Add(_showContextItem);
+        menu.Items.Add(maxContextMenu);
+        menu.Items.Add(contextSortMenu);
         menu.Items.Add(_showLogoItem);
         menu.Items.Add(sizeMenu);
         menu.Items.Add(opacityMenu);
@@ -369,11 +397,27 @@ sealed class TrayAppContext : ApplicationContext
         _settings.Save();
     }
 
+    void SetMaxContext(int n)
+    {
+        _settings.MaxContextSessions = n;
+        foreach (var (k, item) in _maxContextItems) item.Checked = k == n;
+        RefreshSessionContext();
+        _settings.Save();
+    }
+
+    void SetContextSort(string sort)
+    {
+        _settings.ContextSort = sort;
+        foreach (var (k, item) in _contextSortItems) item.Checked = k == sort;
+        RefreshSessionContext();
+        _settings.Save();
+    }
+
     void RefreshSessionContext()
     {
-        _popup.SessionCtx = _settings.ShowContext
-            ? ContextMonitor.GetActive(TimeSpan.FromMinutes(10))
-            : null;
+        _popup.Sessions = _settings.ShowContext
+            ? ContextMonitor.GetActive(TimeSpan.FromMinutes(10), _settings.MaxContextSessions, _settings.ContextSort)
+            : Array.Empty<SessionContext>();
     }
 
     void OnToggleShowLogo(object? sender, EventArgs e)

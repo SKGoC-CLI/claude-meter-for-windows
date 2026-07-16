@@ -21,6 +21,7 @@ sealed class PopupForm : Form
     Font _labelFont = null!;
     Font _valueFont = null!;
     Font _smallFont = null!;
+    Font _smallBoldFont = null!;
     Font _tinyFont = null!;
     Font _headerFont = null!;
 
@@ -88,16 +89,18 @@ sealed class PopupForm : Form
     bool _needsRelogin; // error is a real logout (red + Fix Login) vs a transient blip (plain stale)
     readonly Button _fixLoginButton;
 
-    SessionContext? _sessionCtx;
+    IReadOnlyList<SessionContext> _sessions = Array.Empty<SessionContext>();
 
-    /// <summary>Context-window info of the active Claude Code session (null hides the row).</summary>
-    public SessionContext? SessionCtx
+    /// <summary>Context-window info of the active Claude Code sessions (empty hides the section).</summary>
+    public IReadOnlyList<SessionContext> Sessions
     {
-        get => _sessionCtx;
-        set { _sessionCtx = value; RecomputeLayout(); }
+        get => _sessions;
+        set { _sessions = value ?? Array.Empty<SessionContext>(); RecomputeLayout(); }
     }
 
-    int ContextRowHeight => _sessionCtx is not null ? S(56) : 0;
+    int ContextHeaderHeight => S(20);
+    int ContextBlockHeight => S(55);
+    int ContextSectionHeight => _sessions.Count > 0 ? ContextHeaderHeight + _sessions.Count * ContextBlockHeight : 0;
 
     static Color ContextColor(double pct) =>
         pct >= 85 ? IconRenderer.Danger : pct >= 60 ? IconRenderer.Warning : IconRenderer.Accent;
@@ -173,11 +176,13 @@ sealed class PopupForm : Form
         _labelFont?.Dispose();
         _valueFont?.Dispose();
         _smallFont?.Dispose();
+        _smallBoldFont?.Dispose();
         _tinyFont?.Dispose();
         _headerFont?.Dispose();
         _labelFont = new Font("Segoe UI", 10f * scale);
         _valueFont = new Font("Segoe UI", 10f * scale, FontStyle.Bold);
         _smallFont = new Font("Segoe UI", 8f * scale);
+        _smallBoldFont = new Font("Segoe UI", 8f * scale, FontStyle.Bold);
         _tinyFont = new Font("Segoe UI", 7f * scale);
         _headerFont = new Font("Segoe UI", 10f * scale, FontStyle.Bold);
         StyleFixLoginButton(); // the button held the old (now disposed) label font
@@ -206,6 +211,8 @@ sealed class PopupForm : Form
                 if (remaining > TimeSpan.Zero)
                     resetW = g.MeasureString(ResetText(resets, remaining), _smallFont).Width;
             }
+            else if (w.Key == "five_hour")
+                resetW = g.MeasureString(NextUseHint, _smallFont).Width;
             widest = Math.Max(widest, labelW + S(2) + pctW + S(16) + resetW);
         }
 
@@ -217,6 +224,8 @@ sealed class PopupForm : Form
         int width = (int)Math.Ceiling(widest) + S(16) * 2;
         return Math.Clamp(width, min, S(560));
     }
+
+    const string NextUseHint = "resets 5h after next use";
 
     static string ResetText(DateTimeOffset resets, TimeSpan remaining) =>
         remaining.TotalHours >= 24
@@ -364,7 +373,7 @@ sealed class PopupForm : Form
             : (_snapshot is not null && _error is null) ? S(4)
             : S(64); // space for error/loading text
         if (_showFixLogin) body += S(48);               // room for the fix-login button
-        return S(16) + HeaderHeight + body + ContextRowHeight + GraphHeight + S(26) + S(8);
+        return S(16) + HeaderHeight + body + ContextSectionHeight + GraphHeight + S(26) + S(8);
     }
 
     public void ShowNearTray()
@@ -463,10 +472,10 @@ sealed class PopupForm : Form
             }
         }
 
-        if (ContextRowHeight > 0)
+        if (ContextSectionHeight > 0)
         {
-            DrawContextRow(g, _sessionCtx!, y, pad, contentWidth);
-            y += ContextRowHeight;
+            DrawContextSection(g, y, pad, contentWidth);
+            y += ContextSectionHeight;
         }
 
         if (GraphHeight > 0) DrawRemainingChart(g, pad, y, contentWidth);
@@ -532,6 +541,14 @@ sealed class PopupForm : Form
                 g.DrawString(resetText, _smallFont, mutedBrush, resetX, resetY);
             }
         }
+        else if (w.Key == "five_hour")
+        {
+            // window reset & idle: no active 5h window yet, so the server has no reset time —
+            // the next window starts (and the 5h clock begins) on your next use
+            using var mutedBrush = new SolidBrush(MutedColor);
+            var size = g.MeasureString(NextUseHint, _smallFont);
+            g.DrawString(NextUseHint, _smallFont, mutedBrush, pad + contentWidth - size.Width, y + S(3));
+        }
 
         // progress bar
         int barY = y + S(28);
@@ -549,30 +566,49 @@ sealed class PopupForm : Form
     }
 
     /// <summary>
-    /// Compact context section, visually separated from the usage limits:
-    /// divider + tiny caps header, one info line, thin bar.
+    /// Context section, visually separated from the usage limits: one divider + tiny
+    /// caps header, then one compact block per active session (current/capacity tokens,
+    /// distance to auto-compact, age, thin bar).
     /// </summary>
-    void DrawContextRow(Graphics g, SessionContext ctx, int y, int pad, int contentWidth)
+    void DrawContextSection(Graphics g, int y, int pad, int contentWidth)
+    {
+        using var mutedBrush = new SolidBrush(MutedColor);
+
+        using (var sepPen = new Pen(Theme.Grid, 1))
+            g.DrawLine(sepPen, pad, y + S(3), pad + contentWidth, y + S(3));
+        string header = _sessions.Count > 1 ? $"SESSION CONTEXT ({_sessions.Count})" : "SESSION CONTEXT";
+        g.DrawString(header, _tinyFont, mutedBrush, pad, y + S(8));
+
+        int by = y + ContextHeaderHeight;
+        foreach (var ctx in _sessions)
+        {
+            DrawContextBlock(g, ctx, by, pad, contentWidth);
+            by += ContextBlockHeight;
+        }
+    }
+
+    void DrawContextBlock(Graphics g, SessionContext ctx, int y, int pad, int contentWidth)
     {
         var color = ContextColor(ctx.Percent);
         using var mutedBrush = new SolidBrush(MutedColor);
-
-        // divider marks this as a different kind of information than the limits
-        using (var sepPen = new Pen(Theme.Grid, 1))
-            g.DrawLine(sepPen, pad, y + S(3), pad + contentWidth, y + S(3));
-
-        // tiny caps section header + source on the right
-        g.DrawString("SESSION CONTEXT", _tinyFont, mutedBrush, pad, y + S(8));
-        string source = $"{ctx.Project} · {ctx.Model}";
-        var srcSize = g.MeasureString(source, _tinyFont);
-        g.DrawString(source, _tinyFont, mutedBrush, pad + contentWidth - srcSize.Width, y + S(8));
-
-        // info line: percentage + compact distance + age, all small
-        string pct = $"{Math.Round(ctx.Percent)}%";
         using var pctBrush = new SolidBrush(color);
-        g.DrawString(pct, _smallFont, pctBrush, pad, y + S(21));
-        var pctSize = g.MeasureString(pct, _smallFont);
 
+        // breathing room above each block
+        y += S(5);
+
+        // line 1: bold session name, then percent (left); current/capacity tokens (right)
+        using var labelBrush = new SolidBrush(LabelColor);
+        string name = $"{ctx.Project} · {ctx.Model}";
+        g.DrawString(name, _smallBoldFont, labelBrush, pad, y);
+        var nameSize = g.MeasureString(name, _smallBoldFont);
+        string pct = $"{Math.Round(ctx.Percent)}%";
+        g.DrawString(pct, _smallBoldFont, pctBrush, pad + nameSize.Width + S(6), y);
+
+        string tokens = $"{FmtTokens(ctx.Tokens)} / {FmtTokens(ctx.WindowSize)}";
+        var tokSize = g.MeasureString(tokens, _smallFont);
+        g.DrawString(tokens, _smallFont, mutedBrush, pad + contentWidth - tokSize.Width, y);
+
+        // line 2: distance to auto-compact + age
         long compactAt = (long)(ctx.WindowSize * 0.8);
         string compactText = ctx.Tokens < compactAt
             ? $"~{(compactAt - ctx.Tokens) / 1000}k to auto-compact"
@@ -581,11 +617,10 @@ sealed class PopupForm : Form
         string ageText = age.TotalDays >= 1 ? $"{(int)age.TotalDays}d old"
             : age.TotalHours >= 1 ? $"{(int)age.TotalHours}h old"
             : $"{Math.Max(1, (int)age.TotalMinutes)}m old";
-        g.DrawString($"{compactText}  ·  {ageText}", _tinyFont, mutedBrush,
-            pad + pctSize.Width + S(6), y + S(23));
+        g.DrawString($"{compactText}  ·  {ageText}", _tinyFont, mutedBrush, pad, y + S(17));
 
         // thin bar
-        int barY = y + S(40);
+        int barY = y + S(37);
         int barH = Math.Max(3, S(4));
         using (var trackBrush = new SolidBrush(TrackColor))
             FillRounded(g, trackBrush, new Rectangle(pad, barY, contentWidth, barH), barH / 2);
@@ -596,6 +631,12 @@ sealed class PopupForm : Form
             FillRounded(g, fillBrush, new Rectangle(pad, barY, fillW, barH), barH / 2);
         }
     }
+
+    /// <summary>Compact token count: 169k, 1.0M, or the raw number below 1000.</summary>
+    static string FmtTokens(long n) =>
+        n >= 1_000_000 ? $"{n / 1_000_000.0:0.0}M"
+        : n >= 1_000 ? $"{Math.Round(n / 1000.0)}k"
+        : n.ToString();
 
     /// <summary>Session-remaining line chart with hourly time axis, "now" marker and reset markers.</summary>
     void DrawRemainingChart(Graphics g, int pad, int top, int contentWidth)
@@ -762,6 +803,7 @@ sealed class PopupForm : Form
             _labelFont.Dispose();
             _valueFont.Dispose();
             _smallFont.Dispose();
+            _smallBoldFont.Dispose();
             _tinyFont.Dispose();
             _headerFont.Dispose();
         }

@@ -22,6 +22,8 @@ sealed class AppSettings
     public bool AutostartConfigured { get; set; }        // autostart already defaulted on first run (or user chose)
     public bool ShowLogo { get; set; } = true;       // logo header in the popup
     public bool ShowContext { get; set; } = true;    // context-window row for the active Claude Code session
+    public int MaxContextSessions { get; set; } = 3; // how many session-context blocks to show at once
+    public string ContextSort { get; set; } = "active"; // active (last write) | name | context (% high→low)
     public List<string> HiddenLimits { get; set; } = new(); // limit keys the user unticked in "Show limits"
 
     static readonly string FilePath =

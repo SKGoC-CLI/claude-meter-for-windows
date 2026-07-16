@@ -6,6 +6,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+- **SESSION CONTEXT now shows every active session, not just one.** Each session gets its
+  own block with the bold session name, percentage, and a `current / capacity` token
+  readout (e.g. `169k / 1.0M`) so the window size is explicit. Two new options: *Context:
+  max shown* (1/2/3/5) and *Context: sort by* (last active / name A–Z / context high→low).
+- When the 5-hour window has reset to 0% and is idle, the Session row now reads
+  **"resets 5h after next use"** instead of leaving the reset area blank — the next window
+  (and its 5-hour clock) only begins on your next use.
+
 ### Fixed
 - **SESSION CONTEXT percentage was wrong** on accounts with a 1M context window.
   The meter guessed the window from the token count (`>200k ⇒ 1M, else 200k`), so a

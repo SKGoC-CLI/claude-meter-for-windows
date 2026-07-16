@@ -8,7 +8,8 @@ sealed record SessionContext(
     string Model,
     long Tokens,
     long WindowSize,
-    DateTimeOffset StartedAt)
+    DateTimeOffset StartedAt,
+    DateTimeOffset LastActive)
 {
     public double Percent => Math.Clamp(Tokens * 100.0 / WindowSize, 0, 100);
 }
@@ -23,50 +24,67 @@ static class ContextMonitor
     static readonly string ProjectsDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "projects");
 
-    public static SessionContext? GetActive(TimeSpan maxIdle)
+    /// <summary>
+    /// Active sessions (transcripts written within <paramref name="maxIdle"/>), sorted and
+    /// capped to <paramref name="max"/>. sort: "active" (most-recent first) | "name" | "context".
+    /// </summary>
+    public static IReadOnlyList<SessionContext> GetActive(TimeSpan maxIdle, int max, string sort)
     {
         try
         {
-            if (!Directory.Exists(ProjectsDir)) return null;
+            if (!Directory.Exists(ProjectsDir)) return Array.Empty<SessionContext>();
 
-            var file = Directory.EnumerateFiles(ProjectsDir, "*.jsonl", SearchOption.AllDirectories)
+            var sessions = Directory.EnumerateFiles(ProjectsDir, "*.jsonl", SearchOption.AllDirectories)
                 .Select(p => new FileInfo(p))
                 .Where(f => DateTime.Now - f.LastWriteTime < maxIdle && f.Length > 0)
                 .OrderByDescending(f => f.LastWriteTime)
-                .FirstOrDefault();
-            if (file is null) return null;
+                .Take(12) // cap parse cost; >12 sessions active within maxIdle is unrealistic
+                .Select(Parse)
+                .Where(c => c is not null)
+                .Select(c => c!);
 
-            string tail = ReadChunk(file, fromEnd: true, 128 * 1024);
-
-            long input = LastLong(tail, "\"input_tokens\":\\s*(\\d+)");
-            long cacheCreate = LastLong(tail, "\"cache_creation_input_tokens\":\\s*(\\d+)");
-            long cacheRead = LastLong(tail, "\"cache_read_input_tokens\":\\s*(\\d+)");
-            long tokens = input + cacheCreate + cacheRead;
-            if (tokens <= 0) return null;
-
-            string modelId = LastString(tail, "\"model\":\\s*\"([^\"]+)\"") ?? "";
-            // ponytail: transcript ไม่ระบุ window; Opus/Sonnet ปัจจุบัน = 1M, Haiku = 200k.
-            // เดาจาก token ไม่ได้ (จะผิดทุกครั้งที่ยังไม่ถึง 200k บน account ที่ได้ 1M)
-            long window = modelId.Contains("haiku", StringComparison.OrdinalIgnoreCase) ? 200_000 : 1_000_000;
-            if (tokens > window) window = 1_000_000; // safety: ห้าม % เกิน 100 เพราะเดา window ต่ำไป
-
-            string cwd = LastString(tail, "\"cwd\":\\s*\"((?:[^\"\\\\]|\\\\.)+)\"") ?? "";
-            string project = cwd.Length > 0
-                ? Path.GetFileName(cwd.Replace("\\\\", "\\").TrimEnd('\\', '/'))
-                : file.Directory?.Name ?? "?";
-
-            string head = ReadChunk(file, fromEnd: false, 8 * 1024);
-            var startedAt = file.CreationTime;
-            var m = Regex.Match(head, "\"timestamp\":\\s*\"([^\"]+)\"");
-            if (m.Success && DateTimeOffset.TryParse(m.Groups[1].Value, out var ts))
-                return new SessionContext(project, FriendlyModel(modelId), tokens, window, ts.ToLocalTime());
-
-            return new SessionContext(project, FriendlyModel(modelId), tokens, window, startedAt);
+            IEnumerable<SessionContext> sorted = sort switch
+            {
+                "name" => sessions.OrderBy(c => c.Project, StringComparer.OrdinalIgnoreCase),
+                "context" => sessions.OrderByDescending(c => c.Percent),
+                _ => sessions.OrderByDescending(c => c.LastActive), // "active"
+            };
+            return sorted.Take(Math.Max(1, max)).ToList();
         }
         catch
         {
-            return null; // best-effort; never disturb the app
+            return Array.Empty<SessionContext>(); // best-effort; never disturb the app
         }
+    }
+
+    static SessionContext? Parse(FileInfo file)
+    {
+        string tail = ReadChunk(file, fromEnd: true, 128 * 1024);
+
+        long input = LastLong(tail, "\"input_tokens\":\\s*(\\d+)");
+        long cacheCreate = LastLong(tail, "\"cache_creation_input_tokens\":\\s*(\\d+)");
+        long cacheRead = LastLong(tail, "\"cache_read_input_tokens\":\\s*(\\d+)");
+        long tokens = input + cacheCreate + cacheRead;
+        if (tokens <= 0) return null;
+
+        string modelId = LastString(tail, "\"model\":\\s*\"([^\"]+)\"") ?? "";
+        // ponytail: transcript ไม่ระบุ window; Opus/Sonnet ปัจจุบัน = 1M, Haiku = 200k.
+        // เดาจาก token ไม่ได้ (จะผิดทุกครั้งที่ยังไม่ถึง 200k บน account ที่ได้ 1M)
+        long window = modelId.Contains("haiku", StringComparison.OrdinalIgnoreCase) ? 200_000 : 1_000_000;
+        if (tokens > window) window = 1_000_000; // safety: ห้าม % เกิน 100 เพราะเดา window ต่ำไป
+
+        string cwd = LastString(tail, "\"cwd\":\\s*\"((?:[^\"\\\\]|\\\\.)+)\"") ?? "";
+        string project = cwd.Length > 0
+            ? Path.GetFileName(cwd.Replace("\\\\", "\\").TrimEnd('\\', '/'))
+            : file.Directory?.Name ?? "?";
+
+        string head = ReadChunk(file, fromEnd: false, 8 * 1024);
+        var startedAt = new DateTimeOffset(file.CreationTime);
+        var m = Regex.Match(head, "\"timestamp\":\\s*\"([^\"]+)\"");
+        if (m.Success && DateTimeOffset.TryParse(m.Groups[1].Value, out var ts))
+            startedAt = ts.ToLocalTime();
+
+        return new SessionContext(project, FriendlyModel(modelId), tokens, window, startedAt, new DateTimeOffset(file.LastWriteTime));
     }
 
     static string ReadChunk(FileInfo file, bool fromEnd, int size)
