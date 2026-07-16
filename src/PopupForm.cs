@@ -738,33 +738,86 @@ sealed class PopupForm : Form
         {
             double startSec = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - pastSec;
             var visible = samples.Where(p => p[0] >= startSec).ToList();
-            var pts = visible
-                .Select(p => new PointF(
-                    plot.Left + (float)((p[0] - startSec) / rangeSec) * plot.Width,
-                    plot.Bottom - (float)(Math.Clamp(100 - p[1], 0, 100) / 100.0) * plot.Height))
-                .ToArray();
 
-            // past resets: remaining jumped up sharply between consecutive samples
-            for (int i = 1; i < visible.Count; i++)
+            // split at sampling gaps (>15 min ≈ 5 missed polls): the app wasn't running
+            // there, so a connecting line would fabricate data — and the reset detector
+            // below would pin a reset marker at the wrong time
+            var segments = new List<List<double[]>>();
+            foreach (var p in visible)
             {
-                if (visible[i][1] <= visible[i - 1][1] - 25)
-                    DrawResetMark(DateTimeOffset.FromUnixTimeSeconds((long)visible[i][0]).ToLocalTime());
+                if (segments.Count == 0 || p[0] - segments[^1][^1][0] > 900)
+                    segments.Add(new List<double[]>());
+                segments[^1].Add(p);
             }
 
-            if (pts.Length >= 2)
+            PointF Pt(double[] p) => new(
+                plot.Left + (float)((p[0] - startSec) / rangeSec) * plot.Width,
+                plot.Bottom - (float)(Math.Clamp(100 - p[1], 0, 100) / 100.0) * plot.Height);
+
+            using var fillBrush = new SolidBrush(Color.FromArgb(42, IconRenderer.Accent));
+            using var linePen = new Pen(IconRenderer.Accent, Math.Max(1.5f, 2f * _scale)) { LineJoin = LineJoin.Round };
+
+            // gaps: faint band + dashed connector + "no data", so the hole reads as
+            // "meter was off" instead of the line just vanishing
+            using var gapPen = new Pen(Color.FromArgb(90, IconRenderer.Accent), Math.Max(1f, 1.4f * _scale)) { DashStyle = DashStyle.Dash };
+            using var gapBand = new SolidBrush(Color.FromArgb(12, Theme.Light ? Color.Black : Color.White));
+            void DrawGapBand(float x0, float x1)
             {
+                g.FillRectangle(gapBand, x0, plot.Top, x1 - x0, plot.Height);
+                var ns = g.MeasureString("no data", _smallFont);
+                if (x1 - x0 > ns.Width + S(8)) // skip the label on gaps too narrow to fit it
+                    g.DrawString("no data", _smallFont, mutedBrush,
+                        (x0 + x1 - ns.Width) / 2, plot.Bottom - ns.Height - S(2));
+            }
+
+            for (int s = 1; s < segments.Count; s++)
+            {
+                var a = Pt(segments[s - 1][^1]);
+                var b = Pt(segments[s][0]);
+                DrawGapBand(a.X, b.X);
+                g.DrawLine(gapPen, a, b);
+            }
+
+            // the window can also reach past the recorded data at either edge —
+            // e.g. a 12h view whose left half predates the oldest sample in range
+            if (visible.Count > 0)
+            {
+                if (visible[0][0] - startSec > 900)
+                    DrawGapBand(plot.Left, Pt(visible[0]).X);
+                if (DateTimeOffset.UtcNow.ToUnixTimeSeconds() - visible[^1][0] > 900)
+                    DrawGapBand(Pt(visible[^1]).X, nowX);
+            }
+            else
+            {
+                // history exists but all of it predates the window (app was off ~18-24h)
+                DrawGapBand(plot.Left, nowX);
+            }
+
+            foreach (var seg in segments)
+            {
+                // past resets: remaining jumped up sharply between consecutive samples
+                for (int i = 1; i < seg.Count; i++)
+                {
+                    if (seg[i][1] <= seg[i - 1][1] - 25)
+                        DrawResetMark(DateTimeOffset.FromUnixTimeSeconds((long)seg[i][0]).ToLocalTime());
+                }
+
+                var pts = seg.Select(Pt).ToArray();
+                if (pts.Length < 2) continue;
+
                 using var area = new GraphicsPath();
                 area.AddLines(pts);
                 area.AddLine(pts[^1].X, plot.Bottom, pts[0].X, plot.Bottom);
                 area.CloseFigure();
-                using var fillBrush = new SolidBrush(Color.FromArgb(42, IconRenderer.Accent));
                 g.FillPath(fillBrush, area);
-
-                using var linePen = new Pen(IconRenderer.Accent, Math.Max(1.5f, 2f * _scale)) { LineJoin = LineJoin.Round };
                 g.DrawLines(linePen, pts);
+            }
 
+            if (visible.Count > 0)
+            {
+                var last = Pt(visible[^1]);
                 using var curBrush = new SolidBrush(IconRenderer.Accent);
-                g.FillEllipse(curBrush, pts[^1].X - S(3), pts[^1].Y - S(3), S(6), S(6));
+                g.FillEllipse(curBrush, last.X - S(3), last.Y - S(3), S(6), S(6));
 
                 double lastRemaining = Math.Clamp(100 - samples[^1][1], 0, 100);
                 string cur = $"{Math.Round(lastRemaining)}% remaining";
