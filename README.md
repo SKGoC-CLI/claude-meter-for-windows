@@ -14,6 +14,10 @@ Claude Code's `/usage`, always one click away.
 
 ![screenshot](docs/screenshot.png)
 
+*Every active Claude Code session's context window at a glance, with live token counts:*
+
+![demo — multi-session context](docs/demo-multi-session.gif)
+
 *Popup, usage graph and tray menu:*
 
 ![demo](docs/demo.gif)
