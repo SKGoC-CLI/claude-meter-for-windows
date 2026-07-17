@@ -16,33 +16,65 @@ namespace ClaudeMeter;
 /// </summary>
 static class DesktopCredentialStore
 {
-    static readonly string DataDir =
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Claude");
-    static readonly string ConfigPath = Path.Combine(DataDir, "config.json");
-    static readonly string LocalStatePath = Path.Combine(DataDir, "Local State");
+    /// <summary>
+    /// Finds Desktop's data dir. Classically <c>%APPDATA%\Claude</c>, but the 2026-07
+    /// MSIX-packaged Desktop keeps it in the package's virtualized Roaming instead
+    /// (<c>%LOCALAPPDATA%\Packages\Claude_*\LocalCache\Roaming\Claude</c>) — and the MSIX
+    /// migration deletes the classic folder. Resolved on every call, not cached at startup,
+    /// because an auto-update can move the folder while we're running (it did on 2026-07-17).
+    /// When both exist (mid-migration), the one with the freshest config.json wins.
+    /// </summary>
+    static string? FindDataDir()
+    {
+        var roots = new List<string>
+        {
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Claude"),
+        };
+        var packages = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages");
+        if (Directory.Exists(packages))
+            try
+            {
+                foreach (var pkg in Directory.GetDirectories(packages, "Claude_*"))
+                    roots.Add(Path.Combine(pkg, "LocalCache", "Roaming", "Claude"));
+            }
+            // Enumeration can fail transiently (package being installed/removed, ACL hiccup).
+            // Everything else here is File.Exists/GetLastWriteTimeUtc, which never throw —
+            // keep this method no-throw so Exists (→ HasAnyLogin) can never raise from a read.
+            catch (Exception) { }
 
-    public static bool Exists => File.Exists(ConfigPath) && File.Exists(LocalStatePath);
+        return roots
+            .Where(d => File.Exists(Path.Combine(d, "config.json")) && File.Exists(Path.Combine(d, "Local State")))
+            .OrderByDescending(d => File.GetLastWriteTimeUtc(Path.Combine(d, "config.json")))
+            .FirstOrDefault();
+    }
+
+    public static bool Exists => FindDataDir() != null;
 
     /// <summary>Access token + its expiry (unix ms), or null when unavailable/undecryptable.</summary>
     // Decrypting on every 180s poll is wasteful; Desktop rewrites config.json only when
     // it rotates the token, so we re-decrypt only when the file's timestamp changes.
     static (string AccessToken, long ExpiresAtMs)? _cached;
+    static string? _cachedPath;
     static DateTime _cachedStampUtc;
 
     public static (string AccessToken, long ExpiresAtMs)? TryRead()
     {
         try
         {
-            var stamp = File.GetLastWriteTimeUtc(ConfigPath);
-            if (_cached is { } c && stamp == _cachedStampUtc)
+            var dir = FindDataDir();
+            if (dir is null) return null; // no Desktop install/login — nothing to read, not an error
+
+            var configPath = Path.Combine(dir, "config.json");
+            var stamp = File.GetLastWriteTimeUtc(configPath);
+            if (_cached is { } c && configPath == _cachedPath && stamp == _cachedStampUtc)
                 return c;
 
-            var config = JsonNode.Parse(File.ReadAllText(ConfigPath));
+            var config = JsonNode.Parse(File.ReadAllText(configPath));
             string? cache = config?["oauth:tokenCacheV2"]?.GetValue<string>()
                          ?? config?["oauth:tokenCache"]?.GetValue<string>();
             if (string.IsNullOrEmpty(cache)) return null;
 
-            byte[] plain = DecryptOsCrypt(Convert.FromBase64String(cache));
+            byte[] plain = DecryptOsCrypt(Convert.FromBase64String(cache), Path.Combine(dir, "Local State"));
             var json = JsonNode.Parse(Encoding.UTF8.GetString(plain));
 
             var (access, expiresAtMs) = FindToken(json);
@@ -52,6 +84,7 @@ static class DesktopCredentialStore
             // and a genuinely stale token is caught by the usage endpoint (401/403).
             var result = (access!, expiresAtMs <= 0 ? long.MaxValue : expiresAtMs);
             _cached = result;
+            _cachedPath = configPath;
             _cachedStampUtc = stamp;
             return result;
         }
@@ -63,13 +96,13 @@ static class DesktopCredentialStore
     }
 
     /// <summary>Decrypts a Chromium os_crypt blob ("v10"/"v11" AES-GCM, else legacy DPAPI).</summary>
-    static byte[] DecryptOsCrypt(byte[] blob)
+    static byte[] DecryptOsCrypt(byte[] blob, string localStatePath)
     {
         // layout: "v10"(3) + nonce(12) + ciphertext + tag(16) => min 31 bytes
         if (blob.Length >= 31 && blob[0] == (byte)'v' && blob[1] == (byte)'1' &&
             (blob[2] == (byte)'0' || blob[2] == (byte)'1'))
         {
-            byte[] key = GetMasterKey();
+            byte[] key = GetMasterKey(localStatePath);
             var nonce = blob.AsSpan(3, 12);
             var tag = blob.AsSpan(blob.Length - 16, 16);
             var cipher = blob.AsSpan(15, blob.Length - 15 - 16);
@@ -83,9 +116,9 @@ static class DesktopCredentialStore
     }
 
     /// <summary>The AES key from Local State: base64, "DPAPI"-prefixed, DPAPI-wrapped.</summary>
-    static byte[] GetMasterKey()
+    static byte[] GetMasterKey(string localStatePath)
     {
-        var ls = JsonNode.Parse(File.ReadAllText(LocalStatePath));
+        var ls = JsonNode.Parse(File.ReadAllText(localStatePath));
         string b64 = ls?["os_crypt"]?["encrypted_key"]?.GetValue<string>()
             ?? throw new InvalidOperationException("no os_crypt.encrypted_key in Local State");
         byte[] wrapped = Convert.FromBase64String(b64);
