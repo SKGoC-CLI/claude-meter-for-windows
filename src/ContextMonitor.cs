@@ -59,32 +59,41 @@ static class ContextMonitor
 
     static SessionContext? Parse(FileInfo file)
     {
-        string tail = ReadChunk(file, fromEnd: true, 128 * 1024);
+        try
+        {
+            string tail = ReadChunk(file, fromEnd: true, 128 * 1024);
 
-        long input = LastLong(tail, "\"input_tokens\":\\s*(\\d+)");
-        long cacheCreate = LastLong(tail, "\"cache_creation_input_tokens\":\\s*(\\d+)");
-        long cacheRead = LastLong(tail, "\"cache_read_input_tokens\":\\s*(\\d+)");
-        long tokens = input + cacheCreate + cacheRead;
-        if (tokens <= 0) return null;
+            long input = LastLong(tail, "\"input_tokens\":\\s*(\\d+)");
+            long cacheCreate = LastLong(tail, "\"cache_creation_input_tokens\":\\s*(\\d+)");
+            long cacheRead = LastLong(tail, "\"cache_read_input_tokens\":\\s*(\\d+)");
+            long tokens = input + cacheCreate + cacheRead;
+            if (tokens <= 0) return null;
 
-        string modelId = LastString(tail, "\"model\":\\s*\"([^\"]+)\"") ?? "";
-        // ponytail: transcript ไม่ระบุ window; Opus/Sonnet ปัจจุบัน = 1M, Haiku = 200k.
-        // เดาจาก token ไม่ได้ (จะผิดทุกครั้งที่ยังไม่ถึง 200k บน account ที่ได้ 1M)
-        long window = modelId.Contains("haiku", StringComparison.OrdinalIgnoreCase) ? 200_000 : 1_000_000;
-        if (tokens > window) window = 1_000_000; // safety: ห้าม % เกิน 100 เพราะเดา window ต่ำไป
+            string modelId = LastString(tail, "\"model\":\\s*\"([^\"]+)\"") ?? "";
+            // ponytail: transcript ไม่ระบุ window; Opus/Sonnet ปัจจุบัน = 1M, Haiku = 200k.
+            // เดาจาก token ไม่ได้ (จะผิดทุกครั้งที่ยังไม่ถึง 200k บน account ที่ได้ 1M)
+            long window = modelId.Contains("haiku", StringComparison.OrdinalIgnoreCase) ? 200_000 : 1_000_000;
+            if (tokens > window) window = 1_000_000; // safety: ห้าม % เกิน 100 เพราะเดา window ต่ำไป
 
-        string cwd = LastString(tail, "\"cwd\":\\s*\"((?:[^\"\\\\]|\\\\.)+)\"") ?? "";
-        string project = cwd.Length > 0
-            ? Path.GetFileName(cwd.Replace("\\\\", "\\").TrimEnd('\\', '/'))
-            : file.Directory?.Name ?? "?";
+            string cwd = LastString(tail, "\"cwd\":\\s*\"((?:[^\"\\\\]|\\\\.)+)\"") ?? "";
+            string project = cwd.Length > 0
+                ? Path.GetFileName(cwd.Replace("\\\\", "\\").TrimEnd('\\', '/'))
+                : file.Directory?.Name ?? "?";
 
-        string head = ReadChunk(file, fromEnd: false, 8 * 1024);
-        var startedAt = new DateTimeOffset(file.CreationTime);
-        var m = Regex.Match(head, "\"timestamp\":\\s*\"([^\"]+)\"");
-        if (m.Success && DateTimeOffset.TryParse(m.Groups[1].Value, out var ts))
-            startedAt = ts.ToLocalTime();
+            string head = ReadChunk(file, fromEnd: false, 8 * 1024);
+            var startedAt = new DateTimeOffset(file.CreationTime);
+            var m = Regex.Match(head, "\"timestamp\":\\s*\"([^\"]+)\"");
+            if (m.Success && DateTimeOffset.TryParse(m.Groups[1].Value, out var ts))
+                startedAt = ts.ToLocalTime();
 
-        return new SessionContext(project, FriendlyModel(modelId), tokens, window, startedAt, new DateTimeOffset(file.LastWriteTime));
+            return new SessionContext(project, FriendlyModel(modelId), tokens, window, startedAt, new DateTimeOffset(file.LastWriteTime));
+        }
+        catch
+        {
+            // per-file best-effort: one unreadable transcript (rotated/locked mid-read)
+            // must not blank the sessions that parsed fine
+            return null;
+        }
     }
 
     static string ReadChunk(FileInfo file, bool fromEnd, int size)

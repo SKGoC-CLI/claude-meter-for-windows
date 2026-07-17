@@ -196,11 +196,11 @@ sealed class PopupForm : Form
     int ComputeWidth()
     {
         int min = S(320);
-        if (_snapshot is null || _snapshot.Windows.Count == 0) return min;
+        if ((_snapshot is null || _snapshot.Windows.Count == 0) && _sessions.Count == 0) return min;
 
         using var g = CreateGraphics();
         float widest = 0;
-        foreach (var w in _snapshot.Windows)
+        foreach (var w in _snapshot?.Windows ?? Array.Empty<UsageWindow>())
         {
             float labelW = g.MeasureString(w.Label + ":", _labelFont).Width;
             float pctW = g.MeasureString("100%", _valueFont).Width;
@@ -214,6 +214,16 @@ sealed class PopupForm : Form
             else if (w.Key == "five_hour")
                 resetW = g.MeasureString(NextUseHint, _smallFont).Width;
             widest = Math.Max(widest, labelW + S(2) + pctW + S(16) + resetW);
+        }
+
+        // session-context line 1 must fit too: bold "project · model" + % on the
+        // left, "current / capacity" tokens right-aligned (same layout as DrawContextBlock)
+        foreach (var s in _sessions)
+        {
+            float nameW = g.MeasureString($"{s.Project} · {s.Model}", _smallBoldFont).Width;
+            float pctW = g.MeasureString("100%", _smallBoldFont).Width;
+            float tokW = g.MeasureString($"{FmtTokens(s.Tokens)} / {FmtTokens(s.WindowSize)}", _smallFont).Width;
+            widest = Math.Max(widest, nameW + S(6) + pctW + S(16) + tokW);
         }
 
         // footer must also fit: "Updated HH:mm · stale" + countdown, right-aligned
