@@ -2,6 +2,8 @@
 
 A cleaner tray menu, and a session graph that never lies about downtime.
 
+![The session graph marking downtime as "no data"](https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/download/v1.6.1/demo-no-data-graph.gif)
+
 ## Download
 
 **`ClaudeMeter-portable.zip`** (attached) — unzip and run `ClaudeMeter.exe`.

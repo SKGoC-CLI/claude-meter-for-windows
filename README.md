@@ -12,19 +12,13 @@ A tiny Windows system-tray app that shows your **Claude usage limits** in real t
 the same *Session (5h) / Weekly / per-model weekly* percentages you see in
 Claude Code's `/usage`, always one click away.
 
-![screenshot](docs/screenshot.png)
-
 *Every active Claude Code session's context window at a glance, with live token counts:*
 
 ![demo — multi-session context](docs/demo-multi-session.gif)
 
-*Popup, usage graph and tray menu:*
+*The usage graph is honest about downtime — "no data" bands instead of fabricated lines:*
 
-![demo](docs/demo.gif)
-
-*Session context section, per-limit visibility and section dividers:*
-
-![demo — session context and customization](docs/demo2.gif)
+![demo — usage graph marking downtime as no data](docs/demo-no-data.gif)
 
 ## Features
 
@@ -49,23 +43,24 @@ a single self-contained exe, no .NET installation required.
 ## Requirements
 
 - Windows 10/11 (64-bit)
-- [Claude Code](https://claude.com/claude-code) CLI logged in once with your Claude account:
+- A Claude login already on this machine — **either one** works:
+  - the **Claude Desktop app**, signed in — nothing else to set up, or
+  - the **[Claude Code](https://claude.com/claude-code) CLI**, logged in once:
 
-  ```
-  claude
-  /login
-  ```
+    ```
+    claude
+    /login
+    ```
 
-  The app reads the OAuth token that Claude Code stores on your machine
-  (`%USERPROFILE%\.claude\.credentials.json`) — it never sees your password and
-  **never modifies** Claude Code's files.
+  The app reads the OAuth token your Claude login already stores locally —
+  it never sees your password and **never modifies** those files.
 
 ## Usage
 
 | Action | Result |
 |---|---|
 | Left-click tray icon | Show/hide the usage popup |
-| Right-click tray icon | Refresh now · Show limits ▸ · Session context ▸ · Usage graph ▸ · Appearance ▸ · Always on top · Pin (Click-through) · Tray icon shows ▸ · Notify at ▸ · Hotkey ▸ · Start with Windows · About… · Exit |
+| Right-click tray icon | Everything else — refresh, popup sections (Show limits / Session context / Usage graph / Appearance), pinning, tray & alert options, hotkey, autostart |
 | Drag (while pinned) | Move the popup anywhere; position is remembered |
 | Esc | Hide the popup |
 
