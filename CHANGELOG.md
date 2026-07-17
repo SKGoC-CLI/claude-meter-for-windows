@@ -4,6 +4,26 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.6.1] - 2026-07-17
+
+### Changed
+- **The tray menu is reorganized into feature-grouped submenus.** *Session context*,
+  *Usage graph* and *Appearance* each own their toggle and options, with separators
+  dividing popup content, window/tray behavior, and app items — 24 flat items down to 16.
+
+### Fixed
+- **The session graph no longer fabricates a line across periods when the meter wasn't
+  running.** Samples more than 15 minutes apart are drawn as separate segments; each hole
+  shows a faint band with a dashed connector and a "no data" label — including holes at
+  the window edges (e.g. a 12h view whose left half predates the oldest sample). The
+  reset-marker detection also can't pin a reset at the wrong time across a hole anymore,
+  and the current-value dot appears from the very first sample after a restart.
+- **One unreadable transcript no longer blanks the whole SESSION CONTEXT section.**
+  If a session's transcript fails to read mid-poll (rotated/locked), only that session
+  is skipped for the cycle; the others still show.
+- **Long project names no longer overlap the token readout.** The popup now measures
+  each session row's text and widens itself accordingly.
+
 ## [1.6.0] - 2026-07-16
 
 ### Added
