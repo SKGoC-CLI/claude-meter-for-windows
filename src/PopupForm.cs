@@ -962,44 +962,46 @@ sealed class PopupForm : Form
             g.DrawString("Now", _tinyFont, nowBrush, flip ? nowX - ns.Width - S(2) : nowX + S(2), plot.Top);
         }
 
-        // data: credit_spend samples are server-truth cumulative values, so just
-        // connect them — no gap bands needed like the session chart's remaining-%.
+        // data: credit_spend samples are server-truth cumulative values. Spend was $0
+        // at the month's start (it resets on the 1st), so the stretch before our first
+        // recorded sample is drawn as a dashed lead-in from (monthStart, $0) — estimated,
+        // since we weren't running to log it — then solid over what we actually recorded.
         double monthStartSec = monthStart.ToUnixTimeSeconds();
-        var samples = History?.Samples("credit_spend").Where(p => p[0] >= monthStartSec).ToList()
+        var recorded = History?.Samples("credit_spend").Where(p => p[0] >= monthStartSec).ToList()
             ?? new List<double[]>();
+        // the snapshot's own month-to-date value is one more server-truth point — it lets
+        // the solid line reach "Now" and draw something from the very first poll
+        recorded.Add(new[] { (double)now.ToUnixTimeSeconds(), used });
+        recorded.Sort((a, b) => a[0].CompareTo(b[0]));
 
-        // the snapshot's own month-to-date value is one more server-truth point:
-        // it lets the line reach "Now" and draw from the very first poll
-        samples.Add(new[] { (double)now.ToUnixTimeSeconds(), used });
+        PointF Pt(double t, double v) => new(
+            plot.Left + (float)((t - monthStartSec) / rangeSec) * plot.Width,
+            plot.Bottom - (float)(Math.Clamp(v, 0, limit) / limit) * plot.Height);
 
-        if (samples is { Count: >= 2 })
+        var baseline = Pt(monthStartSec, 0);
+        var recPts = recorded.Select(p => Pt(p[0], p[1])).ToArray();
+
+        // one continuous soft fill under the whole line (lead-in + recorded)
+        using (var fillBrush = new SolidBrush(Color.FromArgb(42, IconRenderer.Accent)))
+        using (var area = new GraphicsPath())
         {
-            PointF Pt(double[] p) => new(
-                plot.Left + (float)((p[0] - monthStartSec) / rangeSec) * plot.Width,
-                plot.Bottom - (float)(Math.Clamp(p[1], 0, limit) / limit) * plot.Height);
-
-            using var fillBrush = new SolidBrush(Color.FromArgb(42, IconRenderer.Accent));
-            using var linePen = new Pen(IconRenderer.Accent, Math.Max(1.5f, 2f * _scale)) { LineJoin = LineJoin.Round };
-
-            var pts = samples.Select(Pt).ToArray();
-            using var area = new GraphicsPath();
-            area.AddLines(pts);
-            area.AddLine(pts[^1].X, plot.Bottom, pts[0].X, plot.Bottom);
+            var outline = new[] { baseline }.Concat(recPts).ToArray();
+            area.AddLines(outline);
+            area.AddLine(outline[^1].X, plot.Bottom, outline[0].X, plot.Bottom);
             area.CloseFigure();
             g.FillPath(fillBrush, area);
-            g.DrawLines(linePen, pts);
+        }
 
-            var last = pts[^1];
-            using var curBrush = new SolidBrush(IconRenderer.Accent);
-            g.FillEllipse(curBrush, last.X - S(3), last.Y - S(3), S(6), S(6));
-        }
-        else
-        {
-            const string msg = "Collecting data…";
-            var s = g.MeasureString(msg, _smallFont);
-            g.DrawString(msg, _smallFont, mutedBrush,
-                plot.Left + (plot.Width - s.Width) / 2, plot.Top + (plot.Height - s.Height) / 2);
-        }
+        // dashed lead-in over the un-recorded stretch, solid over what we logged
+        using (var leadPen = new Pen(Color.FromArgb(140, IconRenderer.Accent), Math.Max(1.5f, 2f * _scale))
+            { DashStyle = DashStyle.Dash, LineJoin = LineJoin.Round })
+            g.DrawLine(leadPen, baseline, recPts[0]);
+        if (recPts.Length >= 2)
+            using (var linePen = new Pen(IconRenderer.Accent, Math.Max(1.5f, 2f * _scale)) { LineJoin = LineJoin.Round })
+                g.DrawLines(linePen, recPts);
+
+        using (var curBrush = new SolidBrush(IconRenderer.Accent))
+            g.FillEllipse(curBrush, recPts[^1].X - S(3), recPts[^1].Y - S(3), S(6), S(6));
     }
 
     static void FillRounded(Graphics g, Brush brush, Rectangle rect, int radius)
