@@ -2,6 +2,8 @@
 
 Credit tracking with a live spending graph and merged dollar-amount row.
 
+![Claude Usage Meter v1.7.0 — merged Extra usage dollar row and the new CREDIT graph](https://raw.githubusercontent.com/SKGoC-CLI/claude-meter-for-windows/main/docs/screenshot-v1.7.0.png)
+
 ## Download
 
 **`ClaudeMeter-portable.zip`** (attached) — unzip and run `ClaudeMeter.exe`.
