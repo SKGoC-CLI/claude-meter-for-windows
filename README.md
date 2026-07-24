@@ -24,10 +24,12 @@ Claude Code's `/usage`, always one click away.
 
 - Tray icon renders your highest usage percentage live, shifting color as you approach the limit
 - Popup shows a progress bar, reset countdown and exact reset time for every limit window
+- Usage credits displayed as real dollar amounts (e.g. "Extra usage: 6% — $3.13 / $50.00"), with the same data from `extra_usage` and `spend` rows merged into one
 - Usage graph plots session remaining over a 12 or 24 hour axis, with hourly ticks, reset markers for both past and upcoming resets, and an adjustable "now" position
+- Credit spending graph shows cumulative month-to-date usage-credit spend up to your monthly limit, with a dashed limit line and live "now" marker; stays accurate even if the meter isn't running (45-day history sampled every 30 minutes)
 - Pin the popup anywhere on screen; optionally let mouse clicks pass through it while pinned
 - Dark and light themes, three popup sizes, five opacity levels with full opacity restored on hover
-- Usage alert notifications at any threshold from 50 to 95 percent
+- Usage alert notifications at any threshold from 50 to 95 percent, plus a credit-burn notification when usage credits start being consumed (at most once per 2 hours)
 - One-click login recovery when the Claude session expires, plus local diagnostic logs for troubleshooting
 - Global hotkey to toggle the popup — Ctrl+Alt+U by default, seven combos to pick from — plus autostart with Windows, automatic update check, single instance
 - Every preference persists across restarts

@@ -50,6 +50,7 @@ sealed class PopupForm : Form
     public UsageHistory? History { get; set; }
 
     bool _showRemainingGraph;
+    bool _showCreditGraph;
     bool _showLogo;
 
     /// <summary>Whether to draw the session-remaining chart at the bottom of the popup.</summary>
@@ -57,6 +58,13 @@ sealed class PopupForm : Form
     {
         get => _showRemainingGraph;
         set { _showRemainingGraph = value; RecomputeLayout(); }
+    }
+
+    /// <summary>Whether to draw the month-to-date credit chart below the session chart.</summary>
+    public bool ShowCreditGraph
+    {
+        get => _showCreditGraph;
+        set { _showCreditGraph = value; RecomputeLayout(); }
     }
 
     /// <summary>Whether to draw the logo header at the top of the popup.</summary>
@@ -84,6 +92,14 @@ sealed class PopupForm : Form
 
     // chart hidden while there is no current data (loading / error state)
     int GraphHeight => _showRemainingGraph && _snapshot is { Windows.Count: > 0 } ? S(162) : 0;
+
+    /// <summary>The merged wallet row (extra_usage/spend), if the account has one and it's not hidden.
+    /// Requires both amounts so the chart never reserves space it can't draw.</summary>
+    UsageWindow? WalletWindow => _snapshot?.Windows.FirstOrDefault(
+        w => w.Key == "extra_usage" && w.UsedDollars is not null && w.LimitDollars is > 0);
+
+    // hidden unless the wallet row is actually present this poll
+    int CreditGraphHeight => _showCreditGraph && WalletWindow is not null ? S(140) : 0;
 
     bool _showFixLogin;
     bool _needsRelogin; // error is a real logout (red + Fix Login) vs a transient blip (plain stale)
@@ -213,6 +229,8 @@ sealed class PopupForm : Form
             }
             else if (w.Key == "five_hour")
                 resetW = g.MeasureString(NextUseHint, _smallFont).Width;
+            else if (w.UsedDollars is { } used && w.LimitDollars is { } limit)
+                resetW = g.MeasureString(MoneyText(used, limit), _smallFont).Width;
             widest = Math.Max(widest, labelW + S(2) + pctW + S(16) + resetW);
         }
 
@@ -236,6 +254,8 @@ sealed class PopupForm : Form
     }
 
     const string NextUseHint = "resets 5h after next use";
+
+    static string MoneyText(double used, double limit) => $"${used:0.00} / ${limit:0.00}";
 
     static string ResetText(DateTimeOffset resets, TimeSpan remaining) =>
         remaining.TotalHours >= 24
@@ -383,7 +403,7 @@ sealed class PopupForm : Form
             : (_snapshot is not null && _error is null) ? S(4)
             : S(64); // space for error/loading text
         if (_showFixLogin) body += S(48);               // room for the fix-login button
-        return S(16) + HeaderHeight + body + ContextSectionHeight + GraphHeight + S(26) + S(8);
+        return S(16) + HeaderHeight + body + ContextSectionHeight + GraphHeight + CreditGraphHeight + S(26) + S(8);
     }
 
     public void ShowNearTray()
@@ -489,6 +509,9 @@ sealed class PopupForm : Form
         }
 
         if (GraphHeight > 0) DrawRemainingChart(g, pad, y, contentWidth);
+        y += GraphHeight;
+
+        if (CreditGraphHeight > 0) DrawCreditGraph(g, pad, y, contentWidth);
 
         DrawFooter(g, pad, contentWidth);
     }
@@ -558,6 +581,14 @@ sealed class PopupForm : Form
             using var mutedBrush = new SolidBrush(MutedColor);
             var size = g.MeasureString(NextUseHint, _smallFont);
             g.DrawString(NextUseHint, _smallFont, mutedBrush, pad + contentWidth - size.Width, y + S(3));
+        }
+        else if (w.UsedDollars is { } used && w.LimitDollars is { } limit)
+        {
+            // wallet row has no reset time, so its slot is free for the dollar amounts
+            using var mutedBrush = new SolidBrush(MutedColor);
+            string moneyText = MoneyText(used, limit);
+            var size = g.MeasureString(moneyText, _smallFont);
+            g.DrawString(moneyText, _smallFont, mutedBrush, pad + contentWidth - size.Width, y + S(3));
         }
 
         // progress bar
@@ -834,6 +865,128 @@ sealed class PopupForm : Form
                 var cs = g.MeasureString(cur, _smallFont);
                 g.DrawString(cur, _smallFont, curBrush, pad + contentWidth - cs.Width, top + S(5));
             }
+        }
+        else
+        {
+            const string msg = "Collecting data…";
+            var s = g.MeasureString(msg, _smallFont);
+            g.DrawString(msg, _smallFont, mutedBrush,
+                plot.Left + (plot.Width - s.Width) / 2, plot.Top + (plot.Height - s.Height) / 2);
+        }
+    }
+
+    /// <summary>Month-to-date usage-credit spend vs the monthly cap: cumulative $ line chart.</summary>
+    void DrawCreditGraph(Graphics g, int pad, int top, int contentWidth)
+    {
+        var wallet = WalletWindow;
+        if (wallet?.LimitDollars is not { } limit || limit <= 0) return;
+        double used = wallet.UsedDollars ?? 0;
+
+        using var mutedBrush = new SolidBrush(MutedColor);
+
+        // divider + tiny caps header, matching the SESSION GRAPH section style
+        using (var sepPen = new Pen(Theme.Grid, 1))
+            g.DrawLine(sepPen, pad, top + S(3), pad + contentWidth, top + S(3));
+        g.DrawString("CREDIT (THIS MONTH)", _tinyFont, mutedBrush, pad, top + S(8));
+
+        // severity is only supplied by the "spend" block; extra_usage-only accounts
+        // always report "normal", so fall back to the utilization-based color there
+        var valueColor = wallet.Severity switch
+        {
+            "elevated" => IconRenderer.Warning,
+            "normal" => IconRenderer.ColorFor(wallet.Utilization),
+            _ => IconRenderer.Danger,
+        };
+        using var valueBrush = new SolidBrush(valueColor);
+        string curText = $"${used:0.00} used";
+        var vs = g.MeasureString(curText, _smallFont);
+        g.DrawString(curText, _smallFont, valueBrush, pad + contentWidth - vs.Width, top + S(5));
+
+        // plot starts below the header row; dollar labels run wider than the % gutter
+        int labelGutter = S(28);
+        var plot = new Rectangle(
+            pad + labelGutter,
+            top + S(40),
+            contentWidth - labelGutter,
+            CreditGraphHeight - S(40) - S(18) - S(6));
+
+        using var gridPen = new Pen(Theme.Grid, 1);
+
+        // Y axis: $0 at bottom, the monthly limit at top
+        foreach (double frac in new[] { 0.0, 0.5, 1.0 })
+        {
+            int yy = plot.Bottom - (int)(frac * plot.Height);
+            g.DrawLine(gridPen, plot.Left, yy, plot.Right, yy);
+            string label = $"${Math.Round(limit * frac):0}";
+            var s = g.MeasureString(label, _tinyFont);
+            g.DrawString(label, _tinyFont, mutedBrush, plot.Left - s.Width - S(3), yy - s.Height / 2);
+        }
+
+        // limit line: dashed red at the cap — coincides with the top gridline, but
+        // labeled separately so the cap reads as a hard ceiling, not just an axis tick
+        using (var limitPen = new Pen(IconRenderer.Danger, 1) { DashStyle = DashStyle.Dash })
+            g.DrawLine(limitPen, plot.Left, plot.Top, plot.Right, plot.Top);
+        using (var limitBrush = new SolidBrush(IconRenderer.Danger))
+        {
+            string limitLabel = $"${limit:0.00} limit";
+            var ls = g.MeasureString(limitLabel, _tinyFont);
+            g.DrawString(limitLabel, _tinyFont, limitBrush, plot.Right - ls.Width, plot.Top - ls.Height - S(1));
+        }
+
+        // X axis: 1st of the month through the last day, ticks every ~5 days
+        var now = DateTimeOffset.Now;
+        var monthStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, now.Offset);
+        var monthEnd = monthStart.AddMonths(1);
+        double rangeSec = (monthEnd - monthStart).TotalSeconds;
+
+        for (var day = monthStart; day < monthEnd; day = day.AddDays(5))
+        {
+            float x = plot.Left + (float)((day - monthStart).TotalSeconds / rangeSec) * plot.Width;
+            g.DrawLine(gridPen, x, plot.Top, x, plot.Bottom);
+            string label = day.ToString("d MMM");
+            var s = g.MeasureString(label, _tinyFont);
+            if (x + s.Width / 2 < plot.Right + S(6))
+                g.DrawString(label, _tinyFont, mutedBrush, x - s.Width / 2, plot.Bottom + S(3));
+        }
+
+        // "now" marker: month-scale axis, so a plain line + label is enough — no live clock
+        float nowX = Math.Clamp(
+            plot.Left + (float)((now - monthStart).TotalSeconds / rangeSec) * plot.Width,
+            plot.Left, plot.Right);
+        using (var nowPen = new Pen(Theme.NowLine, 1))
+            g.DrawLine(nowPen, nowX, plot.Top, nowX, plot.Bottom);
+        using (var nowBrush = new SolidBrush(Theme.NowText))
+        {
+            var ns = g.MeasureString("Now", _tinyFont);
+            bool flip = nowX + ns.Width + S(2) > plot.Right;
+            g.DrawString("Now", _tinyFont, nowBrush, flip ? nowX - ns.Width - S(2) : nowX + S(2), plot.Top);
+        }
+
+        // data: credit_spend samples are server-truth cumulative values, so just
+        // connect them — no gap bands needed like the session chart's remaining-%.
+        double monthStartSec = monthStart.ToUnixTimeSeconds();
+        var samples = History?.Samples("credit_spend").Where(p => p[0] >= monthStartSec).ToList();
+
+        if (samples is { Count: >= 2 })
+        {
+            PointF Pt(double[] p) => new(
+                plot.Left + (float)((p[0] - monthStartSec) / rangeSec) * plot.Width,
+                plot.Bottom - (float)(Math.Clamp(p[1], 0, limit) / limit) * plot.Height);
+
+            using var fillBrush = new SolidBrush(Color.FromArgb(42, IconRenderer.Accent));
+            using var linePen = new Pen(IconRenderer.Accent, Math.Max(1.5f, 2f * _scale)) { LineJoin = LineJoin.Round };
+
+            var pts = samples.Select(Pt).ToArray();
+            using var area = new GraphicsPath();
+            area.AddLines(pts);
+            area.AddLine(pts[^1].X, plot.Bottom, pts[0].X, plot.Bottom);
+            area.CloseFigure();
+            g.FillPath(fillBrush, area);
+            g.DrawLines(linePen, pts);
+
+            var last = pts[^1];
+            using var curBrush = new SolidBrush(IconRenderer.Accent);
+            g.FillEllipse(curBrush, last.X - S(3), last.Y - S(3), S(6), S(6));
         }
         else
         {

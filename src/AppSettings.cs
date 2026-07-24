@@ -12,6 +12,7 @@ sealed class AppSettings
     public bool ClickThrough { get; set; }           // only effective while pinned
     public int NotifyThreshold { get; set; } = 90; // 0 = off, else 50..95 step 5
     public bool ShowRemainingGraph { get; set; } = true; // session-remaining chart at popup bottom
+    public bool ShowCreditGraph { get; set; } = true;    // month-to-date credit chart at popup bottom
     public int GraphRangeHours { get; set; } = 24;       // total axis width: 24 or 12
     public int NowPositionPercent { get; set; } = 75;    // where "now" sits on the axis: 50 | 75 | 100
     public string Theme { get; set; } = "dark";          // dark | light

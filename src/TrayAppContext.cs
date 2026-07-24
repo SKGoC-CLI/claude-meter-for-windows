@@ -81,6 +81,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly ToolStripMenuItem _alwaysOnTopItem;
     readonly ToolStripMenuItem _clickThroughItem;
     readonly ToolStripMenuItem _showGraphItem;
+    readonly ToolStripMenuItem _showCreditGraphItem;
     readonly ToolStripMenuItem _showLogoItem;
     readonly ToolStripMenuItem _showContextItem;
     readonly ToolStripMenuItem _limitsMenu = new("Show limits");
@@ -104,6 +105,8 @@ sealed class TrayAppContext : ApplicationContext
     readonly AppSettings _settings = AppSettings.Load();
     readonly UsageHistory _history = new();
     readonly HashSet<string> _notified = new();
+    double? _lastWalletUsedDollars;               // credit-burn balloon tracking
+    DateTimeOffset _lastCreditBalloon = DateTimeOffset.MinValue;
 
     UsageSnapshot? _lastSnapshot;
     string? _lastError;
@@ -212,6 +215,11 @@ sealed class TrayAppContext : ApplicationContext
             Checked = _settings.ShowRemainingGraph,
         };
 
+        _showCreditGraphItem = new ToolStripMenuItem("Show credit graph", null, OnToggleShowCreditGraph)
+        {
+            Checked = _settings.ShowCreditGraph,
+        };
+
         _showLogoItem = new ToolStripMenuItem("Show logo", null, OnToggleShowLogo)
         {
             Checked = _settings.ShowLogo,
@@ -292,6 +300,7 @@ sealed class TrayAppContext : ApplicationContext
         graphMenu.DropDownItems.Add(_showGraphItem);
         graphMenu.DropDownItems.Add(rangeMenu);
         graphMenu.DropDownItems.Add(nowPosMenu);
+        graphMenu.DropDownItems.Add(_showCreditGraphItem);
 
         var appearanceMenu = new ToolStripMenuItem("Appearance");
         appearanceMenu.DropDownItems.Add(themeMenu);
@@ -323,6 +332,7 @@ sealed class TrayAppContext : ApplicationContext
         // restore persisted popup state
         _popup.History = _history;
         _popup.ShowRemainingGraph = _settings.ShowRemainingGraph;
+        _popup.ShowCreditGraph = _settings.ShowCreditGraph;
         _popup.GraphRangeHours = _settings.GraphRangeHours;
         _popup.NowPositionPercent = _settings.NowPositionPercent;
         _popup.ShowLogo = _settings.ShowLogo;
@@ -401,6 +411,14 @@ sealed class TrayAppContext : ApplicationContext
         _settings.ShowRemainingGraph = !_settings.ShowRemainingGraph;
         _showGraphItem.Checked = _settings.ShowRemainingGraph;
         _popup.ShowRemainingGraph = _settings.ShowRemainingGraph;
+        _settings.Save();
+    }
+
+    void OnToggleShowCreditGraph(object? sender, EventArgs e)
+    {
+        _settings.ShowCreditGraph = !_settings.ShowCreditGraph;
+        _showCreditGraphItem.Checked = _settings.ShowCreditGraph;
+        _popup.ShowCreditGraph = _settings.ShowCreditGraph;
         _settings.Save();
     }
 
@@ -630,6 +648,7 @@ sealed class TrayAppContext : ApplicationContext
             _lastErrorNeedsRelogin = false;
             _history.Add(snapshot);
             NotifyIfNearLimit(snapshot);
+            NotifyIfCreditsBurning(snapshot);
             Log.Info("usage ok: " + string.Join(", ", snapshot.Windows.Select(w => $"{w.Label} {Math.Round(w.Utilization)}%")));
         }
         catch (UsageException ex)
@@ -687,6 +706,27 @@ sealed class TrayAppContext : ApplicationContext
                 _notified.Remove(w.Key); // re-arm after the window resets
             }
         }
+    }
+
+    /// <summary>
+    /// One-time-per-2h heads-up when usage credits start getting spent: fires only on
+    /// an increase observed between two polls, throttled to one balloon per 2 hours.
+    /// The first poll after startup is a silent baseline — month-to-date spend existing
+    /// at launch is old news, not a burn in progress. A month rollover just drops the
+    /// tracked value back down — no balloon, no special-casing.
+    /// </summary>
+    void NotifyIfCreditsBurning(UsageSnapshot snapshot)
+    {
+        var wallet = snapshot.Windows.FirstOrDefault(w => w.Key == "extra_usage" && w.UsedDollars is not null);
+        if (wallet?.UsedDollars is not { } used) return;
+
+        bool increased = _lastWalletUsedDollars is { } prev && used > prev;
+        _lastWalletUsedDollars = used;
+        if (!increased || DateTimeOffset.Now - _lastCreditBalloon < TimeSpan.FromHours(2)) return;
+
+        _lastCreditBalloon = DateTimeOffset.Now;
+        _trayIcon.ShowBalloonTip(5000, "Claude Meter",
+            $"Usage credits are being consumed — ${used:0.00} this month.", ToolTipIcon.Warning);
     }
 
     /// <summary>Opens a terminal running the Claude CLI so the user can /login.</summary>

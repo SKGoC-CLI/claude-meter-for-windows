@@ -12,7 +12,9 @@ sealed record UsageWindow(
     double Utilization,
     DateTimeOffset? ResetsAt,
     bool IsActive = false,      // server marks the limit currently binding
-    string Severity = "normal");
+    string Severity = "normal",
+    double? UsedDollars = null,  // wallet row only: month-to-date spend / cap, in dollars
+    double? LimitDollars = null);
 
 sealed record UsageSnapshot(IReadOnlyList<UsageWindow> Windows, DateTimeOffset FetchedAt);
 
@@ -127,7 +129,7 @@ sealed class UsageClient
         {
             foreach (var (key, value) in root)
             {
-                if (key == "extra_usage") continue; // handled by the dedicated block below
+                if (key is "extra_usage" or "spend") continue; // handled by the merged-wallet block below
                 if (value is not JsonObject obj || obj["utilization"] is null)
                     continue;
                 windows.Add(new UsageWindow(key, LabelFor(key),
@@ -135,29 +137,57 @@ sealed class UsageClient
             }
         }
 
-        // optional wallets, shown only when enabled on the account
-        if (root["extra_usage"] is JsonObject extra &&
-            (extra["is_enabled"]?.GetValue<bool>() ?? false) &&
-            extra["utilization"] is not null)
+        // "extra_usage" and "spend" describe the same wallet (usage credits used vs
+        // the monthly cap) — merge into one row instead of showing it twice. Emit it
+        // when EITHER block is enabled; other accounts may carry only one.
+        // a disabled block may still carry stale numbers, so only enabled blocks
+        // contribute fields — otherwise the % and $ could come from different wallets
+        var extra = root["extra_usage"] is JsonObject e && (e["is_enabled"]?.GetValue<bool>() ?? false) ? e : null;
+        var spend = root["spend"] is JsonObject s && (s["enabled"]?.GetValue<bool>() ?? false) ? s : null;
+        if (extra is not null || spend is not null)
         {
-            windows.Add(new UsageWindow("extra_usage", "Extra usage",
-                extra["utilization"]!.GetValue<double>(), null));
+            var (usedDollars, limitDollars) = WalletDollars(extra, spend);
+
+            // prefer extra_usage's decimal utilization over spend's rounded percent;
+            // fall back to computing it from the dollar amounts if neither is present
+            double? utilization = extra?["utilization"]?.GetValue<double>()
+                ?? spend?["percent"]?.GetValue<double>()
+                ?? (limitDollars is > 0 ? usedDollars / limitDollars * 100 : null);
+
+            if (utilization is { } u)
+                windows.Add(new UsageWindow("extra_usage", "Extra usage", u, null,
+                    false, spend?["severity"]?.GetValue<string>() ?? "normal",
+                    usedDollars, limitDollars));
         }
 
-        if (root["spend"] is JsonObject spend &&
-            (spend["enabled"]?.GetValue<bool>() ?? false) &&
-            spend["percent"] is not null)
-        {
-            windows.Add(new UsageWindow("spend", "Spend",
-                spend["percent"]!.GetValue<double>(), null,
-                false, spend["severity"]?.GetValue<string>() ?? "normal"));
-        }
-
-        // Session first, plain weekly second, model-scoped after, wallets last.
+        // Session first, plain weekly second, model-scoped after, wallet last.
         return windows
-            .OrderBy(w => w.Key switch { "five_hour" => 0, "seven_day" => 1, "extra_usage" => 8, "spend" => 9, _ => 2 })
+            .OrderBy(w => w.Key switch { "five_hour" => 0, "seven_day" => 1, "extra_usage" => 8, _ => 2 })
             .ThenBy(w => w.Label, StringComparer.Ordinal)
             .ToList();
+    }
+
+    /// <summary>
+    /// Dollar amounts for the merged wallet row. Prefers "spend" (minor units + exponent);
+    /// falls back to "extra_usage" (used_credits/monthly_limit + decimal_places) — same
+    /// numbers, different field names, since the two blocks describe one balance.
+    /// </summary>
+    static (double? used, double? limit) WalletDollars(JsonObject? extra, JsonObject? spend)
+    {
+        if (spend?["used"]?["amount_minor"] is JsonNode um && spend["limit"]?["amount_minor"] is JsonNode lm)
+        {
+            // each amount scales by its own exponent — they're 2/2 today, but nothing
+            // guarantees the API keeps them in lockstep
+            double usedDiv = Math.Pow(10, spend["used"]?["exponent"]?.GetValue<int>() ?? 2);
+            double limitDiv = Math.Pow(10, spend["limit"]?["exponent"]?.GetValue<int>() ?? 2);
+            return (um.GetValue<double>() / usedDiv, lm.GetValue<double>() / limitDiv);
+        }
+        if (extra?["used_credits"] is JsonNode uc && extra["monthly_limit"] is JsonNode ml)
+        {
+            double div = Math.Pow(10, extra["decimal_places"]?.GetValue<int>() ?? 2);
+            return (uc.GetValue<double>() / div, ml.GetValue<double>() / div);
+        }
+        return (null, null);
     }
 
     static DateTimeOffset? ParseResetTime(JsonNode? node)

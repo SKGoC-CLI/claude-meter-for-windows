@@ -10,7 +10,13 @@ sealed class UsageHistory
 
     public static readonly TimeSpan Window = TimeSpan.FromHours(24);
 
-    // window key -> list of [unixSeconds, utilization]
+    // "credit_spend" needs month-scale history for the credit chart, so it gets its
+    // own retention: 45 days, downsampled instead of the 24h window everything else uses.
+    static readonly TimeSpan CreditWindow = TimeSpan.FromDays(45);
+    const double CreditBucketSeconds = 30 * 60;
+    const string CreditKey = "credit_spend";
+
+    // window key -> list of [unixSeconds, utilization] ("credit_spend" holds dollars, not %)
     Dictionary<string, List<double[]>> _data = new();
 
     public UsageHistory()
@@ -34,6 +40,15 @@ sealed class UsageHistory
             if (!_data.TryGetValue(w.Key, out var list))
                 _data[w.Key] = list = new();
             list.Add(new[] { now, w.Utilization });
+
+            // dollars go under their own key — old installs already have % samples
+            // under "extra_usage", and this is a different unit entirely
+            if (w.Key == "extra_usage" && w.UsedDollars is { } dollars)
+            {
+                if (!_data.TryGetValue(CreditKey, out var creditList))
+                    _data[CreditKey] = creditList = new();
+                creditList.Add(new[] { now, dollars });
+            }
         }
         Prune();
         try
@@ -50,8 +65,39 @@ sealed class UsageHistory
     void Prune()
     {
         double cutoff = DateTimeOffset.UtcNow.Subtract(Window).ToUnixTimeSeconds();
-        foreach (var list in _data.Values)
-            list.RemoveAll(p => p.Length < 2 || p[0] < cutoff);
+        double creditCutoff = DateTimeOffset.UtcNow.Subtract(CreditWindow).ToUnixTimeSeconds();
+        foreach (var (key, list) in _data)
+        {
+            if (key == CreditKey)
+            {
+                list.RemoveAll(p => p.Length < 2 || p[0] < creditCutoff);
+                DownsampleCredit(list);
+            }
+            else
+            {
+                list.RemoveAll(p => p.Length < 2 || p[0] < cutoff);
+            }
+        }
+    }
+
+    /// <summary>Keeps at most one (the latest) sample per 30-minute bucket. Values are
+    /// cumulative/monotonic within a month, so collapsing a bucket to its last point
+    /// loses no shape — it just keeps 45 days of history from growing unbounded.</summary>
+    static void DownsampleCredit(List<double[]> list)
+    {
+        if (list.Count < 2) return;
+        list.Sort((a, b) => a[0].CompareTo(b[0]));
+        var kept = new List<double[]>();
+        foreach (var p in list)
+        {
+            double bucket = Math.Floor(p[0] / CreditBucketSeconds);
+            if (kept.Count > 0 && Math.Floor(kept[^1][0] / CreditBucketSeconds) == bucket)
+                kept[^1] = p;
+            else
+                kept.Add(p);
+        }
+        list.Clear();
+        list.AddRange(kept);
     }
 
     public IReadOnlyList<double[]> Samples(string key) =>

@@ -4,6 +4,30 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.7.0] - 2026-07-24
+
+### Added
+- **CREDIT (THIS MONTH) graph** plots cumulative usage-credit spend over the
+  current month, with a dashed red limit line at your monthly cap and a "Now"
+  marker. The Y axis ranges from $0 to your limit; month-to-date spend comes
+  live from the API and stays accurate even when the meter isn't running. Credit
+  history keeps 45 days of samples (one per 30 minutes). Toggled via tray menu
+  → *Usage graph* → "Show credit graph" (on by default); shows only on accounts
+  with extra usage credits enabled.
+- **Credit-burn notification** — a balloon tip fires when usage credits start
+  being consumed (spend increases between polls), throttled to at most one per
+  2 hours, e.g. "Usage credits are being consumed — $3.13 this month." The first
+  poll after startup is a silent baseline, and the monthly reset never triggers a
+  false alarm.
+
+### Changed
+- **"Extra usage" and "Spend" rows are merged into one.** The Anthropic usage API
+  reports the same usage-credit wallet twice (`extra_usage` and `spend`); previous
+  versions showed both as two nearly identical percentage rows. They are now
+  unified in a single "Extra usage" row that displays the real amounts and dollar
+  value, e.g. "Extra usage: 6% — $3.13 / $50.00" (month-to-date spend vs the
+  monthly cap, read live from the API).
+
 ## [1.6.2] - 2026-07-17
 
 ### Fixed
