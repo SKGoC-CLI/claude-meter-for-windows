@@ -12,6 +12,10 @@ A tiny Windows system-tray app that shows your **Claude usage limits** in real t
 the same *Session (5h) / Weekly / per-model weekly* percentages you see in
 Claude Code's `/usage`, always one click away.
 
+*Track your usage credits in real dollars against the monthly cap — a live spending graph with the limit line marked, and a matching dollar row up top:*
+
+![demo — usage-credit spending graph](docs/demo-credit-graph.gif)
+
 *Every active Claude Code session's context window at a glance, with live token counts:*
 
 ![demo — multi-session context](docs/demo-multi-session.gif)
@@ -62,7 +66,7 @@ a single self-contained exe, no .NET installation required.
 | Action | Result |
 |---|---|
 | Left-click tray icon | Show/hide the usage popup |
-| Right-click tray icon | Everything else — refresh, popup sections (Show limits / Session context / Usage graph / Appearance), pinning, tray & alert options, hotkey, autostart |
+| Right-click tray icon | Everything else — refresh, popup sections (Show limits / Session context / Session graph / Credit graph / Appearance), pinning, tray & alert options, hotkey, autostart |
 | Drag (while pinned) | Move the popup anywhere; position is remembered |
 | Esc | Hide the popup |
 
