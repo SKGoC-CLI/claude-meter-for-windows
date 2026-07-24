@@ -60,3 +60,8 @@
   ขวา/ล่างถ้าชนขอบ. "Now" ใช้ Theme.NowText, "$X used" ใช้สี severity เดิม.
 - ยืนยันตอนนี้: limit ขึ้นจาก $50 → $100 (เพิ่มเครดิต) กราฟอ่านจาก API เลยขึ้นถูกเอง
   = พิสูจน์ว่าการไม่ hardcode $50 คุ้มค่า.
+- fix รอบหก (grill-with-docs 2026-07-24): (1) ป้าย Now/$X used → _tinyFont สีขาวนวล
+  NowText เท่ากราฟ session, ย้ายไป default ขวาบนของจุด, ชนบน→ขวาล่าง, ชนขวา→พลิกซ้าย
+  (เลิกใช้สี severity ในกราฟ credit). (2) เมนูแยก submenu: "Usage graph"→เปลี่ยนชื่อเป็น
+  "Session graph" (Show/Range/Now position), "Credit graph" ใหม่ (Show) — ตรงกับ section
+  header ในป๊อปอัป. ศัพท์ทางการบันทึกใน [../CONTEXT.md](../CONTEXT.md).

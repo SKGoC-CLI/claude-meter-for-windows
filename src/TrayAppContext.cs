@@ -215,7 +215,7 @@ sealed class TrayAppContext : ApplicationContext
             Checked = _settings.ShowRemainingGraph,
         };
 
-        _showCreditGraphItem = new ToolStripMenuItem("Show credit graph", null, OnToggleShowCreditGraph)
+        _showCreditGraphItem = new ToolStripMenuItem("Show", null, OnToggleShowCreditGraph)
         {
             Checked = _settings.ShowCreditGraph,
         };
@@ -296,11 +296,15 @@ sealed class TrayAppContext : ApplicationContext
         sessionContextMenu.DropDownItems.Add(maxContextMenu);
         sessionContextMenu.DropDownItems.Add(contextSortMenu);
 
-        var graphMenu = new ToolStripMenuItem("Usage graph");
+        // session-remaining graph and month-to-date credit graph are separate popup
+        // sections, so each gets its own submenu (matching the section titles)
+        var graphMenu = new ToolStripMenuItem("Session graph");
         graphMenu.DropDownItems.Add(_showGraphItem);
         graphMenu.DropDownItems.Add(rangeMenu);
         graphMenu.DropDownItems.Add(nowPosMenu);
-        graphMenu.DropDownItems.Add(_showCreditGraphItem);
+
+        var creditGraphMenu = new ToolStripMenuItem("Credit graph");
+        creditGraphMenu.DropDownItems.Add(_showCreditGraphItem);
 
         var appearanceMenu = new ToolStripMenuItem("Appearance");
         appearanceMenu.DropDownItems.Add(themeMenu);
@@ -312,6 +316,7 @@ sealed class TrayAppContext : ApplicationContext
         menu.Items.Add(_limitsMenu);
         menu.Items.Add(sessionContextMenu);
         menu.Items.Add(graphMenu);
+        menu.Items.Add(creditGraphMenu);
         menu.Items.Add(appearanceMenu);
         menu.Items.Add(new ToolStripSeparator());
         // window & tray behavior

@@ -889,16 +889,6 @@ sealed class PopupForm : Form
             g.DrawLine(sepPen, pad, top + S(3), pad + contentWidth, top + S(3));
         g.DrawString("CREDIT (THIS MONTH)", _tinyFont, mutedBrush, pad, top + S(8));
 
-        // severity is only supplied by the "spend" block; extra_usage-only accounts
-        // always report "normal", so fall back to the utilization-based color there
-        var valueColor = wallet.Severity switch
-        {
-            "elevated" => IconRenderer.Warning,
-            "normal" => IconRenderer.ColorFor(wallet.Utilization),
-            _ => IconRenderer.Danger,
-        };
-        using var valueBrush = new SolidBrush(valueColor);
-
         // plot starts below the header row; dollar labels run wider than the % gutter
         int labelGutter = S(28);
         var plot = new Rectangle(
@@ -997,19 +987,20 @@ sealed class PopupForm : Form
         using (var curBrush = new SolidBrush(IconRenderer.Accent))
             g.FillEllipse(curBrush, dot.X - S(3), dot.Y - S(3), S(6), S(6));
 
-        // two-line "Now / $X used" label clinging to the dot, left of the now-line and
-        // above the point — flips right/below near an edge so it never leaves the plot
+        // two-line "Now / $X used" label clinging to the dot: upper-right by default, in
+        // the session graph's tiny soft-white style. Flips below on a top collision and to
+        // the dot's left if it would run past the right edge, so it never leaves the plot.
         string usedText = $"${used:0.00} used";
         var nowSize = g.MeasureString("Now", _tinyFont);
-        var usedSize = g.MeasureString(usedText, _smallFont);
+        var usedSize = g.MeasureString(usedText, _tinyFont);
         float labelW = Math.Max(nowSize.Width, usedSize.Width);
-        float labelRight = dot.X - S(6);
-        if (labelRight - labelW < plot.Left) labelRight = dot.X + S(6) + labelW; // flip right
+        float labelLeft = dot.X + S(6);
+        if (labelLeft + labelW > plot.Right) labelLeft = dot.X - S(6) - labelW;  // flip left
         float labelTop = dot.Y - nowSize.Height - usedSize.Height - S(4);
         if (labelTop < plot.Top) labelTop = dot.Y + S(4);                        // flip below
-        using (var nowBrush = new SolidBrush(Theme.NowText))
-            g.DrawString("Now", _tinyFont, nowBrush, labelRight - nowSize.Width, labelTop);
-        g.DrawString(usedText, _smallFont, valueBrush, labelRight - usedSize.Width, labelTop + nowSize.Height);
+        using var labelBrush = new SolidBrush(Theme.NowText);
+        g.DrawString("Now", _tinyFont, labelBrush, labelLeft, labelTop);
+        g.DrawString(usedText, _tinyFont, labelBrush, labelLeft, labelTop + nowSize.Height);
     }
 
     static void FillRounded(Graphics g, Brush brush, Rectangle rect, int radius)
