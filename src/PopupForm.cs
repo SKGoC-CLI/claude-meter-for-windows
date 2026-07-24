@@ -898,9 +898,6 @@ sealed class PopupForm : Form
             _ => IconRenderer.Danger,
         };
         using var valueBrush = new SolidBrush(valueColor);
-        string curText = $"${used:0.00} used";
-        var vs = g.MeasureString(curText, _smallFont);
-        g.DrawString(curText, _smallFont, valueBrush, pad + contentWidth - vs.Width, top + S(5));
 
         // plot starts below the header row; dollar labels run wider than the % gutter
         int labelGutter = S(28);
@@ -949,18 +946,13 @@ sealed class PopupForm : Form
                 g.DrawString(label, _tinyFont, mutedBrush, x - s.Width / 2, plot.Bottom + S(3));
         }
 
-        // "now" marker: month-scale axis, so a plain line + label is enough — no live clock
+        // "now" marker line; its "Now" label rides the latest dot (drawn below) instead
+        // of sitting at the top, so the reading travels with the point
         float nowX = Math.Clamp(
             plot.Left + (float)((now - monthStart).TotalSeconds / rangeSec) * plot.Width,
             plot.Left, plot.Right);
         using (var nowPen = new Pen(Theme.NowLine, 1))
             g.DrawLine(nowPen, nowX, plot.Top, nowX, plot.Bottom);
-        using (var nowBrush = new SolidBrush(Theme.NowText))
-        {
-            var ns = g.MeasureString("Now", _tinyFont);
-            bool flip = nowX + ns.Width + S(2) > plot.Right;
-            g.DrawString("Now", _tinyFont, nowBrush, flip ? nowX - ns.Width - S(2) : nowX + S(2), plot.Top);
-        }
 
         // data: credit_spend samples are server-truth cumulative values. The stretch
         // before our first recorded sample is drawn as a flat dashed lead-in held at that
@@ -1001,8 +993,23 @@ sealed class PopupForm : Form
             using (var linePen = new Pen(IconRenderer.Accent, Math.Max(1.5f, 2f * _scale)) { LineJoin = LineJoin.Round })
                 g.DrawLines(linePen, recPts);
 
+        var dot = recPts[^1];
         using (var curBrush = new SolidBrush(IconRenderer.Accent))
-            g.FillEllipse(curBrush, recPts[^1].X - S(3), recPts[^1].Y - S(3), S(6), S(6));
+            g.FillEllipse(curBrush, dot.X - S(3), dot.Y - S(3), S(6), S(6));
+
+        // two-line "Now / $X used" label clinging to the dot, left of the now-line and
+        // above the point — flips right/below near an edge so it never leaves the plot
+        string usedText = $"${used:0.00} used";
+        var nowSize = g.MeasureString("Now", _tinyFont);
+        var usedSize = g.MeasureString(usedText, _smallFont);
+        float labelW = Math.Max(nowSize.Width, usedSize.Width);
+        float labelRight = dot.X - S(6);
+        if (labelRight - labelW < plot.Left) labelRight = dot.X + S(6) + labelW; // flip right
+        float labelTop = dot.Y - nowSize.Height - usedSize.Height - S(4);
+        if (labelTop < plot.Top) labelTop = dot.Y + S(4);                        // flip below
+        using (var nowBrush = new SolidBrush(Theme.NowText))
+            g.DrawString("Now", _tinyFont, nowBrush, labelRight - nowSize.Width, labelTop);
+        g.DrawString(usedText, _smallFont, valueBrush, labelRight - usedSize.Width, labelTop + nowSize.Height);
     }
 
     static void FillRounded(Graphics g, Brush brush, Rectangle rect, int radius)
