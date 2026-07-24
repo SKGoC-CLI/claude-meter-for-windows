@@ -80,18 +80,21 @@ sealed class UsageHistory
         }
     }
 
-    /// <summary>Keeps at most one (the latest) sample per 30-minute bucket. Values are
-    /// cumulative/monotonic within a month, so collapsing a bucket to its last point
-    /// loses no shape — it just keeps 45 days of history from growing unbounded.</summary>
+    /// <summary>Keeps at most one (the latest) sample per 30-minute bucket, but only for
+    /// samples older than 24 h — fresh samples stay at full poll resolution so the chart
+    /// has points to draw right away instead of waiting out a whole bucket. Values are
+    /// cumulative/monotonic within a month, so collapsing old buckets loses no shape.</summary>
     static void DownsampleCredit(List<double[]> list)
     {
         if (list.Count < 2) return;
         list.Sort((a, b) => a[0].CompareTo(b[0]));
+        double freshCutoff = DateTimeOffset.UtcNow.Subtract(Window).ToUnixTimeSeconds();
         var kept = new List<double[]>();
         foreach (var p in list)
         {
             double bucket = Math.Floor(p[0] / CreditBucketSeconds);
-            if (kept.Count > 0 && Math.Floor(kept[^1][0] / CreditBucketSeconds) == bucket)
+            if (p[0] < freshCutoff && kept.Count > 0 &&
+                kept[^1][0] < freshCutoff && Math.Floor(kept[^1][0] / CreditBucketSeconds) == bucket)
                 kept[^1] = p;
             else
                 kept.Add(p);

@@ -44,3 +44,7 @@
   ด้วยข้อมูล synthetic (inject credit_spend ผ่าน reflection) มีประโยชน์ต่อรอบหน้า
 - เครื่อง Khun Somgok ตอนนี้รัน debug build v1.7.0 แทน portable v1.6.2 เดิม
   (portable\ClaudeMeter.exe ยังเป็น 1.6.2 จนกว่าจะ build release ใหม่)
+- fix รอบสอง (e9a9d46): กราф credit ค้าง "Collecting data…" หลังติดตั้ง/รีสตาร์ท
+  เพราะ downsample 30 นาทียุบตัวอย่างใหม่ทันที → เหลือจุดเดียวไม่ถึงเกณฑ์ 2 จุด
+  แก้: downsample เฉพาะข้อมูลเก่ากว่า 24 ชม. + กราฟต่อจุดค่าปัจจุบันจาก snapshot
+  เข้าท้ายเส้นเสมอ (เส้นถึง "Now" และวาดได้ตั้งแต่ poll แรก)

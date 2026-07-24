@@ -965,7 +965,12 @@ sealed class PopupForm : Form
         // data: credit_spend samples are server-truth cumulative values, so just
         // connect them — no gap bands needed like the session chart's remaining-%.
         double monthStartSec = monthStart.ToUnixTimeSeconds();
-        var samples = History?.Samples("credit_spend").Where(p => p[0] >= monthStartSec).ToList();
+        var samples = History?.Samples("credit_spend").Where(p => p[0] >= monthStartSec).ToList()
+            ?? new List<double[]>();
+
+        // the snapshot's own month-to-date value is one more server-truth point:
+        // it lets the line reach "Now" and draw from the very first poll
+        samples.Add(new[] { (double)now.ToUnixTimeSeconds(), used });
 
         if (samples is { Count: >= 2 })
         {
