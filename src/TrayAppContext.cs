@@ -90,6 +90,8 @@ sealed class TrayAppContext : ApplicationContext
     readonly Dictionary<int, ToolStripMenuItem> _notifyItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _rangeItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _nowPosItems = new();
+    readonly Dictionary<int, ToolStripMenuItem> _creditRangeItems = new();
+    readonly Dictionary<int, ToolStripMenuItem> _creditNowPosItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _maxContextItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _contextSortItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _themeItems = new();
@@ -254,6 +256,30 @@ sealed class TrayAppContext : ApplicationContext
             nowPosMenu.DropDownItems.Add(item);
         }
 
+        var creditRangeMenu = new ToolStripMenuItem("Range");
+        foreach (var days in new[] { 7, 15, 30 })
+        {
+            int d = days;
+            var item = new ToolStripMenuItem($"{d} days", null, (_, _) => SetCreditRange(d))
+            {
+                Checked = _settings.CreditRangeDays == d,
+            };
+            _creditRangeItems[d] = item;
+            creditRangeMenu.DropDownItems.Add(item);
+        }
+
+        var creditNowPosMenu = new ToolStripMenuItem("Now position");
+        foreach (var (pct, label) in new[] { (50, "Center"), (75, "3/4"), (100, "Right (past only)") })
+        {
+            int p = pct;
+            var item = new ToolStripMenuItem(label, null, (_, _) => SetCreditNowPosition(p))
+            {
+                Checked = _settings.CreditNowPositionPercent == p,
+            };
+            _creditNowPosItems[p] = item;
+            creditNowPosMenu.DropDownItems.Add(item);
+        }
+
         var maxContextMenu = new ToolStripMenuItem("Max shown");
         foreach (var n in new[] { 1, 2, 3, 5 })
         {
@@ -305,6 +331,8 @@ sealed class TrayAppContext : ApplicationContext
 
         var creditGraphMenu = new ToolStripMenuItem("Credit graph");
         creditGraphMenu.DropDownItems.Add(_showCreditGraphItem);
+        creditGraphMenu.DropDownItems.Add(creditRangeMenu);
+        creditGraphMenu.DropDownItems.Add(creditNowPosMenu);
 
         var appearanceMenu = new ToolStripMenuItem("Appearance");
         appearanceMenu.DropDownItems.Add(themeMenu);
@@ -340,6 +368,8 @@ sealed class TrayAppContext : ApplicationContext
         _popup.ShowCreditGraph = _settings.ShowCreditGraph;
         _popup.GraphRangeHours = _settings.GraphRangeHours;
         _popup.NowPositionPercent = _settings.NowPositionPercent;
+        _popup.CreditRangeDays = _settings.CreditRangeDays;
+        _popup.CreditNowPositionPercent = _settings.CreditNowPositionPercent;
         _popup.ShowLogo = _settings.ShowLogo;
         Theme.Light = _settings.Theme == "light";
         _popup.ApplyTheme();
@@ -602,6 +632,22 @@ sealed class TrayAppContext : ApplicationContext
         _settings.NowPositionPercent = percent;
         foreach (var (key, item) in _nowPosItems) item.Checked = key == percent;
         _popup.NowPositionPercent = percent;
+        _settings.Save();
+    }
+
+    void SetCreditRange(int days)
+    {
+        _settings.CreditRangeDays = days;
+        foreach (var (key, item) in _creditRangeItems) item.Checked = key == days;
+        _popup.CreditRangeDays = days;
+        _settings.Save();
+    }
+
+    void SetCreditNowPosition(int percent)
+    {
+        _settings.CreditNowPositionPercent = percent;
+        foreach (var (key, item) in _creditNowPosItems) item.Checked = key == percent;
+        _popup.CreditNowPositionPercent = percent;
         _settings.Save();
     }
 

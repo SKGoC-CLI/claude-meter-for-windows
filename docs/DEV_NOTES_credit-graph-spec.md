@@ -65,3 +65,10 @@
   (เลิกใช้สี severity ในกราฟ credit). (2) เมนูแยก submenu: "Usage graph"→เปลี่ยนชื่อเป็น
   "Session graph" (Show/Range/Now position), "Credit graph" ใหม่ (Show) — ตรงกับ section
   header ในป๊อปอัป. ศัพท์ทางการบันทึกใน [../CONTEXT.md](../CONTEXT.md).
+- fix รอบเจ็ด (grill-with-docs 2026-07-24): credit graph จาก "ล็อกเดือนปฏิทิน" เป็น
+  **rolling window** เหมือนกราฟ session — Range 7/15/30 วัน (default 30) + Now position
+  Center/3-4/Right (default Right) ตั้งแยกอิสระจากกราฟ session (settings ใหม่
+  `CreditRangeDays`, `CreditNowPositionPercent`; menu Range/Now position ใต้ Credit graph).
+  window ข้ามเดือนได้: โชว์เดือนก่อน เส้นดิ่ง $0 ตรงวันที่ 1 (ไม่มี reset marker).
+  หัวกราฟ `CREDIT (THIS MONTH)`→`CREDIT (30D)` ตาม range. ยืนยันด้วย render 30d ข้ามเดือน
+  (เห็นดิ่ง 1 ก.ค.) + 7d/center (tick รายวัน + ที่ว่างอนาคต).

@@ -142,6 +142,24 @@ sealed class PopupForm : Form
         set { _nowPositionPercent = value; Invalidate(); }
     }
 
+    int _creditRangeDays = 30;
+
+    /// <summary>Credit graph time-axis width in days (7/15/30); independent of the session graph.</summary>
+    public int CreditRangeDays
+    {
+        get => _creditRangeDays;
+        set { _creditRangeDays = value; Invalidate(); }
+    }
+
+    int _creditNowPositionPercent = 100;
+
+    /// <summary>Where "now" sits on the credit graph's time axis; independent of the session graph.</summary>
+    public int CreditNowPositionPercent
+    {
+        get => _creditNowPositionPercent;
+        set { _creditNowPositionPercent = value; Invalidate(); }
+    }
+
     /// <summary>Mouse clicks pass through the popup to windows behind it.</summary>
     public bool ClickThrough
     {
@@ -875,7 +893,9 @@ sealed class PopupForm : Form
         }
     }
 
-    /// <summary>Month-to-date usage-credit spend vs the monthly cap: cumulative $ line chart.</summary>
+    /// <summary>Cumulative usage-credit spend vs the monthly cap over a rolling day window.
+    /// Spend resets to $0 on the 1st, so a window spanning a month boundary shows the line
+    /// dive to the floor there — left as-is, no reset marker.</summary>
     void DrawCreditGraph(Graphics g, int pad, int top, int contentWidth)
     {
         var wallet = WalletWindow;
@@ -887,7 +907,7 @@ sealed class PopupForm : Form
         // divider + tiny caps header, matching the SESSION GRAPH section style
         using (var sepPen = new Pen(Theme.Grid, 1))
             g.DrawLine(sepPen, pad, top + S(3), pad + contentWidth, top + S(3));
-        g.DrawString("CREDIT (THIS MONTH)", _tinyFont, mutedBrush, pad, top + S(8));
+        g.DrawString($"CREDIT ({_creditRangeDays}D)", _tinyFont, mutedBrush, pad, top + S(8));
 
         // plot starts below the header row; dollar labels run wider than the % gutter
         int labelGutter = S(28);
@@ -920,37 +940,41 @@ sealed class PopupForm : Form
             g.DrawString(limitLabel, _tinyFont, limitBrush, plot.Right - ls.Width, plot.Top - ls.Height - S(1));
         }
 
-        // X axis: 1st of the month through the last day, ticks every ~5 days
+        // X axis: rolling window of _creditRangeDays, now sitting at _creditNowPositionPercent
+        // (past to its left, empty future to its right) — same scheme as the session graph
+        double rangeSec = _creditRangeDays * 86400.0;
+        double pastSec = rangeSec * _creditNowPositionPercent / 100.0;
         var now = DateTimeOffset.Now;
-        var monthStart = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, now.Offset);
-        var monthEnd = monthStart.AddMonths(1);
-        double rangeSec = (monthEnd - monthStart).TotalSeconds;
+        var winStart = now.AddSeconds(-pastSec);
+        var winEnd = now.AddSeconds(rangeSec - pastSec);
+        double winStartSec = now.ToUnixTimeSeconds() - pastSec;
 
-        for (var day = monthStart; day < monthEnd; day = day.AddDays(5))
+        // day ticks: every 1/3/5 days for the 7/15/30-day ranges, date at each
+        int dayStep = _creditRangeDays <= 7 ? 1 : _creditRangeDays <= 15 ? 3 : 5;
+        var tick = new DateTimeOffset(winStart.Year, winStart.Month, winStart.Day, 0, 0, 0, winStart.Offset);
+        if (tick < winStart) tick = tick.AddDays(1);
+        for (; tick <= winEnd; tick = tick.AddDays(dayStep))
         {
-            float x = plot.Left + (float)((day - monthStart).TotalSeconds / rangeSec) * plot.Width;
+            float x = plot.Left + (float)((tick.ToUnixTimeSeconds() - winStartSec) / rangeSec) * plot.Width;
             g.DrawLine(gridPen, x, plot.Top, x, plot.Bottom);
-            string label = day.ToString("d MMM");
+            string label = tick.ToString("d MMM");
             var s = g.MeasureString(label, _tinyFont);
-            if (x + s.Width / 2 < plot.Right + S(6))
+            if (x - s.Width / 2 > plot.Left - S(6) && x + s.Width / 2 < plot.Right + S(6))
                 g.DrawString(label, _tinyFont, mutedBrush, x - s.Width / 2, plot.Bottom + S(3));
         }
 
         // "now" marker line; its "Now" label rides the latest dot (drawn below) instead
         // of sitting at the top, so the reading travels with the point
-        float nowX = Math.Clamp(
-            plot.Left + (float)((now - monthStart).TotalSeconds / rangeSec) * plot.Width,
-            plot.Left, plot.Right);
+        float nowX = plot.Left + plot.Width * _creditNowPositionPercent / 100f;
         using (var nowPen = new Pen(Theme.NowLine, 1))
             g.DrawLine(nowPen, nowX, plot.Top, nowX, plot.Bottom);
 
         // data: credit_spend samples are server-truth cumulative values. The stretch
-        // before our first recorded sample is drawn as a flat dashed lead-in held at that
+        // before our first in-window sample is drawn as a flat dashed lead-in held at that
         // sample's level, stretched to the left edge — not literally true (we don't know
         // the early curve), but it fills the chart, and with no history yet it becomes a
         // full-width line at the current value. Solid takes over wherever we did record.
-        double monthStartSec = monthStart.ToUnixTimeSeconds();
-        var recorded = History?.Samples("credit_spend").Where(p => p[0] >= monthStartSec).ToList()
+        var recorded = History?.Samples("credit_spend").Where(p => p[0] >= winStartSec).ToList()
             ?? new List<double[]>();
         // the snapshot's own month-to-date value is one more server-truth point — it lets
         // the solid line reach "Now" and draw something from the very first poll
@@ -958,7 +982,7 @@ sealed class PopupForm : Form
         recorded.Sort((a, b) => a[0].CompareTo(b[0]));
 
         PointF Pt(double t, double v) => new(
-            plot.Left + (float)((t - monthStartSec) / rangeSec) * plot.Width,
+            plot.Left + (float)((t - winStartSec) / rangeSec) * plot.Width,
             plot.Bottom - (float)(Math.Clamp(v, 0, limit) / limit) * plot.Height);
 
         var recPts = recorded.Select(p => Pt(p[0], p[1])).ToArray();

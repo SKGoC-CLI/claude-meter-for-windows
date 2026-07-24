@@ -9,10 +9,13 @@
   section header ในป๊อปอัป = `SESSION GRAPH (24H)`; เมนู = `Session graph` (Show/Range/Now position);
   setting = `ShowRemainingGraph`, key ประวัติ = `five_hour`. **ห้ามเรียก "Usage graph" อีก** —
   ชื่อเดิมกำกวมกับ "extra usage" / usage credits.
-- **Credit graph** — กราฟเส้นสะสม "usage-credit spend" เดือนปัจจุบันเทียบเพดานรายเดือน.
-  section header = `CREDIT (THIS MONTH)`; เมนู = `Credit graph` (Show); setting = `ShowCreditGraph`,
-  key ประวัติ = `credit_spend` (เก็บ dollars, retention 45 วัน). แต่ละกราฟเป็นคนละ section →
-  มี submenu ของตัวเอง (หลักการเดิม: "each popup section owns its toggle + its options").
+- **Credit graph** — กราฟเส้นสะสม "usage-credit spend" เทียบเพดานรายเดือน บน **rolling window**
+  เลือกช่วง 7/15/30 วัน (`CreditRangeDays`) + Now position เลือกได้ (`CreditNowPositionPercent`,
+  Center/3-4/Right เหมือน session แต่ตั้งแยกอิสระ). section header = `CREDIT (30D)` ตาม range;
+  เมนู = `Credit graph` (Show/Range/Now position); setting = `ShowCreditGraph`, key ประวัติ =
+  `credit_spend` (เก็บ dollars, retention 45 วัน). window ข้ามเดือนได้ → เห็นเดือนก่อน + เส้น
+  ดิ่ง $0 ตรงวันที่ 1 (cumulative รีเซ็ต, ไม่มีมาร์ก). แต่ละกราฟเป็นคนละ section → มี submenu
+  ของตัวเอง (หลักการเดิม: "each popup section owns its toggle + its options").
 
 ## Wallet / เครดิต
 

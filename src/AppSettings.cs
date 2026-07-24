@@ -13,8 +13,10 @@ sealed class AppSettings
     public int NotifyThreshold { get; set; } = 90; // 0 = off, else 50..95 step 5
     public bool ShowRemainingGraph { get; set; } = true; // session-remaining chart at popup bottom
     public bool ShowCreditGraph { get; set; } = true;    // month-to-date credit chart at popup bottom
-    public int GraphRangeHours { get; set; } = 24;       // total axis width: 24 or 12
-    public int NowPositionPercent { get; set; } = 75;    // where "now" sits on the axis: 50 | 75 | 100
+    public int GraphRangeHours { get; set; } = 24;       // session graph axis width: 24 or 12
+    public int NowPositionPercent { get; set; } = 75;    // session graph "now" position: 50 | 75 | 100
+    public int CreditRangeDays { get; set; } = 30;       // credit graph axis width: 7 | 15 | 30
+    public int CreditNowPositionPercent { get; set; } = 100; // credit graph "now" position: 50 | 75 | 100
     public string Theme { get; set; } = "dark";          // dark | light
     public string TrayShows { get; set; } = "auto";      // auto (server's active limit) | session | weekly | highest (≥90% always overrides)
     public bool HotkeyEnabled { get; set; } = true;      // global hotkey toggles the popup
