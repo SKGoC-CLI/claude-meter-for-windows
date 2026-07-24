@@ -962,10 +962,11 @@ sealed class PopupForm : Form
             g.DrawString("Now", _tinyFont, nowBrush, flip ? nowX - ns.Width - S(2) : nowX + S(2), plot.Top);
         }
 
-        // data: credit_spend samples are server-truth cumulative values. Spend was $0
-        // at the month's start (it resets on the 1st), so the stretch before our first
-        // recorded sample is drawn as a dashed lead-in from (monthStart, $0) — estimated,
-        // since we weren't running to log it — then solid over what we actually recorded.
+        // data: credit_spend samples are server-truth cumulative values. The stretch
+        // before our first recorded sample is drawn as a flat dashed lead-in held at that
+        // sample's level, stretched to the left edge — not literally true (we don't know
+        // the early curve), but it fills the chart, and with no history yet it becomes a
+        // full-width line at the current value. Solid takes over wherever we did record.
         double monthStartSec = monthStart.ToUnixTimeSeconds();
         var recorded = History?.Samples("credit_spend").Where(p => p[0] >= monthStartSec).ToList()
             ?? new List<double[]>();
@@ -978,8 +979,8 @@ sealed class PopupForm : Form
             plot.Left + (float)((t - monthStartSec) / rangeSec) * plot.Width,
             plot.Bottom - (float)(Math.Clamp(v, 0, limit) / limit) * plot.Height);
 
-        var baseline = Pt(monthStartSec, 0);
         var recPts = recorded.Select(p => Pt(p[0], p[1])).ToArray();
+        var baseline = new PointF(plot.Left, recPts[0].Y); // flat, at the first known level
 
         // one continuous soft fill under the whole line (lead-in + recorded)
         using (var fillBrush = new SolidBrush(Color.FromArgb(42, IconRenderer.Accent)))
