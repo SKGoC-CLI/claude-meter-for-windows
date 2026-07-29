@@ -28,12 +28,18 @@ static class IconRenderer
             g.Clear(Color.Transparent);
 
             var color = maxUtilization is { } u ? ColorFor(u) : Color.Gray;
-            string text = maxUtilization is { } v ? Math.Min(99, (int)Math.Round(v)).ToString() : "--";
+            string text = maxUtilization is { } v ? Math.Clamp((int)Math.Round(v), 0, 100).ToString() : "--";
 
             using var font = new Font("Segoe UI", 15f, FontStyle.Bold, GraphicsUnit.Pixel);
             var textSize = g.MeasureString(text, font);
             using var textBrush = new SolidBrush(Color.White);
-            g.DrawString(text, font, textBrush, (size - textSize.Width) / 2f, 2f);
+            // "100" overflows at full width, so squeeze it horizontally instead of
+            // shrinking the font — glyph height is what survives the 16 px downscale.
+            float scaleX = textSize.Width > size - 1 ? (size - 1) / textSize.Width : 1f;
+            var state = g.Save();
+            g.ScaleTransform(scaleX, 1f);
+            g.DrawString(text, font, textBrush, (size / scaleX - textSize.Width) / 2f, 2f);
+            g.Restore(state);
 
             // fill bar along the bottom
             using var trackBrush = new SolidBrush(Color.FromArgb(90, 255, 255, 255));

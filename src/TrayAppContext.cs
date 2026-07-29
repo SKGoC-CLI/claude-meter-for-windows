@@ -257,10 +257,11 @@ sealed class TrayAppContext : ApplicationContext
         }
 
         var creditRangeMenu = new ToolStripMenuItem("Range");
-        foreach (var days in new[] { 7, 15, 30 })
+        foreach (var days in new[] { 1, 3, 7, 15, 30 })
         {
             int d = days;
-            var item = new ToolStripMenuItem($"{d} days", null, (_, _) => SetCreditRange(d))
+            // stored in days throughout; the one-day range just reads better as hours
+            var item = new ToolStripMenuItem(d == 1 ? "24 hours" : $"{d} days", null, (_, _) => SetCreditRange(d))
             {
                 Checked = _settings.CreditRangeDays == d,
             };

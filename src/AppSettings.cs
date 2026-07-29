@@ -15,7 +15,7 @@ sealed class AppSettings
     public bool ShowCreditGraph { get; set; } = true;    // month-to-date credit chart at popup bottom
     public int GraphRangeHours { get; set; } = 24;       // session graph axis width: 24 or 12
     public int NowPositionPercent { get; set; } = 75;    // session graph "now" position: 50 | 75 | 100
-    public int CreditRangeDays { get; set; } = 30;       // credit graph axis width: 7 | 15 | 30
+    public int CreditRangeDays { get; set; } = 30;       // credit graph axis width in days: 1 (=24 h) | 3 | 7 | 15 | 30
     public int CreditNowPositionPercent { get; set; } = 100; // credit graph "now" position: 50 | 75 | 100
     public string Theme { get; set; } = "dark";          // dark | light
     public string TrayShows { get; set; } = "auto";      // auto (server's active limit) | session | weekly | highest (≥90% always overrides)

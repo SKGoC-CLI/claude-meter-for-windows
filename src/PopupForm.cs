@@ -144,7 +144,7 @@ sealed class PopupForm : Form
 
     int _creditRangeDays = 30;
 
-    /// <summary>Credit graph time-axis width in days (7/15/30); independent of the session graph.</summary>
+    /// <summary>Credit graph time-axis width in days (1 = 24 h, 3, 7, 15, 30); independent of the session graph.</summary>
     public int CreditRangeDays
     {
         get => _creditRangeDays;
@@ -907,7 +907,8 @@ sealed class PopupForm : Form
         // divider + tiny caps header, matching the SESSION GRAPH section style
         using (var sepPen = new Pen(Theme.Grid, 1))
             g.DrawLine(sepPen, pad, top + S(3), pad + contentWidth, top + S(3));
-        g.DrawString($"CREDIT ({_creditRangeDays}D)", _tinyFont, mutedBrush, pad, top + S(8));
+        g.DrawString(_creditRangeDays == 1 ? "CREDIT (24H)" : $"CREDIT ({_creditRangeDays}D)",
+            _tinyFont, mutedBrush, pad, top + S(8));
 
         // plot starts below the header row; dollar labels run wider than the % gutter
         int labelGutter = S(28);
@@ -949,19 +950,68 @@ sealed class PopupForm : Form
         var winEnd = now.AddSeconds(rangeSec - pastSec);
         double winStartSec = now.ToUnixTimeSeconds() - pastSec;
 
-        // day ticks: every 1/3/5 days for the 7/15/30-day ranges, date at each
-        int dayStep = _creditRangeDays <= 7 ? 1 : _creditRangeDays <= 15 ? 3 : 5;
-        var tick = new DateTimeOffset(winStart.Year, winStart.Month, winStart.Day, 0, 0, 0, winStart.Offset);
-        if (tick < winStart) tick = tick.AddDays(1);
-        for (; tick <= winEnd; tick = tick.AddDays(dayStep))
+        float TickX(DateTimeOffset t) =>
+            plot.Left + (float)((t.ToUnixTimeSeconds() - winStartSec) / rangeSec) * plot.Width;
+
+        void DrawTickLabel(float x, string label)
         {
-            float x = plot.Left + (float)((tick.ToUnixTimeSeconds() - winStartSec) / rangeSec) * plot.Width;
-            g.DrawLine(gridPen, x, plot.Top, x, plot.Bottom);
-            string label = tick.ToString("d MMM");
             var s = g.MeasureString(label, _tinyFont);
             if (x - s.Width / 2 > plot.Left - S(6) && x + s.Width / 2 < plot.Right + S(6))
                 g.DrawString(label, _tinyFont, mutedBrush, x - s.Width / 2, plot.Bottom + S(3));
         }
+
+        if (_creditRangeDays < 7)
+        {
+            // short ranges get hourly ticks like the session graph — a day-scale axis
+            // would leave the 24 h view with a single gridline at midnight
+            int hourStep = _creditRangeDays <= 1 ? 1 : 6;    // minor tick spacing
+            int labelStep = _creditRangeDays <= 1 ? 3 : 12;  // gridline + label spacing
+            using var tickPen = new Pen(Theme.GridStrong, 1);
+            var tick = new DateTimeOffset(winStart.Year, winStart.Month, winStart.Day, 0, 0, 0, winStart.Offset);
+            for (; tick <= winEnd; tick = tick.AddHours(hourStep))
+            {
+                if (tick < winStart) continue;
+                float x = TickX(tick);
+                if (tick.Hour % labelStep == 0)
+                {
+                    g.DrawLine(gridPen, x, plot.Top, x, plot.Bottom);
+                    DrawTickLabel(x, tick.Hour == 0 ? tick.ToString("d MMM") : tick.ToString("HH:mm"));
+                }
+                else
+                {
+                    g.DrawLine(tickPen, x, plot.Bottom - S(3), x, plot.Bottom);
+                }
+            }
+        }
+        else
+        {
+            // day ticks: every 1/3/5 days for the 7/15/30-day ranges, date at each
+            int dayStep = _creditRangeDays <= 7 ? 1 : _creditRangeDays <= 15 ? 3 : 5;
+            var tick = new DateTimeOffset(winStart.Year, winStart.Month, winStart.Day, 0, 0, 0, winStart.Offset);
+            if (tick < winStart) tick = tick.AddDays(1);
+            for (; tick <= winEnd; tick = tick.AddDays(dayStep))
+            {
+                float x = TickX(tick);
+                g.DrawLine(gridPen, x, plot.Top, x, plot.Bottom);
+                DrawTickLabel(x, tick.ToString("d MMM"));
+            }
+        }
+
+        // month reset: spend is cumulative *within a month*, so on the 1st the series
+        // cliffs from last month's total down to $0. Mark the boundary rather than
+        // leaving an unexplained drop — applies to every range, not just the short ones.
+        var monthStart = new DateTimeOffset(winStart.Year, winStart.Month, 1, 0, 0, 0, winStart.Offset);
+        if (monthStart < winStart) monthStart = monthStart.AddMonths(1);
+        using (var resetPen = new Pen(IconRenderer.Danger, 1) { DashStyle = DashStyle.Dash })
+        using (var resetBrush = new SolidBrush(IconRenderer.Danger))
+            for (; monthStart <= winEnd; monthStart = monthStart.AddMonths(1))
+            {
+                float x = TickX(monthStart);
+                g.DrawLine(resetPen, x, plot.Top, x, plot.Bottom);
+                var s = g.MeasureString("reset", _tinyFont);
+                g.DrawString("reset", _tinyFont, resetBrush,
+                    Math.Min(x + S(2), plot.Right - s.Width), plot.Bottom - s.Height);
+            }
 
         // "now" marker line; its "Now" label rides the latest dot (drawn below) instead
         // of sitting at the top, so the reading travels with the point

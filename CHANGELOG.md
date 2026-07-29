@@ -4,6 +4,29 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.7.1] - 2026-07-29
+
+### Added
+- **Short credit-graph ranges.** Tray menu → *Credit graph* → *Range* now offers
+  **24 hours** and **3 days** alongside 7 / 15 / 30 days. Those two ranges switch
+  the time axis to hourly ticks — labelled every 3 h on the 24-hour view and every
+  12 h on the 3-day view, with the date shown at midnight — because a day-scale
+  axis left the 24-hour view with a single gridline. The Y axis still runs
+  $0 → monthly limit on every range, so short views read as a nearly flat line by
+  design; what they buy is time resolution, not vertical detail.
+- **Month-reset marker.** Credit spend is cumulative *within a month*, so on the
+  1st the series drops from last month's total to $0. A dashed red vertical line
+  labelled "reset" now marks that boundary on every range, instead of leaving an
+  unexplained cliff.
+
+### Fixed
+- **Tray icon showed "99" at 100%.** `IconRenderer` clamped the number with
+  `Math.Min(99, …)` because three digits overflowed the 32 px icon, so a maxed-out
+  Session (5h) window read as 99 % while the popup and tooltip correctly said
+  100 %. The number is no longer clamped; when the text overflows it is squeezed
+  horizontally instead of shrunk, keeping glyph height readable after Windows
+  downscales the icon to 16 px.
+
 ## [1.7.0] - 2026-07-24
 
 ### Added
