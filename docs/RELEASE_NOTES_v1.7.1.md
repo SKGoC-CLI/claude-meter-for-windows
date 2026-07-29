@@ -2,6 +2,8 @@
 
 The tray icon tells the truth at 100 %, and the credit graph zooms in.
 
+![Claude Usage Meter v1.7.1 — the popup with the credit graph on its new 24-hour range, showing the hourly time axis](https://raw.githubusercontent.com/SKGoC-CLI/claude-meter-for-windows/main/docs/screenshot-v1.7.1.png)
+
 ## Download
 
 **`ClaudeMeter-portable.zip`** (attached) — unzip and run `ClaudeMeter.exe`.
