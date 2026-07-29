@@ -12,6 +12,12 @@ A tiny Windows system-tray app that shows your **Claude usage limits** in real t
 the same *Session (5h) / Weekly / per-model weekly* percentages you see in
 Claude Code's `/usage`, always one click away.
 
+*Every limit, every session's context window, and both graphs — one click from the tray:*
+
+<p align="center">
+  <img src="docs/screenshot-v1.7.1.png" width="400" alt="Claude Usage Meter popup — limits, session context, and the session and credit graphs">
+</p>
+
 *Track your usage credits in real dollars against the monthly cap — a live spending graph with the limit line marked, and a matching dollar row up top:*
 
 ![demo — usage-credit spending graph](docs/demo-credit-graph.gif)
