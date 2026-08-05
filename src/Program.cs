@@ -5,8 +5,14 @@ namespace ClaudeMeter;
 static class Program
 {
     [STAThread]
-    static void Main()
+    static void Main(string[] args)
     {
+        if (args.Contains("--icon-selftest"))
+        {
+            IconSelfTest.Run();
+            return;
+        }
+
         using var mutex = new Mutex(initiallyOwned: true, "ClaudeMeter_SingleInstance", out bool createdNew);
         if (!createdNew)
         {

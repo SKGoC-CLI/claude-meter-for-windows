@@ -12,6 +12,12 @@ A tiny Windows system-tray app that shows your **Claude usage limits** in real t
 the same *Session (5h) / Weekly / per-model weekly* percentages you see in
 Claude Code's `/usage`, always one click away.
 
+*New in v1.8.0 — the tray icon can show both limits at once, Session (5h) stacked over Weekly, so a draining week can't hide behind a fresh session:*
+
+<p align="center">
+  <img src="docs/tray-two-row-v1.8.0.png" alt="Tray icon in Session + Weekly mode — Session (5h) on the top row, the highest weekly below, each row coloured by its own severity">
+</p>
+
 *Every limit, every session's context window, and both graphs — one click from the tray:*
 
 <p align="center">
@@ -32,7 +38,7 @@ Claude Code's `/usage`, always one click away.
 
 ## Features
 
-- Tray icon renders your highest usage percentage live, shifting color as you approach the limit
+- Tray icon renders your highest usage percentage live, shifting color as you approach the limit; the optional Session + Weekly mode stacks both limits so you catch a draining week at a glance
 - Popup shows a progress bar, reset countdown and exact reset time for every limit window
 - Usage credits displayed as real dollar amounts (e.g. "Extra usage: 6% — $3.13 / $50.00"), with the same data from `extra_usage` and `spend` rows merged into one
 - Usage graph plots session remaining over a 12 or 24 hour axis, with hourly ticks, reset markers for both past and upcoming resets, and an adjustable "now" position

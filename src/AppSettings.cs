@@ -18,7 +18,7 @@ sealed class AppSettings
     public int CreditRangeDays { get; set; } = 30;       // credit graph axis width in days: 1 (=24 h) | 3 | 7 | 15 | 30
     public int CreditNowPositionPercent { get; set; } = 100; // credit graph "now" position: 50 | 75 | 100
     public string Theme { get; set; } = "dark";          // dark | light
-    public string TrayShows { get; set; } = "auto";      // auto (server's active limit) | session | weekly | highest (≥90% always overrides)
+    public string TrayShows { get; set; } = "auto";      // auto (server's active limit) | session | weekly | both (two rows: 5h + weekly) | highest (≥90% always overrides, auto only)
     public bool HotkeyEnabled { get; set; } = true;      // global hotkey toggles the popup
     public string Hotkey { get; set; } = "Ctrl+Alt+U";   // which combo (see hotkey menu presets)
     public bool CheckUpdates { get; set; } = true;       // daily GitHub release check

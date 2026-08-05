@@ -17,6 +17,22 @@
   ดิ่ง $0 ตรงวันที่ 1 (cumulative รีเซ็ต, ไม่มีมาร์ก). แต่ละกราฟเป็นคนละ section → มี submenu
   ของตัวเอง (หลักการเดิม: "each popup section owns its toggle + its options").
 
+## ไอคอนใน tray
+
+- **Tray icon mode** — "ไอคอนโชว์ตัวเลขอะไร" เลือกได้ค่าเดียวจากเมนู `Tray icon shows`
+  (setting = `TrayShows`). ค่าที่ถูกต้อง: `auto` / `session` / `weekly` / `both` / `highest`
+  — **เป็น mode เดียวจบ ไม่ใช่ toggle ซ้อนกัน** เพราะ "โชว์สองแถว" ตัดกันเองกับ "โชว์ session
+  อย่างเดียว" อยู่แล้ว. เรียกว่า *mode* เท่านั้น — **ห้ามเรียก "tray style" / "icon layout"**.
+- **Single-row icon** — ไอคอนเลขเดียว (mode `auto`/`session`/`weekly`/`highest`) วาดด้วย
+  Segoe UI. mode `auto` มีกฎ **≥90% override** คือถ้ามี window ไหนแตะ 90% จะแย่งไปโชว์แทน
+  limit ที่ server บอกว่า active — **กฎนี้ใช้กับ `auto` เท่านั้น**.
+- **Two-row icon** — mode `both` วาดสองแถว: **แถวบน = Session (5h) เสมอ, แถวล่าง = Weekly**
+  เมนู = `Session + Weekly`. ไม่มีกฎ ≥90% override (เห็นครบสองตัวอยู่แล้ว) และไม่มีแถบ fill.
+- **Highest weekly** — ค่าที่แถวล่างของ two-row icon แสดง = ค่าสูงสุดของ **ทุก** window ที่ขึ้นต้น
+  `seven_day` (รวม weekly แยกโมเดลอย่าง `seven_day_opus`) ไม่ใช่แค่ `seven_day` ตัวเดียว —
+  บัญชีที่ Opus Weekly จะชนก่อนต้องเห็นตัวนั้น. **`extra_usage` ไม่เคยขึ้นไอคอน** เพราะเป็น
+  กระเป๋าเงิน ไม่ใช่ลิมิตที่บล็อกงาน.
+
 ## Wallet / เครดิต
 
 - **Wallet row / "Extra usage" row** — แถวเดียวในป๊อปอัปที่รวม `extra_usage` กับ `spend`

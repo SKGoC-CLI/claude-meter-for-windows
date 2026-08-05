@@ -4,6 +4,22 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.8.0] - 2026-08-05
+
+### Added
+- **Two-row tray icon mode shows Session (5h) and your highest weekly limit stacked.**
+  Tray menu → *Tray icon shows* → new option **Session + Weekly**. The top row is
+  always Session (5h); the bottom row is the highest of *all* your weekly windows —
+  the plain all-models weekly, or a model-scoped one such as Opus Weekly when that is
+  the one closer to binding. Each row is coloured by its own
+  severity: blue <70%, orange 70–89%, red 90%+. The mode solves a real blind spot —
+  after a weekly reset, heavy usage can drain the week to 80% while the 5-hour session
+  reads 0%, and the existing auto mode only switches to a second window at 90%, leaving
+  the week silently maxing out. The mode is opt-in; the default stays *Active limit
+  (auto)*, so existing icons don't change on upgrade. Implementation note: two numbers
+  are illegible when the icon is downscaled to 16 px, so this mode uses a hand-rolled
+  bitmap font drawn directly at the final size instead of Segoe UI.
+
 ## [1.7.1] - 2026-07-29
 
 ### Added

@@ -306,7 +306,7 @@ sealed class TrayAppContext : ApplicationContext
         }
 
         var trayShowsMenu = new ToolStripMenuItem("Tray icon shows");
-        foreach (var (key, label) in new[] { ("auto", "Active limit (auto)"), ("session", "Session (5h)"), ("weekly", "Weekly"), ("highest", "Highest") })
+        foreach (var (key, label) in new[] { ("auto", "Active limit (auto)"), ("session", "Session (5h)"), ("weekly", "Weekly"), ("both", "Session + Weekly"), ("highest", "Highest") })
         {
             string k = key;
             var item = new ToolStripMenuItem(label, null, (_, _) => SetTrayShows(k))
@@ -394,7 +394,7 @@ sealed class TrayAppContext : ApplicationContext
             Visible = true,
             Text = "Claude Meter — loading…",
         };
-        SetIcon(null);
+        SetIcon(IconRenderer.Render(null));
         _trayIcon.MouseClick += (_, e) =>
         {
             if (e.Button == MouseButtons.Left) TogglePopup();
@@ -862,7 +862,15 @@ sealed class TrayAppContext : ApplicationContext
         _popup.UpdateData(visible, _lastError, stale, _lastErrorNeedsRelogin);
         _fixLoginItem.Visible = _lastErrorNeedsRelogin;
 
-        SetIcon(TrayDisplayValue());
+        if (_settings.TrayShows == "both")
+        {
+            var (session, weekly) = TrayTwoRowValues();
+            SetIcon(IconRenderer.RenderTwoRow(session, weekly));
+        }
+        else
+        {
+            SetIcon(IconRenderer.Render(TrayDisplayValue()));
+        }
 
         string tooltip = _lastSnapshot is null
             ? "Claude Meter — " + (_lastError is null ? "loading…" : "error")
@@ -897,6 +905,22 @@ sealed class TrayAppContext : ApplicationContext
         };
     }
 
+    /// <summary>
+    /// The pair the two-row icon shows: Session (5h) on top, the highest weekly
+    /// window below. "Highest weekly" rather than plain seven_day so accounts with
+    /// model-scoped weeklies (Opus/Fable) still see the one about to bind.
+    /// </summary>
+    (double? session, double? weekly) TrayTwoRowValues()
+    {
+        var windows = _lastSnapshot?.Windows;
+        if (windows is null || windows.Count == 0) return (null, null);
+
+        double? session = windows.FirstOrDefault(w => w.Key == "five_hour")?.Utilization;
+        var weeklyWindows = windows.Where(w => w.Key.StartsWith("seven_day", StringComparison.Ordinal)).ToList();
+        double? weekly = weeklyWindows.Count > 0 ? weeklyWindows.Max(w => w.Utilization) : null;
+        return (session, weekly);
+    }
+
     void SetTrayShows(string key)
     {
         _settings.TrayShows = key;
@@ -905,10 +929,10 @@ sealed class TrayAppContext : ApplicationContext
         _settings.Save();
     }
 
-    void SetIcon(double? maxUtilization)
+    void SetIcon(Icon icon)
     {
         var old = _currentIcon;
-        _currentIcon = IconRenderer.Render(maxUtilization);
+        _currentIcon = icon;
         _trayIcon.Icon = _currentIcon;
         old?.Dispose();
     }
