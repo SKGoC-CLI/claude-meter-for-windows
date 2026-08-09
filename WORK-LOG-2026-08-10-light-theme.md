@@ -88,11 +88,34 @@ ClaudeMeter.exe --popup-shot C:\some\dir
 เพี้ยนจาก DPI/หลายจอ **ลบทิ้งไปแล้ว อย่ารื้อกลับมาโดยไม่แก้เรื่อง DPI ก่อน** ตอนนี้ยืนยัน
 ขอบด้วยการเช็คว่า `DwmSetWindowAttribute` คืน S_OK (ไม่มี WARN ใน log) แทน
 
+## 6. สลับ portable เป็นบิลด์ใหม่ (2026-08-10 03:07)
+
+`publish-portable\` → ทับ `portable\ClaudeMeter.exe` (68.40 MB) ปิดตัวเก่า เปิดตัวใหม่
+ตัวเก่าสำรองไว้ที่ `bin\portable-v1.9.0-backup\ClaudeMeter.exe`
+
+**csproj `<Version>` ยังเป็น 1.9.0** — งานนี้ยังไม่ release เลยไม่ bump ผลคือ
+`portable\` ตอนนี้คือ "v1.9.0 + light theme" ซึ่งหมายเลขเวอร์ชันไม่ได้บอกไว้
+ตอนจะ release จริงค่อย bump เป็น 1.9.1 (หรือ 1.10.0)
+
+`settings.json` สำรอง/เทียบแล้ว — เหมือนเดิมทุกค่า (`Theme=light`, `Scale=1.3`,
+`TrayShows=both`, `AlwaysOnTop=true`)
+
+> **กฎที่ Khun Somgok สั่งไว้ 2026-08-10:** ทุกครั้งที่ทำเวอร์ชัน/บิลด์ใหม่
+> **ให้ build portable ทับ ปิดตัวเก่า เปิดตัวใหม่เสมอ ไม่ต้องถาม**
+> (autostart ชี้ที่ `portable\` — ถ้าไม่ทับ ตัวที่ใช้จริงจะยังเป็นของเก่า)
+
 ## ตรวจแล้ว
 
 - `dotnet build` — 0 warning 0 error
 - เรนเดอร์ทั้งสองธีมดูด้วยตา: light ดีขึ้นชัด, dark เหมือนเดิมเป๊ะ
 - ไม่มี `DWMWA_BORDER_COLOR failed` ใน log → DWM รับค่าขอบแล้ว
+- **ถ่ายป๊อปอัปจริงบนจอจริงจากบิลด์ที่รันอยู่** แล้วสแกนพิกเซลข้ามขอบซ้ายที่กลางความสูง:
+  `(88,84,84)` หน้าต่างหลัง → **`(224,224,224)` = `#e0e0e0` ขอบ 1 px** → `(251,251,251)`
+  = `#fbfbfb` พื้น — ตรงกับค่าที่ตั้งไว้เป๊ะทั้งคู่ มุมโค้งยังอยู่ครบ
+  วิธีถ่าย: `SetProcessDPIAware()` → `EnumWindows` หา hwnd ของ process →
+  `GetWindowRect` → `CopyFromScreen` โดยเผื่อขอบ 20 px (ป๊อปอัป pinned อยู่แล้วเลย
+  ไม่ต้องกดอะไรเรียก) — **ได้ผลกว่า `CopyFromScreen` ใน PopupShot ที่พิกัดเพี้ยน**
+  เพราะรันจาก host ที่ DPI-aware และใช้พิกัดจริงจาก `GetWindowRect`
 - reviewer (Sonnet) ตรวจ diff: ไม่เจอบั๊ก — ยืนยันว่า tray icon ไม่ได้ผูกกับธีมแอป,
   dark เหมือนเดิม, threshold ของ `ContextColor` (85/60) ไม่ได้ถูกกลืนเข้า `ColorFor` (90/70)
 
