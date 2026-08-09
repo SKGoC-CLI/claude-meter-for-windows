@@ -84,12 +84,12 @@ sealed class PopupForm : Form
         set { _miniMode = value; RecomputeLayout(); }
     }
 
-    /// <summary>Whether to draw a burn-rate ETA line under each row. No layout change on
-    /// toggle — the ETA lives in the free band under the progress bar (see RowHeight).</summary>
+    /// <summary>Whether to draw a burn-rate ETA line under each row. Changes the row
+    /// height (see RowHeight), so this relayouts rather than just repainting.</summary>
     public bool ShowEta
     {
         get => _showEta;
-        set { _showEta = value; Invalidate(); }
+        set { _showEta = value; RecomputeLayout(); }
     }
 
     IReadOnlyList<UsageWindow> _rawWindows = Array.Empty<UsageWindow>();
@@ -117,7 +117,9 @@ sealed class PopupForm : Form
         Invalidate();
     }
 
-    int RowHeight => S(58);
+    // the ETA line sits at y+S(38), just under the bar; the extra height is breathing room
+    // *below* it, so it reads as part of its own row instead of the next row's label
+    int RowHeight => _showEta ? S(66) : S(58);
 
     // never shorter than the minimize button's hit area, even with the logo off,
     // so "−" never lands on top of the first row's "resets …" text
