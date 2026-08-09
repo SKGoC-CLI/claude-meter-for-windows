@@ -43,7 +43,9 @@ Claude Code's `/usage`, always one click away.
 - Usage credits displayed as real dollar amounts (e.g. "Extra usage: 6% — $3.13 / $50.00"), with the same data from `extra_usage` and `spend` rows merged into one
 - Usage graph plots session remaining over a 12 or 24 hour axis, with hourly ticks, reset markers for both past and upcoming resets, and an adjustable "now" position
 - Credit spending graph shows cumulative month-to-date usage-credit spend up to your monthly limit, with a dashed limit line and live "now" marker; stays accurate even if the meter isn't running (45-day history sampled every 30 minutes)
-- Pin the popup anywhere on screen; optionally let mouse clicks pass through it while pinned
+- Burn-rate estimate under each limit — "full in ~2h 41m" at your current pace, measured over a window matched to the limit's own length, and kept quiet whenever the limit would reset before it ever fills
+- Mini mode collapses the whole popup to a single bar (`5h 29% · W 34%`) for people who want the numbers on screen all day
+- Pin the popup anywhere on screen; optionally let mouse clicks pass through it while pinned; a minimize button hides it again without unpinning
 - Dark and light themes, three popup sizes, five opacity levels with full opacity restored on hover
 - Usage alert notifications at any threshold from 50 to 95 percent, plus a credit-burn notification when usage credits start being consumed (at most once per 2 hours)
 - One-click login recovery when the Claude session expires, plus local diagnostic logs for troubleshooting
@@ -80,6 +82,7 @@ a single self-contained exe, no .NET installation required.
 | Left-click tray icon | Show/hide the usage popup |
 | Right-click tray icon | Everything else — refresh, popup sections (Show limits / Session context / Session graph / Credit graph / Appearance), pinning, tray & alert options, hotkey, autostart |
 | Drag (while pinned) | Move the popup anywhere; position is remembered |
+| Click "−" (popup, top-right) | Hide the popup; pinning is left as it was |
 | Esc | Hide the popup |
 
 Data refreshes every **3 minutes** — Anthropic's usage endpoint rate-limits

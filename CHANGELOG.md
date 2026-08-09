@@ -4,6 +4,32 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.9.0] - 2026-08-09
+
+### Added
+- **A minimize button in the popup's top-right corner.** Click "−" to hide the popup
+  without reaching for the tray icon or the Esc key. It hides the window only — your
+  *Always on top* setting is untouched, so a pinned popup comes back pinned, in the
+  same place. The button is always there, including while pinned, where the popup
+  otherwise has no visible way to dismiss it by mouse.
+- **Mini mode collapses the popup to a single bar.** Tray menu → **Mini mode** shrinks
+  the whole popup to one line reading `5h 29% · W 34%`, each number coloured by its own
+  severity, sized to fit its text. It is for people who want the numbers on screen all
+  day without giving up the space. Turning it on pins the popup automatically — a bar
+  that disappears every time you click elsewhere would be useless — and turning it off
+  restores your previous pin setting. The weekly number is the highest of *all* your
+  weekly windows, the same rule the two-row tray icon uses, and it ignores *Show limits*
+  so hiding a row in the full popup never blanks the bar.
+- **Burn-rate ETA under each limit.** A small line under each progress bar estimates how
+  long until that limit fills at your current pace — "full in ~2h 41m" — answering the
+  question the percentage alone can't: how much longer can I keep working? Toggle it with
+  **Show ETA** at the bottom of the *Show limits* menu. The pace is measured over a window
+  matched to the limit's own length: one hour for the 5-hour session, 24 hours for weekly
+  limits, because an hour of heavy use extrapolated across a week predicts a wall that a
+  night's sleep erases. The estimate is deliberately quiet — it stays hidden when you are
+  idle, when there is less than 10 minutes of history to measure, and whenever the limit
+  would reset before it ever fills.
+
 ## [1.8.0] - 2026-08-05
 
 ### Added
