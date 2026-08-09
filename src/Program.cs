@@ -13,6 +13,14 @@ static class Program
             return;
         }
 
+        if (args.Contains("--popup-shot"))
+        {
+            ApplicationConfiguration.Initialize();
+            int i = Array.IndexOf(args, "--popup-shot");
+            PopupShot.Run(i + 1 < args.Length ? args[i + 1] : ".");
+            return;
+        }
+
         using var mutex = new Mutex(initiallyOwned: true, "ClaudeMeter_SingleInstance", out bool createdNew);
         if (!createdNew)
         {

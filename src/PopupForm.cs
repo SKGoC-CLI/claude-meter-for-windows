@@ -154,7 +154,7 @@ sealed class PopupForm : Form
     int ContextSectionHeight => _sessions.Count > 0 ? ContextHeaderHeight + _sessions.Count * ContextBlockHeight : 0;
 
     static Color ContextColor(double pct) =>
-        pct >= 85 ? IconRenderer.Danger : pct >= 60 ? IconRenderer.Warning : IconRenderer.Accent;
+        pct >= 85 ? Theme.Danger : pct >= 60 ? Theme.Warning : Theme.Accent;
 
     /// <summary>Raised when the user clicks the in-popup "Fix Claude login" button.</summary>
     public event Action? FixLoginRequested;
@@ -331,7 +331,20 @@ sealed class PopupForm : Form
     {
         BackColor = Theme.Background;
         StyleFixLoginButton();
+        ApplyBorderColor();
         Invalidate();
+    }
+
+    /// <summary>Tints the DWM window border. Light mode needs it — a #fbfbfb popup over a
+    /// white window behind it has no visible edge; dark mode restores the system default.</summary>
+    void ApplyBorderColor()
+    {
+        if (!IsHandleCreated) return;
+        int color = Theme.BorderColorRef;
+        int hr = DwmSetWindowAttribute(Handle, 34 /*DWMWA_BORDER_COLOR*/, ref color, sizeof(int));
+        // pre-22000 Windows rejects this attribute; the popup just keeps the default
+        // frame there, but a failure on Win11 means the light popup has no edge at all
+        if (hr != 0) Log.Warn($"DWMWA_BORDER_COLOR failed (0x{hr:X8}); popup border stays default");
     }
 
     public void SetBaseOpacity(double opacity)
@@ -368,6 +381,7 @@ sealed class PopupForm : Form
         // Win11 rounded corners; harmless no-op on Win10
         int preference = 2; // DWMWCP_ROUND
         DwmSetWindowAttribute(Handle, 33 /*DWMWA_WINDOW_CORNER_PREFERENCE*/, ref preference, sizeof(int));
+        ApplyBorderColor();
         ApplyClickThrough();
     }
 
@@ -575,7 +589,7 @@ sealed class PopupForm : Form
         {
             string msg = _error ?? "Loading…";
             Color msgColor = _error is null ? MutedColor
-                : _needsRelogin ? IconRenderer.Danger : IconRenderer.Warning;
+                : _needsRelogin ? Theme.Danger : Theme.Warning;
             using var brush = new SolidBrush(msgColor);
             g.DrawString(msg, _labelFont, brush,
                 new RectangleF(pad, y, contentWidth, S(28)));
@@ -654,7 +668,7 @@ sealed class PopupForm : Form
         double? weekly = weeklyWindows.Count > 0 ? weeklyWindows.Max(w => w.Utilization) : null;
 
         (string, Font, Color) ValueRun(double? v) =>
-            v is { } n ? ($"{Math.Round(n)}%", _labelFont, IconRenderer.ColorFor(n)) : ("—", _labelFont, MutedColor);
+            v is { } n ? ($"{Math.Round(n)}%", _labelFont, Theme.ColorFor(n)) : ("—", _labelFont, MutedColor);
 
         return new()
         {
@@ -693,7 +707,7 @@ sealed class PopupForm : Form
             footer = "⚠ " + Truncate(_error!.Replace('\n', ' '), 32);
         // red for a real logout that needs the user; amber for merely-stale saved data
         using var footerBrush = new SolidBrush(
-            showErrorFooter ? IconRenderer.Danger : _stale ? IconRenderer.Warning : MutedColor);
+            showErrorFooter ? Theme.Danger : _stale ? Theme.Warning : MutedColor);
         g.DrawString(footer, _smallFont, footerBrush, pad, footerY);
 
         // live countdown to the next poll, right-aligned (hidden during any
@@ -714,7 +728,7 @@ sealed class PopupForm : Form
         using var labelBrush = new SolidBrush(LabelColor);
         g.DrawString(w.Label + ":", _labelFont, labelBrush, pad, y);
 
-        var barColor = IconRenderer.ColorFor(w.Utilization);
+        var barColor = Theme.ColorFor(w.Utilization);
         string pct = $"{Math.Round(w.Utilization)}%";
         using var pctBrush = new SolidBrush(barColor);
         var labelSize = g.MeasureString(w.Label + ":", _labelFont);
@@ -974,7 +988,7 @@ sealed class PopupForm : Form
 
         // reset markers: green dashed line + time — future reset from the API,
         // past resets detected as big upward jumps in remaining
-        var resetColor = ColorTranslator.FromHtml("#6bcb77");
+        var resetColor = Theme.Success;
         using var resetPen = new Pen(Color.FromArgb(190, resetColor), 1) { DashStyle = DashStyle.Dash };
         using var resetBrush = new SolidBrush(resetColor);
 
@@ -1014,12 +1028,12 @@ sealed class PopupForm : Form
                 plot.Left + (float)((p[0] - startSec) / rangeSec) * plot.Width,
                 plot.Bottom - (float)(Math.Clamp(100 - p[1], 0, 100) / 100.0) * plot.Height);
 
-            using var fillBrush = new SolidBrush(Color.FromArgb(42, IconRenderer.Accent));
-            using var linePen = new Pen(IconRenderer.Accent, Math.Max(1.5f, 2f * _scale)) { LineJoin = LineJoin.Round };
+            using var fillBrush = new SolidBrush(Color.FromArgb(42, Theme.Accent));
+            using var linePen = new Pen(Theme.Accent, Math.Max(1.5f, 2f * _scale)) { LineJoin = LineJoin.Round };
 
             // gaps: faint band + dashed connector + "no data", so the hole reads as
             // "meter was off" instead of the line just vanishing
-            using var gapPen = new Pen(Color.FromArgb(90, IconRenderer.Accent), Math.Max(1f, 1.4f * _scale)) { DashStyle = DashStyle.Dash };
+            using var gapPen = new Pen(Color.FromArgb(90, Theme.Accent), Math.Max(1f, 1.4f * _scale)) { DashStyle = DashStyle.Dash };
             using var gapBand = new SolidBrush(Color.FromArgb(12, Theme.Light ? Color.Black : Color.White));
             void DrawGapBand(float x0, float x1)
             {
@@ -1076,7 +1090,7 @@ sealed class PopupForm : Form
             if (visible.Count > 0)
             {
                 var last = Pt(visible[^1]);
-                using var curBrush = new SolidBrush(IconRenderer.Accent);
+                using var curBrush = new SolidBrush(Theme.Accent);
                 g.FillEllipse(curBrush, last.X - S(3), last.Y - S(3), S(6), S(6));
 
                 double lastRemaining = Math.Clamp(100 - samples[^1][1], 0, 100);
@@ -1133,9 +1147,9 @@ sealed class PopupForm : Form
 
         // limit line: dashed red at the cap — coincides with the top gridline, but
         // labeled separately so the cap reads as a hard ceiling, not just an axis tick
-        using (var limitPen = new Pen(IconRenderer.Danger, 1) { DashStyle = DashStyle.Dash })
+        using (var limitPen = new Pen(Theme.Danger, 1) { DashStyle = DashStyle.Dash })
             g.DrawLine(limitPen, plot.Left, plot.Top, plot.Right, plot.Top);
-        using (var limitBrush = new SolidBrush(IconRenderer.Danger))
+        using (var limitBrush = new SolidBrush(Theme.Danger))
         {
             string limitLabel = $"${limit:0.00} limit";
             var ls = g.MeasureString(limitLabel, _tinyFont);
@@ -1203,8 +1217,8 @@ sealed class PopupForm : Form
         // leaving an unexplained drop — applies to every range, not just the short ones.
         var monthStart = new DateTimeOffset(winStart.Year, winStart.Month, 1, 0, 0, 0, winStart.Offset);
         if (monthStart < winStart) monthStart = monthStart.AddMonths(1);
-        using (var resetPen = new Pen(IconRenderer.Danger, 1) { DashStyle = DashStyle.Dash })
-        using (var resetBrush = new SolidBrush(IconRenderer.Danger))
+        using (var resetPen = new Pen(Theme.Danger, 1) { DashStyle = DashStyle.Dash })
+        using (var resetBrush = new SolidBrush(Theme.Danger))
             for (; monthStart <= winEnd; monthStart = monthStart.AddMonths(1))
             {
                 float x = TickX(monthStart);
@@ -1240,7 +1254,7 @@ sealed class PopupForm : Form
         var baseline = new PointF(plot.Left, recPts[0].Y); // flat, at the first known level
 
         // one continuous soft fill under the whole line (lead-in + recorded)
-        using (var fillBrush = new SolidBrush(Color.FromArgb(42, IconRenderer.Accent)))
+        using (var fillBrush = new SolidBrush(Color.FromArgb(42, Theme.Accent)))
         using (var area = new GraphicsPath())
         {
             var outline = new[] { baseline }.Concat(recPts).ToArray();
@@ -1251,15 +1265,15 @@ sealed class PopupForm : Form
         }
 
         // dashed lead-in over the un-recorded stretch, solid over what we logged
-        using (var leadPen = new Pen(Color.FromArgb(140, IconRenderer.Accent), Math.Max(1.5f, 2f * _scale))
+        using (var leadPen = new Pen(Color.FromArgb(140, Theme.Accent), Math.Max(1.5f, 2f * _scale))
             { DashStyle = DashStyle.Dash, LineJoin = LineJoin.Round })
             g.DrawLine(leadPen, baseline, recPts[0]);
         if (recPts.Length >= 2)
-            using (var linePen = new Pen(IconRenderer.Accent, Math.Max(1.5f, 2f * _scale)) { LineJoin = LineJoin.Round })
+            using (var linePen = new Pen(Theme.Accent, Math.Max(1.5f, 2f * _scale)) { LineJoin = LineJoin.Round })
                 g.DrawLines(linePen, recPts);
 
         var dot = recPts[^1];
-        using (var curBrush = new SolidBrush(IconRenderer.Accent))
+        using (var curBrush = new SolidBrush(Theme.Accent))
             g.FillEllipse(curBrush, dot.X - S(3), dot.Y - S(3), S(6), S(6));
 
         // two-line "Now / $X used" label clinging to the dot: upper-right by default, in
