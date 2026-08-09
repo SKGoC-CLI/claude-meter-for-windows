@@ -116,6 +116,17 @@ sealed class UsageHistory
         var kept = Samples(key).Where(p => p[0] >= cutoff).OrderBy(p => p[0]).ToList();
         if (kept.Count < 2) return null;
 
+        // These series only ever climb within a window, so a fall means the window reset.
+        // Measuring across that cliff averages the old window into the new one, so start
+        // after the last one. (> 1 point/dollar, to ignore rounding wobble.)
+        for (int i = kept.Count - 1; i > 0; i--)
+            if (kept[i][1] < kept[i - 1][1] - 1)
+            {
+                kept = kept.GetRange(i, kept.Count - i);
+                break;
+            }
+        if (kept.Count < 2) return null;
+
         var first = kept[0];
         var last = kept[^1];
         if (last[0] - first[0] < 600) return null; // too short a span to trust the slope

@@ -446,6 +446,10 @@ sealed class TrayAppContext : ApplicationContext
     void OnToggleAlwaysOnTop(object? sender, EventArgs e)
     {
         SetPinned(!_settings.AlwaysOnTop);
+        // mini mode restores the pin state it saw on the way in; without this refresh,
+        // leaving mini mode later would resurrect a stale value and undo the choice
+        // just made here
+        if (_settings.MiniMode) _pinBeforeMini = _settings.AlwaysOnTop;
         _settings.Save();
     }
 

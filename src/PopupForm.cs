@@ -811,6 +811,9 @@ sealed class PopupForm : Form
         if (rate is not { } r) return null;
         double seconds = remaining / r;
         if (!double.IsFinite(seconds) || seconds <= 0) return null;
+        // a month out is noise, not a forecast — and it keeps absurd rates (a hairline
+        // drift over a 24 h lookback) from overflowing the TimeSpan below
+        if (seconds > TimeSpan.FromDays(30).TotalSeconds) return null;
 
         // a limit that resets before it fills is not news
         if (boundary is { } b && now.AddSeconds(seconds) >= b) return null;
