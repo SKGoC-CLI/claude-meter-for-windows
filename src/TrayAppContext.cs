@@ -79,12 +79,14 @@ sealed class TrayAppContext : ApplicationContext
     readonly System.Windows.Forms.Timer _pollTimer;
     readonly ToolStripMenuItem _autostartItem;
     readonly ToolStripMenuItem _alwaysOnTopItem;
+    readonly ToolStripMenuItem _miniModeItem;
     readonly ToolStripMenuItem _clickThroughItem;
     readonly ToolStripMenuItem _showGraphItem;
     readonly ToolStripMenuItem _showCreditGraphItem;
     readonly ToolStripMenuItem _showLogoItem;
     readonly ToolStripMenuItem _showContextItem;
     readonly ToolStripMenuItem _limitsMenu = new("Show limits");
+    readonly ToolStripMenuItem _showEtaItem;
     readonly Dictionary<string, ToolStripMenuItem> _sizeItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _opacityItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _notifyItems = new();
@@ -109,6 +111,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly HashSet<string> _notified = new();
     double? _lastWalletUsedDollars;               // credit-burn balloon tracking
     DateTimeOffset _lastCreditBalloon = DateTimeOffset.MinValue;
+    bool _pinBeforeMini;                           // pin state to restore when Mini mode turns off (not persisted)
 
     UsageSnapshot? _lastSnapshot;
     string? _lastError;
@@ -129,6 +132,11 @@ sealed class TrayAppContext : ApplicationContext
         _alwaysOnTopItem = new ToolStripMenuItem("Always on top", null, OnToggleAlwaysOnTop)
         {
             Checked = _settings.AlwaysOnTop,
+        };
+
+        _miniModeItem = new ToolStripMenuItem("Mini mode", null, OnToggleMiniMode)
+        {
+            Checked = _settings.MiniMode,
         };
 
         var sizeMenu = new ToolStripMenuItem("Size");
@@ -231,6 +239,16 @@ sealed class TrayAppContext : ApplicationContext
         {
             Checked = _settings.ShowContext,
         };
+
+        // ETA toggle lives at the bottom of the "Show limits" dropdown; SyncLimitsMenu()
+        // rebuilds the rest of that dropdown from the API's limit keys, so it excludes
+        // and re-appends this pair rather than clearing it (see SyncLimitsMenu below)
+        _showEtaItem = new ToolStripMenuItem("Show ETA", null, OnToggleShowEta)
+        {
+            Checked = _settings.ShowEta,
+        };
+        _limitsMenu.DropDownItems.Add(new ToolStripSeparator());
+        _limitsMenu.DropDownItems.Add(_showEtaItem);
 
         var rangeMenu = new ToolStripMenuItem("Range");
         foreach (var hours in new[] { 24, 12 })
@@ -350,6 +368,7 @@ sealed class TrayAppContext : ApplicationContext
         menu.Items.Add(new ToolStripSeparator());
         // window & tray behavior
         menu.Items.Add(_alwaysOnTopItem);
+        menu.Items.Add(_miniModeItem);
         menu.Items.Add(_clickThroughItem);
         menu.Items.Add(trayShowsMenu);
         menu.Items.Add(notifyMenu);
@@ -372,6 +391,8 @@ sealed class TrayAppContext : ApplicationContext
         _popup.CreditRangeDays = _settings.CreditRangeDays;
         _popup.CreditNowPositionPercent = _settings.CreditNowPositionPercent;
         _popup.ShowLogo = _settings.ShowLogo;
+        _popup.MiniMode = _settings.MiniMode;
+        _popup.ShowEta = _settings.ShowEta;
         Theme.Light = _settings.Theme == "light";
         _popup.ApplyTheme();
         _popup.ApplyScale(_settings.Scale);
@@ -424,14 +445,48 @@ sealed class TrayAppContext : ApplicationContext
 
     void OnToggleAlwaysOnTop(object? sender, EventArgs e)
     {
-        _settings.AlwaysOnTop = !_settings.AlwaysOnTop;
-        _alwaysOnTopItem.Checked = _settings.AlwaysOnTop;
-        _popup.Pinned = _settings.AlwaysOnTop;
-        _popup.ClickThrough = _settings.AlwaysOnTop && _settings.ClickThrough;
+        SetPinned(!_settings.AlwaysOnTop);
         _settings.Save();
+    }
 
-        if (_settings.AlwaysOnTop && !_popup.Visible) _popup.ShowNearTray();
-        else if (!_settings.AlwaysOnTop && _popup.Visible) _popup.Hide();
+    /// <summary>Applies a pin state to settings + popup + menu check + visibility. Shared by
+    /// "Always on top" and "Mini mode" (mini mode force-pins the popup while it's on).</summary>
+    void SetPinned(bool pinned)
+    {
+        _settings.AlwaysOnTop = pinned;
+        _alwaysOnTopItem.Checked = pinned;
+        _popup.Pinned = pinned;
+        _popup.ClickThrough = pinned && _settings.ClickThrough;
+
+        if (pinned && !_popup.Visible) _popup.ShowNearTray();
+        else if (!pinned && _popup.Visible) _popup.Hide();
+    }
+
+    void OnToggleMiniMode(object? sender, EventArgs e)
+    {
+        _settings.MiniMode = !_settings.MiniMode;
+        _miniModeItem.Checked = _settings.MiniMode;
+        _popup.MiniMode = _settings.MiniMode;
+
+        if (_settings.MiniMode)
+        {
+            _pinBeforeMini = _settings.AlwaysOnTop; // remember so turning mini off restores it
+            SetPinned(true); // a non-pinned bar vanishes on focus loss and is useless
+        }
+        else
+        {
+            SetPinned(_pinBeforeMini);
+        }
+
+        _settings.Save();
+    }
+
+    void OnToggleShowEta(object? sender, EventArgs e)
+    {
+        _settings.ShowEta = !_settings.ShowEta;
+        _showEtaItem.Checked = _settings.ShowEta;
+        _popup.ShowEta = _settings.ShowEta;
+        _settings.Save();
     }
 
     void OnToggleClickThrough(object? sender, EventArgs e)
@@ -819,8 +874,13 @@ sealed class TrayAppContext : ApplicationContext
         var windows = _lastSnapshot?.Windows;
         if (windows is null || windows.Count == 0) return;
 
+        // the trailing separator + _showEtaItem aren't limit entries — keep them out of
+        // both the count check and the per-index key check below, or any reported-key
+        // change would wipe them along with the rebuild
+        const int trailingCount = 2;
+
         var keys = windows.Select(w => w.Key).ToList();
-        bool changed = _limitsMenu.DropDownItems.Count != keys.Count;
+        bool changed = _limitsMenu.DropDownItems.Count - trailingCount != keys.Count;
         if (!changed)
             for (int i = 0; i < keys.Count; i++)
                 if ((_limitsMenu.DropDownItems[i].Tag as string) != keys[i]) { changed = true; break; }
@@ -834,10 +894,14 @@ sealed class TrayAppContext : ApplicationContext
                 item.Click += (_, _) => ToggleLimit(item);
                 _limitsMenu.DropDownItems.Add(item);
             }
+            _limitsMenu.DropDownItems.Add(new ToolStripSeparator());
+            _limitsMenu.DropDownItems.Add(_showEtaItem);
         }
 
-        foreach (ToolStripMenuItem item in _limitsMenu.DropDownItems)
-            item.Checked = !_settings.HiddenLimits.Contains((string)item.Tag!);
+        // skip the separator (not a ToolStripMenuItem) and _showEtaItem (no limit-key Tag)
+        foreach (ToolStripItem raw in _limitsMenu.DropDownItems)
+            if (raw is ToolStripMenuItem item && item.Tag is string key)
+                item.Checked = !_settings.HiddenLimits.Contains(key);
     }
 
     void ToggleLimit(ToolStripMenuItem item)
@@ -860,6 +924,7 @@ sealed class TrayAppContext : ApplicationContext
 
         SyncLimitsMenu();
         _popup.UpdateData(visible, _lastError, stale, _lastErrorNeedsRelogin);
+        _popup.RawWindows = _lastSnapshot?.Windows ?? Array.Empty<UsageWindow>(); // mini mode ignores HiddenLimits
         _fixLoginItem.Visible = _lastErrorNeedsRelogin;
 
         if (_settings.TrayShows == "both")

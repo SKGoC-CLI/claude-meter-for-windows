@@ -106,6 +106,24 @@ sealed class UsageHistory
     public IReadOnlyList<double[]> Samples(string key) =>
         _data.TryGetValue(key, out var list) ? list : Array.Empty<double[]>();
 
+    /// <summary>Utilisation (or dollars) gained per second over the last <paramref name="lookback"/>,
+    /// or null when there are too few samples / too short a span to mean anything.
+    /// Non-credit history is pruned to 24 h (see Window above), so a 24 h lookback is
+    /// the practical maximum for any key other than "credit_spend".</summary>
+    public double? RatePerSecond(string key, TimeSpan lookback)
+    {
+        double cutoff = DateTimeOffset.UtcNow.Subtract(lookback).ToUnixTimeSeconds();
+        var kept = Samples(key).Where(p => p[0] >= cutoff).OrderBy(p => p[0]).ToList();
+        if (kept.Count < 2) return null;
+
+        var first = kept[0];
+        var last = kept[^1];
+        if (last[0] - first[0] < 600) return null; // too short a span to trust the slope
+
+        double rate = (last[1] - first[1]) / (last[0] - first[0]);
+        return rate > 0 ? rate : null; // idle or just reset — an ETA there is noise
+    }
+
     /// <summary>Timestamp of the most recent successful data fetch, if any.</summary>
     public DateTimeOffset? LastSampleTime()
     {

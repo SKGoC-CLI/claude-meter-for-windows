@@ -28,6 +28,8 @@ sealed class AppSettings
     public int MaxContextSessions { get; set; } = 3; // how many session-context blocks to show at once
     public string ContextSort { get; set; } = "active"; // active (last write) | name | context (% high→low)
     public List<string> HiddenLimits { get; set; } = new(); // limit keys the user unticked in "Show limits"
+    public bool MiniMode { get; set; }               // collapsed one-bar popup: 5h % · weekly %
+    public bool ShowEta { get; set; } = true;         // burn-rate ETA line under each row
 
     static readonly string FilePath =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ClaudeMeter", "settings.json");

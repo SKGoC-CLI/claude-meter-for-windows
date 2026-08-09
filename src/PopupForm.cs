@@ -31,6 +31,7 @@ sealed class PopupForm : Form
     double _baseOpacity = 1.0;
     bool _hovering;
     bool _clickThrough;
+    bool _minimizeHover; // tracked separately so we only Invalidate() on an actual hover change
 
     readonly System.Windows.Forms.Timer _tick = new() { Interval = 1000 };
 
@@ -52,6 +53,8 @@ sealed class PopupForm : Form
     bool _showRemainingGraph;
     bool _showCreditGraph;
     bool _showLogo;
+    bool _miniMode;
+    bool _showEta;
 
     /// <summary>Whether to draw the session-remaining chart at the bottom of the popup.</summary>
     public bool ShowRemainingGraph
@@ -74,10 +77,38 @@ sealed class PopupForm : Form
         set { _showLogo = value; RecomputeLayout(); }
     }
 
+    /// <summary>Collapses the popup to a single bar showing just 5h % and weekly %.</summary>
+    public bool MiniMode
+    {
+        get => _miniMode;
+        set { _miniMode = value; RecomputeLayout(); }
+    }
+
+    /// <summary>Whether to draw a burn-rate ETA line under each row. No layout change on
+    /// toggle — the ETA lives in the free band under the progress bar (see RowHeight).</summary>
+    public bool ShowEta
+    {
+        get => _showEta;
+        set { _showEta = value; Invalidate(); }
+    }
+
+    IReadOnlyList<UsageWindow> _rawWindows = Array.Empty<UsageWindow>();
+
+    /// <summary>All limit windows from the last snapshot, unfiltered by "Show limits" — mini
+    /// mode always shows Session (5h) and Weekly even if the user hid those rows elsewhere.</summary>
+    public IReadOnlyList<UsageWindow> RawWindows
+    {
+        get => _rawWindows;
+        // relayout, not just repaint: the bar auto-fits its text, and "5h 100% · W 100%"
+        // is wider than "5h 0% · W 3%" — a stale width would run the text under the "−"
+        set { _rawWindows = value; if (_miniMode) RecomputeLayout(); }
+    }
+
     void RecomputeLayout()
     {
         Width = ComputeWidth();
         Height = ComputeHeight();
+        _fixLoginButton.Visible = _showFixLogin && !_miniMode;
         if (Visible)
         {
             if (!Pinned) Reposition();
@@ -88,7 +119,9 @@ sealed class PopupForm : Form
 
     int RowHeight => S(58);
 
-    int HeaderHeight => _showLogo && LogoStore.Logo is not null ? S(42) : 0;
+    // never shorter than the minimize button's hit area, even with the logo off,
+    // so "−" never lands on top of the first row's "resets …" text
+    int HeaderHeight => _showLogo && LogoStore.Logo is not null ? S(42) : S(22);
 
     // chart hidden while there is no current data (loading / error state)
     int GraphHeight => _showRemainingGraph && _snapshot is { Windows.Count: > 0 } ? S(162) : 0;
@@ -229,10 +262,20 @@ sealed class PopupForm : Form
     /// <summary>Auto-fit: wide enough that label + % + reset text never collide.</summary>
     int ComputeWidth()
     {
+        if (_miniMode)
+        {
+            using var mg = CreateGraphics();
+            float textW = MiniTextRuns().Sum(r => mg.MeasureString(r.Text, r.Font).Width);
+            int miniWidth = (int)Math.Ceiling(textW) + S(16) * 2 + S(22) + S(8);
+            return Math.Max(miniWidth, S(150));
+        }
+
         int min = S(320);
         if ((_snapshot is null || _snapshot.Windows.Count == 0) && _sessions.Count == 0) return min;
 
         using var g = CreateGraphics();
+        // worst-case ETA string, used below so the ETA line's width is always budgeted for
+        float etaW = ShowEta ? g.MeasureString("full in ~23h 59m", _smallFont).Width : 0;
         float widest = 0;
         foreach (var w in _snapshot?.Windows ?? Array.Empty<UsageWindow>())
         {
@@ -250,6 +293,8 @@ sealed class PopupForm : Form
             else if (w.UsedDollars is { } used && w.LimitDollars is { } limit)
                 resetW = g.MeasureString(MoneyText(used, limit), _smallFont).Width;
             widest = Math.Max(widest, labelW + S(2) + pctW + S(16) + resetW);
+            // the ETA line sits below (same row as the collision-fallback reset text)
+            widest = Math.Max(widest, etaW + S(16) + resetW);
         }
 
         // session-context line 1 must fit too: bold "project · model" + % on the
@@ -305,6 +350,7 @@ sealed class PopupForm : Form
         base.OnMouseLeave(e);
         _hovering = false;
         Opacity = _baseOpacity;
+        if (_minimizeHover) { _minimizeHover = false; Invalidate(); } // no MouseMove fires once the cursor is gone
     }
 
     protected override void OnVisibleChanged(EventArgs e)
@@ -361,11 +407,32 @@ sealed class PopupForm : Form
     protected override void OnMouseDown(MouseEventArgs e)
     {
         base.OnMouseDown(e);
-        if (Pinned && e.Button == MouseButtons.Left)
+        if (e.Button != MouseButtons.Left) return;
+
+        // check the minimize hit area FIRST — otherwise a pinned popup would hand the
+        // click to Windows as a title-bar drag before we ever see it was "−"
+        if (MinimizeRect().Contains(e.Location))
+        {
+            Hide();
+            return;
+        }
+
+        if (Pinned)
         {
             // hand the drag to Windows: the whole form acts as a title bar
             ReleaseCapture();
             SendMessage(Handle, WM_NCLBUTTONDOWN, HTCAPTION, 0);
+        }
+    }
+
+    protected override void OnMouseMove(MouseEventArgs e)
+    {
+        base.OnMouseMove(e);
+        bool hover = MinimizeRect().Contains(e.Location);
+        if (hover != _minimizeHover)
+        {
+            _minimizeHover = hover;
+            Invalidate(); // only repaint on an actual hover-state change
         }
     }
 
@@ -391,7 +458,7 @@ sealed class PopupForm : Form
         Width = ComputeWidth();
         Height = ComputeHeight();
 
-        _fixLoginButton.Visible = _showFixLogin;
+        _fixLoginButton.Visible = _showFixLogin && !_miniMode;
         if (_showFixLogin)
             _fixLoginButton.Location = new Point(
                 (Width - _fixLoginButton.Width) / 2,
@@ -415,6 +482,8 @@ sealed class PopupForm : Form
 
     int ComputeHeight()
     {
+        if (_miniMode) return S(34);
+
         int rows = _snapshot?.Windows.Count ?? 0;
         // zero rows with data and no error means every limit is hidden by choice
         int body = rows > 0 ? rows * RowHeight
@@ -465,11 +534,21 @@ sealed class PopupForm : Form
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(Background);
 
+        if (_miniMode)
+        {
+            DrawMiniBar(g);
+            DrawMinimizeButton(g);
+            return;
+        }
+
         int pad = S(16);
         int y = pad;
         int contentWidth = Width - pad * 2;
 
-        if (HeaderHeight > 0)
+        // the header band always reserves at least S(22) (see HeaderHeight) so the
+        // minimize button never lands on the first row — the logo itself is still
+        // gated on _showLogo, so an empty band draws nothing here
+        if (_showLogo && LogoStore.Logo is not null)
         {
             var logo = LogoStore.Logo!;
             int logoSize = S(30);
@@ -483,8 +562,8 @@ sealed class PopupForm : Form
             var titleSize = g.MeasureString("Claude Usage Meter", _headerFont);
             g.DrawString("Claude Usage Meter", _headerFont, titleBrush,
                 pad + logoSize + S(8), y + (logoSize - titleSize.Height) / 2f);
-            y += HeaderHeight;
         }
+        y += HeaderHeight;
 
         if (_snapshot is not null && _error is null && _snapshot.Windows.Count == 0)
         {
@@ -532,6 +611,70 @@ sealed class PopupForm : Form
         if (CreditGraphHeight > 0) DrawCreditGraph(g, pad, y, contentWidth);
 
         DrawFooter(g, pad, contentWidth);
+
+        // drawn last so it stays on top even over the fix-login error view
+        DrawMinimizeButton(g);
+    }
+
+    /// <summary>Hit area for the "−" button, shared by paint and hit-testing so they can't drift.
+    /// Same x formula in every state; y is fixed near the top normally, or vertically
+    /// centred in the collapsed mini bar.</summary>
+    Rectangle MinimizeRect()
+    {
+        int size = S(22);
+        int x = Width - S(16) - size;
+        int y = _miniMode ? (S(34) - size) / 2 : S(8);
+        return new Rectangle(x, y, size, size);
+    }
+
+    void DrawMinimizeButton(Graphics g)
+    {
+        var rect = MinimizeRect();
+        if (_minimizeHover)
+            using (var trackBrush = new SolidBrush(TrackColor))
+                FillRounded(g, trackBrush, rect, S(4));
+
+        using var dashBrush = new SolidBrush(_minimizeHover ? LabelColor : MutedColor);
+        int dashW = S(10), dashH = Math.Max(2, S(2));
+        g.FillRectangle(dashBrush, rect.X + (rect.Width - dashW) / 2f, rect.Y + (rect.Height - dashH) / 2f, dashW, dashH);
+    }
+
+    /// <summary>Mini-bar text as an ordered run list, so paint and width-measurement read
+    /// the exact same source and can never disagree on what fits.</summary>
+    List<(string Text, Font Font, Color Color)> MiniTextRuns()
+    {
+        if (_rawWindows.Count == 0)
+            return new() { ("Claude Meter", _labelFont, MutedColor) };
+
+        double? five = _rawWindows.FirstOrDefault(w => w.Key == "five_hour")?.Utilization;
+        // "highest weekly" mirrors TrayAppContext.TrayTwoRowValues() — keep the two in sync
+        var weeklyWindows = _rawWindows.Where(w => w.Key.StartsWith("seven_day", StringComparison.Ordinal)).ToList();
+        double? weekly = weeklyWindows.Count > 0 ? weeklyWindows.Max(w => w.Utilization) : null;
+
+        (string, Font, Color) ValueRun(double? v) =>
+            v is { } n ? ($"{Math.Round(n)}%", _labelFont, IconRenderer.ColorFor(n)) : ("—", _labelFont, MutedColor);
+
+        return new()
+        {
+            ("5h ", _smallFont, MutedColor),
+            ValueRun(five),
+            (" · ", _smallFont, MutedColor),
+            ("W ", _smallFont, MutedColor),
+            ValueRun(weekly),
+        };
+    }
+
+    void DrawMiniBar(Graphics g)
+    {
+        float x = S(16);
+        float centerY = Height / 2f;
+        foreach (var (text, font, color) in MiniTextRuns())
+        {
+            var size = g.MeasureString(text, font);
+            using var brush = new SolidBrush(color);
+            g.DrawString(text, font, brush, x, centerY - size.Height / 2f);
+            x += size.Width;
+        }
     }
 
     void DrawFooter(Graphics g, int pad, int contentWidth)
@@ -622,6 +765,59 @@ sealed class PopupForm : Form
             using var fillBrush = new SolidBrush(barColor);
             FillRounded(g, fillBrush, new Rectangle(pad, barY, fillW, barH), barH / 2);
         }
+
+        // burn-rate ETA, left-aligned under the bar — same line the reset text falls
+        // back to on collision, but that one is right-aligned so they never overlap
+        if (ShowEta && EtaText(w) is { } eta)
+        {
+            using var etaBrush = new SolidBrush(MutedColor);
+            g.DrawString(eta, _smallFont, etaBrush, pad, y + S(38));
+        }
+    }
+
+    /// <summary>Burn-rate ETA for a row ("full in ~2h 30m"), or null when it can't be
+    /// computed or would be noise (idle, just reset, or resetting before it fills).</summary>
+    string? EtaText(UsageWindow w)
+    {
+        if (History is null) return null;
+        var now = DateTimeOffset.Now;
+
+        double remaining;
+        double? rate;
+        DateTimeOffset? boundary;
+
+        if (w.Key == "extra_usage" && w.UsedDollars is { } used && w.LimitDollars is { } limit && limit > 0)
+        {
+            remaining = limit - used;
+            if (remaining <= 0) return null;
+            rate = History.RatePerSecond("credit_spend", TimeSpan.FromHours(24));
+            // no reset time from the API for the wallet — the equivalent boundary is
+            // the start of next month, when spend resets to $0
+            boundary = new DateTimeOffset(now.Year, now.Month, 1, 0, 0, 0, now.Offset).AddMonths(1);
+        }
+        else
+        {
+            if (w.Utilization >= 100) return null;
+            remaining = 100 - w.Utilization;
+            // a 1h slope on a weekly window reads a burst of work as "weekly full in 4h",
+            // which is wrong — weekly windows need the longer, steadier lookback
+            var lookback = w.Key.StartsWith("seven_day", StringComparison.Ordinal) ? TimeSpan.FromHours(24) : TimeSpan.FromHours(1);
+            rate = History.RatePerSecond(w.Key, lookback);
+            boundary = w.ResetsAt;
+        }
+
+        if (rate is not { } r) return null;
+        double seconds = remaining / r;
+        if (!double.IsFinite(seconds) || seconds <= 0) return null;
+
+        // a limit that resets before it fills is not news
+        if (boundary is { } b && now.AddSeconds(seconds) >= b) return null;
+
+        var t = TimeSpan.FromSeconds(seconds);
+        string label = t.TotalHours >= 24 ? $"{(int)t.TotalDays}d {t.Hours}h"
+            : t.TotalHours >= 1 ? $"{(int)t.TotalHours}h {t.Minutes}m"
+            : $"{Math.Max(1, (int)t.TotalMinutes)}m";
+        return "full in ~" + label;
     }
 
     /// <summary>
