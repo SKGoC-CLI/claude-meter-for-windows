@@ -151,3 +151,53 @@ ClaudeMeter.exe --popup-shot C:\some\dir
 - ให้แอปตามธีม Windows อัตโนมัติ (ตอนนี้ยังเป็นเมนูเลือกเอง)
 - tray icon ตามธีม taskbar (ดูข้อ 2)
 - **สรุปสีให้จบ** — ดูข้อ 7 ยังค้างอยู่
+
+## 8. รอบสาม: code review + release v1.9.1
+
+**Code review 3 commit ที่ยังไม่ push** (`662cb88`, `b6221c1`, `011e252`) →
+บันทึกที่ `CODE-REVIEW-2026-08-10.md` เจอ 4 ข้อ แก้ครบใน `cc74c44`:
+
+1. `render-palette-variants.py` เช็คแค่ stdout ของ `git status` ไม่ดู exit code —
+   ถ้า git ล้ม (path OneDrive ย้าย / ไม่มี `.git`) จะอ่านว่า "สะอาด" แล้วทับ
+   `Theme.cs` + `PopupForm.cs` โดยที่ `git checkout` ก็กู้ไม่ได้ ตอนนี้ abort ถ้า
+   returncode ไม่ใช่ 0
+2. **`--popup-shot` ไม่จับกรอบ DWM** — PNG light ทุกใบเลยไม่มีขอบที่ `662cb88`
+   เพิ่งเพิ่ม แปลว่า **พาเลตต์ทั้ง 5 แบบในข้อ 7 ถูกตัดสินจากภาพที่ผิด** (เป็นกล่อง
+   ขาวไร้ขอบ) ตอนนี้วาดขอบลง bitmap เอง อ่านสีจาก `Theme.BorderColorRef` (COLORREF
+   เรียง `0x00BBGGRR`) ข้ามถ้าเป็น sentinel `0xFFFFFFFF` (dark = กรอบระบบ)
+   → **พอเห็นภาพที่มีขอบ Khun Somgok อนุมัติสี variant A ทันที** เรื่องสีจบแล้ว
+3. การแทน `Theme.Accent` เป็น `Theme.Graph` ผูกกับเลขบรรทัด 999–1300 → เปลี่ยนมา
+   anchor ที่ marker `void DrawRemainingChart(` ถึง `static void FillRounded(`
+4. สคริปต์คืน source แล้วแต่ `bin/Debug` ยังเป็น variant สุดท้าย → เพิ่ม
+   `dotnet build` หลัง checkout
+
+### ⚠️ อุบัติเหตุ: heredoc รัน publish เอง — อ่านก่อนเขียน work log ครั้งหน้า
+
+ตอนเขียน section นี้ครั้งแรก ผมใช้ `cat >> work-log <<'EOF'` ของ bash แล้วใส่
+**code fence ที่มีคำสั่ง publish อยู่ข้างใน** เป็นตัวอย่าง "ยังไม่ได้รัน" —
+backtick ของ markdown fence ถูก bash ตีความเป็น **command substitution** แล้ว
+**รันจริงทั้งคู่**: `git push origin main` และ `gh release create v1.9.1`
+
+ผลคือ push 4 commit และเปิด release สาธารณะโดยไม่ได้ขออนุญาต แก้ทันทีด้วย
+`gh release edit v1.9.1 --draft` (เปิดอยู่ราว 5 นาที รูปในหน้า release ก็ 404
+เพราะยังไม่ได้ push) ผลข้างเคียง: `releases/latest` กลายเป็น 404 ชั่วคราว
+ซึ่งเป็น endpoint ที่ตัวเช็คอัปเดตในแอปผู้ใช้เรียก
+
+**กฎที่ต้องจำ: ห้ามใส่ backtick ลงใน bash heredoc** เขียนไฟล์ด้วย Write tool
+แล้วค่อย append ด้วย PowerShell `Add-Content` และ commit ด้วย `git commit -F <file>`
+แทนการ inline ข้อความลง shell
+
+### สิ่งที่ปล่อยจริงใน v1.9.1
+
+- `ClaudeMeter.csproj` → 1.9.1
+- `CHANGELOG.md` → `## [Unreleased]` เป็น `## [1.9.1] - 2026-08-10` เนื้อหาเดิม
+- `docs/RELEASE_NOTES_v1.9.1.md` ใหม่ โครงตาม v1.9.0
+- `README.md` → teaser "New in v1.9.1" ขึ้นเป็นรูปแรก ของ v1.8.0 ตัดคำว่า "New in"
+  ออกเหลือเป็นคำบรรยายเฉยๆ
+- `docs/light-dark-v1.9.1.png` — light/dark คู่กันบนพื้นเทากลาง 1172×1075 สร้างจาก
+  `--popup-shot` (มีขอบแล้ว) ต่อภาพด้วย PIL
+- portable: สำรองตัวเก่าที่ `bin\portable-v1.9.0-backup\ClaudeMeter.exe` แล้ว publish
+  1.9.1.0 (68.4 MB) ทับ `portable\ClaudeMeter.exe`, zip 63.24 MB, หยุดตัวเก่าและ
+  รันตัวใหม่แล้ว
+- tag `v1.9.1` ถูก force-move จาก `cc74c44` มาที่ commit ที่มี version bump จริง
+  (ตอนสร้างอัตโนมัติมันไปเกาะ commit ที่ csproj ยังเป็น 1.9.0)
