@@ -79,3 +79,38 @@ PR #2215 กรรมการดู repo ไม่ได้ → พักโป
 วิธีเช็คว่าปลดแล้วยัง: เปิดหน้าต่าง Incognito (Ctrl+Shift+N) แล้วเข้า
 https://github.com/SKGoC-CLI/claude-meter-for-windows — ถ้าเปิดได้ = ปลดแล้ว
 รูปใน README จะกลับมาเองทันที ไม่ต้องแก้อะไร
+
+---
+
+## 🚨 2026-08-10 — โดนซ้ำ หลังเคลียร์ไปได้แค่วันเดียว
+
+v1.9.1 ปล่อยขึ้น GitHub เรียบร้อย (tag ตรง commit, เป็น Latest, zip 63.24 MB)
+แต่ตรวจแล้ว **บัญชีถูกซ่อนจากคนไม่ล็อกอินอีกรอบ** ลายเซ็นเดียวกับ 5 ส.ค. เป๊ะ:
+
+| เช็คแบบไม่ล็อกอิน | ผล |
+|---|---|
+| `github.com/torvalds/linux` (ตัวควบคุม) | 200 |
+| หน้า repo | 404 |
+| หน้า release v1.9.0 และ v1.9.1 | 404 |
+| `raw.githubusercontent.com/.../README.md` | 404 |
+| `api.github.com/users/SKGoC-CLI/repos` | `[]` |
+
+`gh api` แบบล็อกอินยังบอก `private: false, visibility: public, archived: false`
+**หนักกว่ารอบก่อนตรงที่ `gh api users/SKGoC-CLI` 404 แม้ล็อกอินแล้ว** (5 ส.ค.
+ยังเรียกได้) แต่ call ที่ scope ระดับ repo ยังใช้ได้ `git push` / `gh release`
+เลยไม่กระทบ
+
+**ผลกับ v1.9.1:** ปล่อยจริงและเป็น Latest แต่คนนอกโหลดไม่ได้ และตัวเช็คอัปเดต
+ในแอปของผู้ใช้ (เรียก `api.github.com` แบบไม่ล็อกอิน) ก็มองไม่เห็น
+
+**ticket ใหม่ 2026-08-10:** https://support.github.com/ticket/personal/0/4649709
+(ของเดิม 5 ส.ค. คือ 4634081 ปิดไปแล้ว)
+
+ฟอร์มที่ถูกคือ **GitHub reinstatement request** ไม่ใช่หน้า "Create a ticket"
+ทั่วไป — dropdown *Type of Issue* ของหน้านั้นมีแค่ "General question or feature
+request" กับ "Errors, problems…" ไม่มีหมวดอุทธรณ์การถูกแฟลก คำตอบที่ใช้:
+claim = **GitHub**, ชื่อที่กระทบ = `SKGoC-CLI / claude-meter-for-windows`,
+เหตุผล = **"I can login, but my profile and contributions aren't visible to
+others"** (ทั้งโปรไฟล์ถูกซ่อน ไม่ใช่แค่ repo เดียว), เคยติดต่อมาก่อน = **Yes**
+
+**พักโปรโมตทุกช่องต่อ** จนกว่าเปิด Incognito แล้วเข้า repo ได้
