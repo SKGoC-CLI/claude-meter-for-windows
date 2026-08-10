@@ -53,6 +53,19 @@ static class PopupShot
 
             using var bmp = new Bitmap(popup.Width, popup.Height);
             popup.DrawToBitmap(bmp, new Rectangle(0, 0, popup.Width, popup.Height));
+
+            // DrawToBitmap only captures what the app paints; the window border is
+            // drawn by DWM via DWMWA_BORDER_COLOR (see ApplyBorderColor), composited
+            // outside the bitmap, so paint it in by hand to match the real window.
+            int borderRef = Theme.BorderColorRef;
+            if (borderRef != unchecked((int)0xFFFFFFFF))
+            {
+                var borderColor = Color.FromArgb(borderRef & 0xFF, (borderRef >> 8) & 0xFF, (borderRef >> 16) & 0xFF);
+                using var g = Graphics.FromImage(bmp);
+                using var pen = new Pen(borderColor);
+                g.DrawRectangle(pen, 0, 0, bmp.Width - 1, bmp.Height - 1);
+            }
+
             string path = Path.Combine(outDir, light ? "popup-light.png" : "popup-dark.png");
             bmp.Save(path);
             popup.Hide();
