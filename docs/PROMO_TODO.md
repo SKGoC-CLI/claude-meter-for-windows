@@ -50,3 +50,32 @@ _อัปเดต 2026-07-17 (หลัง release v1.6.2). ไฟล์นี
 
 ---
 _บอกผมได้เลยว่าจะเอาช่องไหน เดี๋ยวร่างโพสต์เต็มให้ดูก่อนโพสต์จริง_
+
+---
+
+## ⚠️ 2026-08-05 — บัญชี GitHub ถูกซ่อนจากสาธารณะ รูปใน README เลยไม่ขึ้น
+
+**อาการ:** README บน GitHub รูปแตกหมด (logo, tray-two-row, screenshot, GIF) และ
+badge release แดง "no releases or repo not found"
+
+**สาเหตุ — ไม่ใช่ปัญหาที่ README (ตรวจแล้ว):**
+- ไฟล์รูป commit + push ครบ, `git ls-remote` ตรงกับ local (9cda7fc)
+- `gh api` (แบบล็อกอิน) บอก private=false, visibility=public, archived=false
+- แต่เข้าแบบ **ไม่ล็อกอิน** 404 ทุกทาง: หน้า repo, หน้าโปรไฟล์ `/SKGoC-CLI`,
+  `api.github.com/users/SKGoC-CLI`, และ `raw.githubusercontent.com/.../README.md`
+  ส่วน `/users/SKGoC-CLI/repos` คืน `[]` ว่างเปล่า
+- repo สาธารณะอื่น (torvalds/linux) โหลด 200 ปกติ → ไม่ใช่เน็ตถูกบล็อก
+- สรุป: **บัญชีถูกแฟลก/ซ่อนโดยระบบกันสแปมของ GitHub** รูปใน README เสิร์ฟผ่าน
+  `raw.githubusercontent.com` ซึ่งไม่ใช้ session cookie → เจ้าของเองก็เห็นรูปแตก
+
+**ผลกระทบ:** ลิงก์โปรโมตทุกอันในไฟล์นี้คนอื่นเปิดไม่ได้ / awesome-claude-code
+PR #2215 กรรมการดู repo ไม่ได้ → พักโปรโมตจนกว่าจะปลดแฟลก
+
+**ทางแก้:** ยื่นอุทธรณ์ที่ https://support.github.com/contact (หมวด Account →
+บัญชีถูกแฟลก) แก้ README ไม่ช่วย
+
+**สถานะ:** เปิด ticket แล้ว 2026-08-05 → https://support.github.com/ticket/personal/0/4634081
+รอ GitHub ตอบ (ปกติ 1–3 วัน) — ระหว่างนี้พักโปรโมตทุกช่อง
+วิธีเช็คว่าปลดแล้วยัง: เปิดหน้าต่าง Incognito (Ctrl+Shift+N) แล้วเข้า
+https://github.com/SKGoC-CLI/claude-meter-for-windows — ถ้าเปิดได้ = ปลดแล้ว
+รูปใน README จะกลับมาเองทันที ไม่ต้องแก้อะไร

@@ -18,8 +18,11 @@ REPO = Path(r"D:\Onedrive\Desktop\App Claude Meter")
 OUT = Path(sys.argv[1])
 OUT.mkdir(parents=True, exist_ok=True)
 
-dirty = subprocess.run(["git", "-C", str(REPO), "status", "--porcelain", "--", "src"],
-                       capture_output=True, text=True).stdout.strip()
+status = subprocess.run(["git", "-C", str(REPO), "status", "--porcelain", "--", "src"],
+                        capture_output=True, text=True)
+if status.returncode:
+    sys.exit(f"git status failed (repo missing or REPO path stale?):\n{status.stderr}")
+dirty = status.stdout.strip()
 if dirty:
     sys.exit(f"src/ has uncommitted changes; this script would destroy them:\n{dirty}")
 
@@ -88,11 +91,20 @@ theme = REPO / "src" / "Theme.cs"
 try:
     for name, p in VARIANTS.items():
         theme.write_text(TEMPLATE.format(**p), encoding="utf-8")
-        # only the chart drawing (roughly lines 1000-1300) moves to Theme.Graph;
-        # ContextColor at line 157 is a severity signal and must stay on Accent
+        # only the chart drawing moves to Theme.Graph, anchored on the two method
+        # markers below (not line numbers, which drift as the file changes);
+        # ContextColor, well above the start marker, is a severity signal and must
+        # stay on Accent. The substitution is idempotent, so re-running it each
+        # loop iteration without restoring the file first is fine.
         popup = REPO / "src" / "PopupForm.cs"
         lines = popup.read_text(encoding="utf-8").splitlines(keepends=True)
-        for i in range(999, min(1300, len(lines))):
+        start = next((i for i, l in enumerate(lines) if "void DrawRemainingChart(" in l), None)
+        end = next((i for i, l in enumerate(lines) if "static void FillRounded(" in l), None)
+        if start is None or end is None:
+            sys.exit("could not find DrawRemainingChart/FillRounded markers in PopupForm.cs")
+        if start >= end:
+            sys.exit(f"DrawRemainingChart marker (line {start}) is not before FillRounded marker (line {end})")
+        for i in range(start, end):
             lines[i] = lines[i].replace("Theme.Accent", "Theme.Graph")
         popup.write_text("".join(lines), encoding="utf-8")
         build = subprocess.run(
@@ -114,3 +126,12 @@ try:
 finally:
     subprocess.run(["git", "-C", str(REPO), "checkout", "--", "src/Theme.cs", "src/PopupForm.cs"])
     print("Theme.cs + PopupForm.cs restored from git")
+    # the Debug binary still holds the last variant's palette until it's rebuilt
+    # from the restored source, or a stale palette silently ships via portable/
+    rebuild = subprocess.run(
+        ["dotnet", "build", str(REPO / "ClaudeMeter.csproj"), "-c", "Debug", "-v", "quiet"],
+        capture_output=True, text=True)
+    if rebuild.returncode:
+        print(f"WARNING: rebuild after restore FAILED; Debug binary still holds the last variant's palette\n{rebuild.stdout[-1500:]}")
+    else:
+        print("Debug binary rebuilt from restored source")
