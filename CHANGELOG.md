@@ -4,7 +4,7 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.9.1] - 2026-08-10
 
 ### Changed
 - **The light theme was rebuilt around a light background instead of an inverted dark one.**

@@ -12,7 +12,13 @@ A tiny Windows system-tray app that shows your **Claude usage limits** in real t
 the same *Session (5h) / Weekly / per-model weekly* percentages you see in
 Claude Code's `/usage`, always one click away.
 
-*New in v1.8.0 — the tray icon can show both limits at once, Session (5h) stacked over Weekly, so a draining week can't hide behind a fresh session:*
+*New in v1.9.1 — the light theme is now a real light theme with readable status colours meeting the 4.5:1 contrast requirement, a near-white surface instead of a disabled-panel grey, and a visible window edge in light mode; dark mode is unchanged:*
+
+<p align="center">
+  <img src="docs/light-dark-v1.9.1.png" alt="Claude Meter v1.9.1 — the popup rendered in light theme on the left and dark theme on the right, showing the rebuilt light-theme colours and surface alongside the unchanged dark theme">
+</p>
+
+*The tray icon can show both limits at once, Session (5h) stacked over Weekly, so a draining week can't hide behind a fresh session:*
 
 <p align="center">
   <img src="docs/tray-two-row-v1.8.0.png" alt="Tray icon in Session + Weekly mode — Session (5h) on the top row, the highest weekly below, each row coloured by its own severity">
