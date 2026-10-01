@@ -544,7 +544,7 @@ sealed class TrayAppContext : ApplicationContext
     void RefreshSessionContext()
     {
         _popup.Sessions = _settings.ShowContext
-            ? ContextMonitor.GetActive(ContextMonitor.DropAfter,_settings.MaxContextSessions, _settings.ContextSort)
+            ? ContextMonitor.GetActive(ContextMonitor.DropAfter, _settings.MaxContextSessions, _settings.ContextSort)
             : Array.Empty<SessionContext>();
     }
 

@@ -48,6 +48,9 @@ static class ContextMonitor
             var sessions = Directory.EnumerateFiles(ProjectsDir, "*.jsonl", SearchOption.AllDirectories)
                 .Select(p => new FileInfo(p))
                 .Where(f => DateTime.Now - f.LastWriteTime < maxIdle && f.Length > 0)
+                // subagent transcripts end on a tool call by design (never "Waiting") and
+                // aren't sessions the user answers — the parent session already shows the work
+                .Where(f => f.Directory?.Name != "subagents")
                 .OrderByDescending(f => f.LastWriteTime)
                 .Take(12) // cap parse cost; >12 sessions active within maxIdle is unrealistic
                 .Select(Parse)
@@ -72,7 +75,7 @@ static class ContextMonitor
     {
         try
         {
-            string tail = ReadChunk(file, fromEnd: true, 128 * 1024);
+            string tail = ReadChunk(file, fromEnd: true, TailBytes);
 
             long input = LastLong(tail, "\"input_tokens\":\\s*(\\d+)");
             long cacheCreate = LastLong(tail, "\"cache_creation_input_tokens\":\\s*(\\d+)");
@@ -99,7 +102,9 @@ static class ContextMonitor
 
             // file LastWriteTime is unreliable: metadata lines (no timestamp) are appended
             // long after the conversation goes quiet, so use the last line's own timestamp
-            var (ended, lastTs) = Classify(tail);
+            var (ended, lastTs) = Classify(tail, wholeFile: file.Length <= TailBytes);
+            if (lastTs is null && file.Length > TailBytes) // last line(s) longer than the tail
+                (ended, lastTs) = Classify(ReadChunk(file, fromEnd: true, 2 * 1024 * 1024), file.Length <= 2 * 1024 * 1024);
             var active = lastTs ?? new DateTimeOffset(file.LastWriteTime);
             var age = DateTimeOffset.Now - active;
             if (age > DropAfter) return null;
@@ -119,14 +124,17 @@ static class ContextMonitor
     /// Walks the tail from the end: ended = the first conversational line closes a turn (or
     /// waits on the user); ts = the last parseable timestamp. Defaults to (false, null).
     /// </summary>
-    static (bool ended, DateTimeOffset? ts) Classify(string tail)
+    const int TailBytes = 128 * 1024;
+
+    static (bool ended, DateTimeOffset? ts) Classify(string tail, bool wholeFile)
     {
         bool? ended = null;
         DateTimeOffset? ts = null;
         try
         {
             var lines = tail.Split('\n');
-            for (int i = lines.Length - 1; i >= 1 && (ended is null || ts is null); i--) // [0] may be a partial line
+            int first = wholeFile ? 0 : 1; // a mid-file tail starts with a partial line
+            for (int i = lines.Length - 1; i >= first && (ended is null || ts is null); i--)
             {
                 var line = lines[i].Trim();
                 if (line.Length == 0) continue;
@@ -173,7 +181,7 @@ static class ContextMonitor
             if (msg.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.Array && c.GetArrayLength() > 0)
             {
                 var last = c[c.GetArrayLength() - 1];
-                return last.TryGetProperty("type", out var bt) && bt.GetString() == "tool_use"
+                return last.ValueKind == JsonValueKind.Object && last.TryGetProperty("type", out var bt) && bt.GetString() == "tool_use"
                     && last.TryGetProperty("name", out var nm) && nm.GetString() is "AskUserQuestion" or "ExitPlanMode";
             }
             return false;
@@ -183,7 +191,7 @@ static class ContextMonitor
         if (!msg.TryGetProperty("content", out var uc)) return false;
         string? text = uc.ValueKind == JsonValueKind.String ? uc.GetString()
             : uc.ValueKind == JsonValueKind.Array && uc.GetArrayLength() > 0
-              && uc[0].ValueKind == JsonValueKind.Object && uc[0].TryGetProperty("text", out var tx) ? tx.GetString()
+              && uc[0].ValueKind == JsonValueKind.Object && uc[0].TryGetProperty("text", out var tx) && tx.ValueKind == JsonValueKind.String ? tx.GetString()
             : null;
         return text?.StartsWith("[Request interrupted", StringComparison.Ordinal) == true;
     }
