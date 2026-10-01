@@ -45,4 +45,18 @@
 ## สถานะ
 
 - grilling เสร็จ, CONTEXT.md อัปเดตแล้ว (Session state, Cloud credit, แก้ข้อ Balance)
-- ยังไม่ได้เขียนโค้ด — รอคุณสมกกยืนยัน
+- โค้ดเสร็จ: `872a5be` (ฟีเจอร์) + `a862368` (แก้ตาม review). build 0 error 0 warning.
+- reviewer เจอ 9 ข้อ แก้ 5:
+  (1) ฟิลด์ codename เปลี่ยนชนิดข้อมูล → เดิมจะทำ poll ทั้งก้อนพัง ตอนนี้หายแค่แถว cloud
+  (2) บรรทัดท้ายยาวเกิน 128 KB → อ่านซ้ำ 2 MB
+  (3) ไฟล์เล็กไม่ข้ามบรรทัดแรก
+  (4) cloud ที่ไม่มีวันหมดอายุไม่โชว์ "$used / $limit" ซ้ำ
+  (7) content รูปร่างแปลกไม่ทำ timestamp หาย
+  ไม่แก้: tooltip/log โชว์ "Cloud credit 1%" (= ใช้ไป), ประวัติเก็บ series cloud_credit ที่ไม่มีใครใช้,
+  จุดสีค้างได้จนถึง poll ถัดไป (≤5 นาที).
+- เพิ่มเอง: **ตัด transcript ของ subagent ออกจากลิสต์** — มันจบด้วย tool call เสมอ จะเขียว Working ค้าง 30 นาที.
+- ทดสอบจริง: เรียก ContextMonitor.GetActive ผ่าน reflection → session นี้ = Working, session อื่นเงียบ >30 นาทีหายถูกต้อง.
+  portable ใหม่รันแล้ว log ขึ้น Cloud credit 1%.
+- ถอยกลับ: copy `bin\portable-v1.9.1-backup\ClaudeMeter.exe` ทับ `portable\ClaudeMeter.exe` (ปิดแอปก่อน)
+  หรือ revert สอง commit `a862368` แล้ว `872a5be`.
+- อุบัติเหตุ: backtick ใน bash heredoc ทำให้ shell รัน `git revert` จริง (ไม่ได้ push) — กู้ด้วย `git reset --keep a862368`.
