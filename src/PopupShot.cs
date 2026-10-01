@@ -20,12 +20,14 @@ static class PopupShot
             new UsageWindow("seven_day", "Weekly (all models)", 76, now.AddDays(3).AddHours(5)),
             new UsageWindow("seven_day_opus", "Weekly (Opus)", 93, now.AddDays(3).AddHours(5)),
             new UsageWindow("extra_usage", "Extra usage", 24.8, null, UsedDollars: 12.40, LimitDollars: 50.00),
+            new UsageWindow("cloud_credit", "Cloud credit", 1.49, now.AddDays(34), UsedDollars: 1.49, LimitDollars: 100),
         }, now);
 
         var sessions = new[]
         {
-            new SessionContext("App Claude Meter", "opus-5", 169_000, 200_000, now.AddHours(-3), now),
-            new SessionContext("abbott-archive", "sonnet-5", 48_000, 200_000, now.AddMinutes(-40), now),
+            new SessionContext("App Claude Meter", "opus-5", 169_000, 200_000, now.AddHours(-3), now, SessionState.Working),
+            new SessionContext("abbott-archive", "sonnet-5", 48_000, 200_000, now.AddMinutes(-40), now, SessionState.Waiting),
+            new SessionContext("CORSAIR XENEON EDGE Claude App", "opus-5", 135_000, 1_000_000, now.AddHours(-3), now, SessionState.Idle),
         };
 
         foreach (bool light in new[] { true, false })

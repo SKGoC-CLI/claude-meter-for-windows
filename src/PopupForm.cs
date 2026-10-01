@@ -282,13 +282,13 @@ sealed class PopupForm : Form
         foreach (var w in _snapshot?.Windows ?? Array.Empty<UsageWindow>())
         {
             float labelW = g.MeasureString(w.Label + ":", _labelFont).Width;
-            float pctW = g.MeasureString("100%", _valueFont).Width;
+            float pctW = g.MeasureString(w.Key == CloudCreditKey ? ValueText(w) : "100%", _valueFont).Width;
             float resetW = 0;
             if (w.ResetsAt is { } resets)
             {
                 var remaining = resets - DateTimeOffset.Now;
                 if (remaining > TimeSpan.Zero)
-                    resetW = g.MeasureString(ResetText(resets, remaining), _smallFont).Width;
+                    resetW = g.MeasureString(ResetText(w, resets, remaining), _smallFont).Width;
             }
             else if (w.Key == "five_hour")
                 resetW = g.MeasureString(NextUseHint, _smallFont).Width;
@@ -306,7 +306,7 @@ sealed class PopupForm : Form
             float nameW = g.MeasureString($"{s.Project} · {s.Model}", _smallBoldFont).Width;
             float pctW = g.MeasureString("100%", _smallBoldFont).Width;
             float tokW = g.MeasureString($"{FmtTokens(s.Tokens)} / {FmtTokens(s.WindowSize)}", _smallFont).Width;
-            widest = Math.Max(widest, nameW + S(6) + pctW + S(16) + tokW);
+            widest = Math.Max(widest, StateDotSize + S(5) + nameW + S(6) + pctW + S(16) + tokW);
         }
 
         // footer must also fit: "Updated HH:mm · stale" + countdown, right-aligned
@@ -321,6 +321,22 @@ sealed class PopupForm : Form
     const string NextUseHint = "resets 5h after next use";
 
     static string MoneyText(double used, double limit) => $"${used:0.00} / ${limit:0.00}";
+
+    const string CloudCreditKey = "cloud_credit";
+
+    /// <summary>Big number beside the label: percent, except the cloud credit, which reads
+    /// as dollars left (same as claude.ai's "$98 of $100 left").</summary>
+    static string ValueText(UsageWindow w) =>
+        w.Key == CloudCreditKey && w.UsedDollars is { } used && w.LimitDollars is { } limit
+            ? $"${Math.Max(0, limit - used):0.00} left"
+            : $"{Math.Round(w.Utilization)}%";
+
+    // the cloud credit's ResetsAt is when the credit expires, not a window reset
+    static string ResetText(UsageWindow w, DateTimeOffset resets, TimeSpan remaining) =>
+        w.Key != CloudCreditKey ? ResetText(resets, remaining)
+        : remaining.TotalHours >= 24
+            ? $"expires in {(int)remaining.TotalDays}d ({resets:d MMM})"
+            : $"expires in {(int)remaining.TotalHours}h {remaining.Minutes}m ({resets:HH:mm})";
 
     static string ResetText(DateTimeOffset resets, TimeSpan remaining) =>
         remaining.TotalHours >= 24
@@ -729,7 +745,7 @@ sealed class PopupForm : Form
         g.DrawString(w.Label + ":", _labelFont, labelBrush, pad, y);
 
         var barColor = Theme.ColorFor(w.Utilization);
-        string pct = $"{Math.Round(w.Utilization)}%";
+        string pct = ValueText(w);
         using var pctBrush = new SolidBrush(barColor);
         var labelSize = g.MeasureString(w.Label + ":", _labelFont);
         float pctX = pad + labelSize.Width + S(2); // ~1 character gap
@@ -741,7 +757,7 @@ sealed class PopupForm : Form
             var remaining = resets - DateTimeOffset.Now;
             if (remaining > TimeSpan.Zero)
             {
-                string resetText = ResetText(resets, remaining);
+                string resetText = ResetText(w, resets, remaining);
                 using var mutedBrush = new SolidBrush(MutedColor);
                 var size = g.MeasureString(resetText, _smallFont);
                 float resetX = pad + contentWidth - size.Width;
@@ -795,7 +811,7 @@ sealed class PopupForm : Form
     /// computed or would be noise (idle, just reset, or resetting before it fills).</summary>
     string? EtaText(UsageWindow w)
     {
-        if (History is null) return null;
+        if (History is null || w.Key == CloudCreditKey) return null; // expires, never "fills"
         var now = DateTimeOffset.Now;
 
         double remaining;
@@ -871,12 +887,31 @@ sealed class PopupForm : Form
         y += S(5);
 
         // line 1: bold session name, then percent (left); current/capacity tokens (right)
-        using var labelBrush = new SolidBrush(LabelColor);
+        // session state dot: green working / amber waiting for you / grey idle (row dimmed)
+        bool idle = ctx.State == SessionState.Idle;
+        var dotColor = ctx.State switch
+        {
+            SessionState.Working => Theme.Success,
+            SessionState.Waiting => Theme.Warning,
+            _ => MutedColor,
+        };
+        int dot = StateDotSize;
+        float lineH = g.MeasureString("Ag", _smallBoldFont).Height;
+        using (var dotBrush = new SolidBrush(dotColor))
+        {
+            var oldMode = g.SmoothingMode;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            g.FillEllipse(dotBrush, pad, y + (lineH - dot) / 2f, dot, dot);
+            g.SmoothingMode = oldMode;
+        }
+        float nameX = pad + dot + S(5);
+
+        using var labelBrush = new SolidBrush(idle ? MutedColor : LabelColor);
         string name = $"{ctx.Project} · {ctx.Model}";
-        g.DrawString(name, _smallBoldFont, labelBrush, pad, y);
+        g.DrawString(name, _smallBoldFont, labelBrush, nameX, y);
         var nameSize = g.MeasureString(name, _smallBoldFont);
         string pct = $"{Math.Round(ctx.Percent)}%";
-        g.DrawString(pct, _smallBoldFont, pctBrush, pad + nameSize.Width + S(6), y);
+        g.DrawString(pct, _smallBoldFont, idle ? mutedBrush : pctBrush, nameX + nameSize.Width + S(6), y);
 
         string tokens = $"{FmtTokens(ctx.Tokens)} / {FmtTokens(ctx.WindowSize)}";
         var tokSize = g.MeasureString(tokens, _smallFont);
@@ -901,10 +936,12 @@ sealed class PopupForm : Form
         int fillW = (int)Math.Round(contentWidth * ctx.Percent / 100.0);
         if (fillW >= barH)
         {
-            using var fillBrush = new SolidBrush(color);
+            using var fillBrush = new SolidBrush(idle ? MutedColor : color);
             FillRounded(g, fillBrush, new Rectangle(pad, barY, fillW, barH), barH / 2);
         }
     }
+
+    int StateDotSize => Math.Max(5, S(7));
 
     /// <summary>Compact token count: 169k, 1.0M, or the raw number below 1000.</summary>
     static string FmtTokens(long n) =>
