@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
 
 namespace ClaudeMeter;
@@ -9,10 +10,13 @@ sealed record SessionContext(
     long Tokens,
     long WindowSize,
     DateTimeOffset StartedAt,
-    DateTimeOffset LastActive)
+    DateTimeOffset LastActive,
+    SessionState State = SessionState.Working)
 {
     public double Percent => Math.Clamp(Tokens * 100.0 / WindowSize, 0, 100);
 }
+
+enum SessionState { Working, Waiting, Idle }
 
 /// <summary>
 /// Reads the context-window fill of the most recently active Claude Code
@@ -24,9 +28,16 @@ static class ContextMonitor
     static readonly string ProjectsDir =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "projects");
 
+    /// <summary>Turn ended and the user was last seen within this → Waiting, else Idle.</summary>
+    public static readonly TimeSpan WaitingFor = TimeSpan.FromMinutes(10);
+
+    /// <summary>Sessions with no conversation activity for this long are dropped (even Working: a crashed one must go).</summary>
+    public static readonly TimeSpan DropAfter = TimeSpan.FromMinutes(30);
+
     /// <summary>
-    /// Active sessions (transcripts written within <paramref name="maxIdle"/>), sorted and
-    /// capped to <paramref name="max"/>. sort: "active" (most-recent first) | "name" | "context".
+    /// Active sessions (transcripts written within <paramref name="maxIdle"/> — a cheap
+    /// LastWriteTime pre-filter; the real cut is DropAfter on the last transcript timestamp),
+    /// sorted and capped to <paramref name="max"/>. sort: "active" (most-recent first) | "name" | "context".
     /// </summary>
     public static IReadOnlyList<SessionContext> GetActive(TimeSpan maxIdle, int max, string sort)
     {
@@ -86,7 +97,15 @@ static class ContextMonitor
             if (m.Success && DateTimeOffset.TryParse(m.Groups[1].Value, out var ts))
                 startedAt = ts.ToLocalTime();
 
-            return new SessionContext(project, FriendlyModel(modelId), tokens, window, startedAt, new DateTimeOffset(file.LastWriteTime));
+            // file LastWriteTime is unreliable: metadata lines (no timestamp) are appended
+            // long after the conversation goes quiet, so use the last line's own timestamp
+            var (ended, lastTs) = Classify(tail);
+            var active = lastTs ?? new DateTimeOffset(file.LastWriteTime);
+            var age = DateTimeOffset.Now - active;
+            if (age > DropAfter) return null;
+            var state = !ended ? SessionState.Working : age <= WaitingFor ? SessionState.Waiting : SessionState.Idle;
+
+            return new SessionContext(project, FriendlyModel(modelId), tokens, window, startedAt, active, state);
         }
         catch
         {
@@ -94,6 +113,79 @@ static class ContextMonitor
             // must not blank the sessions that parsed fine
             return null;
         }
+    }
+
+    /// <summary>
+    /// Walks the tail from the end: ended = the first conversational line closes a turn (or
+    /// waits on the user); ts = the last parseable timestamp. Defaults to (false, null).
+    /// </summary>
+    static (bool ended, DateTimeOffset? ts) Classify(string tail)
+    {
+        bool? ended = null;
+        DateTimeOffset? ts = null;
+        try
+        {
+            var lines = tail.Split('\n');
+            for (int i = lines.Length - 1; i >= 1 && (ended is null || ts is null); i--) // [0] may be a partial line
+            {
+                var line = lines[i].Trim();
+                if (line.Length == 0) continue;
+                JsonDocument doc;
+                try { doc = JsonDocument.Parse(line); } catch (JsonException) { continue; }
+                using (doc)
+                {
+                    var root = doc.RootElement;
+                    if (root.ValueKind != JsonValueKind.Object) continue;
+                    if (ts is null && root.TryGetProperty("timestamp", out var t) && t.ValueKind == JsonValueKind.String
+                        && DateTimeOffset.TryParse(t.GetString(), out var parsed))
+                        ts = parsed.ToLocalTime();
+                    if (ended is null)
+                    {
+                        string? type = root.TryGetProperty("type", out var ty) && ty.ValueKind == JsonValueKind.String ? ty.GetString() : null;
+                        if (type is "assistant" or "user" or "system" or "attachment")
+                            ended = IsTurnEnd(type, root);
+                    }
+                }
+            }
+        }
+        catch
+        {
+            return (false, null); // default to Working
+        }
+        return (ended ?? false, ts);
+    }
+
+    static bool IsTurnEnd(string type, JsonElement root)
+    {
+        if (type == "system")
+            return root.TryGetProperty("subtype", out var st) && st.ValueKind == JsonValueKind.String
+                && st.GetString() is "stop_hook_summary" or "turn_duration";
+        if (type is not ("assistant" or "user")
+            || !root.TryGetProperty("message", out var msg) || msg.ValueKind != JsonValueKind.Object)
+            return false;
+
+        if (type == "assistant")
+        {
+            if (msg.TryGetProperty("stop_reason", out var sr) && sr.ValueKind == JsonValueKind.String
+                && sr.GetString() is "end_turn" or "stop_sequence")
+                return true;
+            // waiting on the user's answer
+            if (msg.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.Array && c.GetArrayLength() > 0)
+            {
+                var last = c[c.GetArrayLength() - 1];
+                return last.TryGetProperty("type", out var bt) && bt.GetString() == "tool_use"
+                    && last.TryGetProperty("name", out var nm) && nm.GetString() is "AskUserQuestion" or "ExitPlanMode";
+            }
+            return false;
+        }
+
+        // user: only an interrupt marker ends the turn
+        if (!msg.TryGetProperty("content", out var uc)) return false;
+        string? text = uc.ValueKind == JsonValueKind.String ? uc.GetString()
+            : uc.ValueKind == JsonValueKind.Array && uc.GetArrayLength() > 0
+              && uc[0].ValueKind == JsonValueKind.Object && uc[0].TryGetProperty("text", out var tx) ? tx.GetString()
+            : null;
+        return text?.StartsWith("[Request interrupted", StringComparison.Ordinal) == true;
     }
 
     static string ReadChunk(FileInfo file, bool fromEnd, int size)

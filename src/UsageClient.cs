@@ -160,9 +160,21 @@ sealed class UsageClient
                     usedDollars, limitDollars));
         }
 
+        // "Cloud credit": included credit for cloud sessions. Not in the limits array.
+        // Codename field, matched by name only on purpose (decided in grilling 2026-10-02;
+        // if renamed, the row just disappears — fix the one name).
+        if (root["iguana_necktie"] is JsonObject cc
+            && cc["limit_dollars"]?.GetValue<double>() is > 0 and var ccLimit
+            && cc["used_dollars"]?.GetValue<double>() is { } ccUsed)
+        {
+            double ccUtil = cc["utilization"]?.GetValue<double>() ?? ccUsed / ccLimit * 100;
+            windows.Add(new UsageWindow("cloud_credit", "Cloud credit", ccUtil,
+                ParseResetTime(cc["resets_at"]), false, "normal", ccUsed, ccLimit));
+        }
+
         // Session first, plain weekly second, model-scoped after, wallet last.
         return windows
-            .OrderBy(w => w.Key switch { "five_hour" => 0, "seven_day" => 1, "extra_usage" => 8, _ => 2 })
+            .OrderBy(w => w.Key switch { "five_hour" => 0, "seven_day" => 1, "extra_usage" => 8, "cloud_credit" => 9, _ => 2 })
             .ThenBy(w => w.Label, StringComparer.Ordinal)
             .ToList();
     }

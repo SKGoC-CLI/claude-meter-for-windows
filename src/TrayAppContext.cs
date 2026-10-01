@@ -544,7 +544,7 @@ sealed class TrayAppContext : ApplicationContext
     void RefreshSessionContext()
     {
         _popup.Sessions = _settings.ShowContext
-            ? ContextMonitor.GetActive(TimeSpan.FromMinutes(10), _settings.MaxContextSessions, _settings.ContextSort)
+            ? ContextMonitor.GetActive(ContextMonitor.DropAfter,_settings.MaxContextSessions, _settings.ContextSort)
             : Array.Empty<SessionContext>();
     }
 
@@ -804,7 +804,7 @@ sealed class TrayAppContext : ApplicationContext
         int threshold = _settings.NotifyThreshold;
         if (threshold <= 0) return;
 
-        foreach (var w in snapshot.Windows)
+        foreach (var w in snapshot.Windows.Where(w => w.Key != "cloud_credit")) // a wallet, never a blocking limit
         {
             if (w.Utilization >= threshold)
             {
@@ -956,7 +956,8 @@ sealed class TrayAppContext : ApplicationContext
     /// </summary>
     double? TrayDisplayValue()
     {
-        var windows = _lastSnapshot?.Windows;
+        // cloud credit is a wallet, never a blocking limit — keep it out of the icon
+        var windows = _lastSnapshot?.Windows.Where(w => w.Key != "cloud_credit").ToList();
         if (windows is null || windows.Count == 0) return null;
 
         double max = windows.Max(w => w.Utilization);
