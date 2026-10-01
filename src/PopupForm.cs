@@ -292,7 +292,7 @@ sealed class PopupForm : Form
             }
             else if (w.Key == "five_hour")
                 resetW = g.MeasureString(NextUseHint, _smallFont).Width;
-            else if (w.UsedDollars is { } used && w.LimitDollars is { } limit)
+            else if (w.Key != CloudCreditKey && w.UsedDollars is { } used && w.LimitDollars is { } limit)
                 resetW = g.MeasureString(MoneyText(used, limit), _smallFont).Width;
             widest = Math.Max(widest, labelW + S(2) + pctW + S(16) + resetW);
             // the ETA line sits below (same row as the collision-fallback reset text)
@@ -775,7 +775,7 @@ sealed class PopupForm : Form
             var size = g.MeasureString(NextUseHint, _smallFont);
             g.DrawString(NextUseHint, _smallFont, mutedBrush, pad + contentWidth - size.Width, y + S(3));
         }
-        else if (w.UsedDollars is { } used && w.LimitDollars is { } limit)
+        else if (w.Key != CloudCreditKey && w.UsedDollars is { } used && w.LimitDollars is { } limit)
         {
             // wallet row has no reset time, so its slot is free for the dollar amounts
             using var mutedBrush = new SolidBrush(MutedColor);
