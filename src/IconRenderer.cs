@@ -8,19 +8,13 @@ static class IconRenderer
     public static readonly Color Accent = ColorTranslator.FromHtml("#4da3ff");
     public static readonly Color Warning = ColorTranslator.FromHtml("#ffa940");
     public static readonly Color Danger = ColorTranslator.FromHtml("#ff5c5c");
-    public static readonly Color Working = ColorTranslator.FromHtml("#6bcb77"); // = popup's dark Success dot
+    /// <summary>Working fade: 0 → 1 → 0 on a cosine with the given period, from the shared clock
+    /// (popup dot 1.4 s, tray digits 1.2 s).</summary>
+    public static double WorkingPulse(int periodMs) =>
+        0.5 - 0.5 * Math.Cos(2 * Math.PI * (Environment.TickCount64 % periodMs) / periodMs);
 
-    const int WorkingCycleMs = 1600;
-
-    /// <summary>Linear 0→1 ramp over one Working cycle (popup glow spreading outward).</summary>
-    public static double WorkingPhase() => (Environment.TickCount64 % WorkingCycleMs) / (double)WorkingCycleMs;
-
-    /// <summary>Smooth 0→1→0 over the same cycle (tray digits cross-fading to green).</summary>
-    public static double WorkingPulse() => 0.5 - 0.5 * Math.Cos(2 * Math.PI * WorkingPhase());
-
-    /// <summary>Cross-fade <paramref name="c"/> toward the Working green by <paramref name="t"/> (0..1).</summary>
-    static Color Mix(Color c, double t) => t <= 0 ? c : Color.FromArgb(c.A,
-        (int)(c.R + (Working.R - c.R) * t), (int)(c.G + (Working.G - c.G) * t), (int)(c.B + (Working.B - c.B) * t));
+    /// <summary>Fade <paramref name="c"/> out by <paramref name="t"/> (0 = as is, 1 = invisible).</summary>
+    static Color Fade(Color c, double t) => t <= 0 ? c : Color.FromArgb((int)(c.A * (1 - t)), c);
 
     public static Color ColorFor(double utilization) =>
         utilization >= 90 ? Danger : utilization >= 70 ? Warning : Accent;
@@ -30,7 +24,7 @@ static class IconRenderer
     /// fill bar underneath, color-coded by severity. Gray "--" when no data.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon Render(double? maxUtilization, double working = 0)
+    public static Icon Render(double? maxUtilization, double fade = 0)
     {
         const int size = 32;
         using var bmp = new Bitmap(size, size);
@@ -45,7 +39,7 @@ static class IconRenderer
 
             using var font = new Font("Segoe UI", 15f, FontStyle.Bold, GraphicsUnit.Pixel);
             var textSize = g.MeasureString(text, font);
-            using var textBrush = new SolidBrush(Mix(Color.White, working));
+            using var textBrush = new SolidBrush(Fade(Color.White, fade));
             // "100" overflows at full width, so squeeze it horizontally instead of
             // shrinking the font — glyph height is what survives the 16 px downscale.
             float scaleX = textSize.Width > size - 1 ? (size - 1) / textSize.Width : 1f;
@@ -127,9 +121,9 @@ static class IconRenderer
     /// present value is drawn vertically centred rather than leaving a blank row.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon RenderTwoRow(double? session, double? weekly, double working = 0)
+    public static Icon RenderTwoRow(double? session, double? weekly, double fade = 0)
     {
-        if (session is null && weekly is null) return Render(null, working);
+        if (session is null && weekly is null) return Render(null, fade);
 
         // Integer pixel scale only — a fractional one would reintroduce the very
         // resampling this font exists to avoid. The canvas is then 16*k rather than
@@ -149,16 +143,16 @@ static class IconRenderer
 
             if (session is { } s && weekly is { } w)
             {
-                DrawRow(g, s, RowSlot.Top, k, working);
-                DrawRow(g, w, RowSlot.Bottom, k, working);
+                DrawRow(g, s, RowSlot.Top, k, fade);
+                DrawRow(g, w, RowSlot.Bottom, k, fade);
             }
             else if (session is { } sOnly)
             {
-                DrawRow(g, sOnly, RowSlot.Center, k, working);
+                DrawRow(g, sOnly, RowSlot.Center, k, fade);
             }
             else if (weekly is { } wOnly)
             {
-                DrawRow(g, wOnly, RowSlot.Center, k, working);
+                DrawRow(g, wOnly, RowSlot.Center, k, fade);
             }
         }
 
@@ -175,7 +169,7 @@ static class IconRenderer
     }
 
     /// <summary>Draws one row of digits at a logical 16x16 position, scaled by k.</summary>
-    static void DrawRow(Graphics g, double value, RowSlot slot, int k, double working)
+    static void DrawRow(Graphics g, double value, RowSlot slot, int k, double fade)
     {
         string text = Math.Clamp((int)Math.Round(value), 0, 100).ToString();
         bool small = text.Length == 3;
@@ -191,7 +185,7 @@ static class IconRenderer
             _ => small ? 5 : 4, // Center
         };
 
-        using var brush = new SolidBrush(Mix(ColorFor(value), working));
+        using var brush = new SolidBrush(Fade(ColorFor(value), fade));
         for (int i = 0; i < text.Length; i++)
         {
             var glyph = font[text[i] - '0'];

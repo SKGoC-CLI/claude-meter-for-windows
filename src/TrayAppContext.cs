@@ -79,7 +79,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly System.Windows.Forms.Timer _pollTimer;
     readonly System.Windows.Forms.Timer _blinkTimer = new() { Interval = 100 }; // 10 fps tray fade
     int _blinkTicks;
-    double _workingMix; // 0 = normal digit colours, 1 = Working green
+    double _workingFade; // 0 = digits as usual, 1 = faded out
     readonly ToolStripMenuItem _autostartItem;
     readonly ToolStripMenuItem _alwaysOnTopItem;
     readonly ToolStripMenuItem _miniModeItem;
@@ -433,15 +433,15 @@ sealed class TrayAppContext : ApplicationContext
         _pollTimer.Start();
 
         // Working blink: re-read session state every 5 s (local transcript tails, cheap),
-        // and cross-fade the tray digits to green (1.6 s cycle) while any session is Working
+        // and fade the tray digits out and back in (1.2 s cycle) while any session is Working
         _blinkTimer.Tick += (_, _) =>
         {
             if (++_blinkTicks % 50 == 0) RefreshSessionContext();
-            double mix = _popup.Sessions.Any(s => s.State == SessionState.Working)
-                ? Math.Round(IconRenderer.WorkingPulse() * 20) / 20 // 20 steps: skip identical frames
+            double fade = _popup.Sessions.Any(s => s.State == SessionState.Working)
+                ? Math.Round(IconRenderer.WorkingPulse(1200) * 20) / 20 // 20 steps: skip identical frames
                 : 0;
-            if (mix == _workingMix) return; // idle: no icon churn at all
-            _workingMix = mix;
+            if (fade == _workingFade) return; // idle: no icon churn at all
+            _workingFade = fade;
             RenderTrayIcon();
         };
         _blinkTimer.Start();
@@ -1013,11 +1013,11 @@ sealed class TrayAppContext : ApplicationContext
         if (_settings.TrayShows == "both")
         {
             var (session, weekly) = TrayTwoRowValues();
-            SetIcon(IconRenderer.RenderTwoRow(session, weekly, _workingMix));
+            SetIcon(IconRenderer.RenderTwoRow(session, weekly, _workingFade));
         }
         else
         {
-            SetIcon(IconRenderer.Render(TrayDisplayValue(), _workingMix));
+            SetIcon(IconRenderer.Render(TrayDisplayValue(), _workingFade));
         }
     }
 
