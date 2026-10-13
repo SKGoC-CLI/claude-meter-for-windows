@@ -895,6 +895,9 @@ sealed class PopupForm : Form
             SessionState.Waiting => Theme.Warning,
             _ => MutedColor,
         };
+        // Working blinks: dim every other second (_tick repaints once a second while open)
+        if (ctx.State == SessionState.Working && DateTime.Now.Second % 2 == 1)
+            dotColor = Color.FromArgb(70, dotColor);
         int dot = StateDotSize;
         float lineH = g.MeasureString("Ag", _smallBoldFont).Height;
         using (var dotBrush = new SolidBrush(dotColor))
