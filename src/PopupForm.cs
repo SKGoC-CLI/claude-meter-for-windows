@@ -34,6 +34,9 @@ sealed class PopupForm : Form
     bool _minimizeHover; // tracked separately so we only Invalidate() on an actual hover change
 
     readonly System.Windows.Forms.Timer _tick = new() { Interval = 1000 };
+    // ~30 fps breathing glow on Working dots; repaints only their rects, idles when none
+    readonly System.Windows.Forms.Timer _anim = new() { Interval = 33 };
+    readonly List<Rectangle> _workingDotRects = new();
 
     /// <summary>Always-on-top mode: no auto-hide on focus loss, draggable, remembers position.</summary>
     public bool Pinned { get; set; }
@@ -146,7 +149,7 @@ sealed class PopupForm : Form
     public IReadOnlyList<SessionContext> Sessions
     {
         get => _sessions;
-        set { _sessions = value ?? Array.Empty<SessionContext>(); RecomputeLayout(); }
+        set { _sessions = value ?? Array.Empty<SessionContext>(); _workingDotRects.Clear(); RecomputeLayout(); }
     }
 
     int ContextHeaderHeight => S(20);
@@ -215,6 +218,10 @@ sealed class PopupForm : Form
         BackColor = Background;
         DoubleBuffered = true;
         _tick.Tick += (_, _) => Invalidate(); // live countdown + "resets in" refresh
+        _anim.Tick += (_, _) =>
+        {
+            foreach (var r in _workingDotRects) Invalidate(r);
+        };
 
         _fixLoginButton = new Button
         {
@@ -387,8 +394,8 @@ sealed class PopupForm : Form
     protected override void OnVisibleChanged(EventArgs e)
     {
         base.OnVisibleChanged(e);
-        if (Visible) _tick.Start();
-        else _tick.Stop();
+        if (Visible) { _tick.Start(); _anim.Start(); }
+        else { _tick.Stop(); _anim.Stop(); }
     }
 
     protected override void OnHandleCreated(EventArgs e)
@@ -870,6 +877,7 @@ sealed class PopupForm : Form
         g.DrawString(header, _tinyFont, mutedBrush, pad, y + S(8));
 
         int by = y + ContextHeaderHeight;
+        _workingDotRects.Clear(); // rebuilt below by every Working dot
         foreach (var ctx in _sessions)
         {
             DrawContextBlock(g, ctx, by, pad, contentWidth);
@@ -895,16 +903,33 @@ sealed class PopupForm : Form
             SessionState.Waiting => Theme.Warning,
             _ => MutedColor,
         };
-        // Working blinks: dim every other second (_tick repaints once a second while open)
-        if (ctx.State == SessionState.Working && DateTime.Now.Second % 2 == 1)
-            dotColor = Color.FromArgb(70, dotColor);
         int dot = StateDotSize;
         float lineH = g.MeasureString("Ag", _smallBoldFont).Height;
-        using (var dotBrush = new SolidBrush(dotColor))
+        var dotRect = new RectangleF(pad, y + (lineH - dot) / 2f, dot, dot);
         {
             var oldMode = g.SmoothingMode;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            g.FillEllipse(dotBrush, pad, y + (lineH - dot) / 2f, dot, dot);
+            if (ctx.State == SessionState.Working)
+            {
+                // breathing glow: dot fades 110→255 on the shared 1.2 s pulse, a soft halo
+                // blooms around it at the bright end; _anim repaints just this rect at ~30 fps
+                double p = IconRenderer.WorkingPulse();
+                var halo = RectangleF.Inflate(dotRect, dot * 0.8f, dot * 0.8f);
+                using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                {
+                    path.AddEllipse(halo);
+                    using var haloBrush = new System.Drawing.Drawing2D.PathGradientBrush(path)
+                    {
+                        CenterColor = Color.FromArgb((int)(150 * p), dotColor),
+                        SurroundColors = new[] { Color.FromArgb(0, dotColor) },
+                    };
+                    g.FillEllipse(haloBrush, halo);
+                }
+                dotColor = Color.FromArgb(110 + (int)(145 * p), dotColor);
+                _workingDotRects.Add(Rectangle.Ceiling(RectangleF.Inflate(halo, 1, 1)));
+            }
+            using var dotBrush = new SolidBrush(dotColor);
+            g.FillEllipse(dotBrush, dotRect);
             g.SmoothingMode = oldMode;
         }
         float nameX = pad + dot + S(5);
@@ -1351,6 +1376,7 @@ sealed class PopupForm : Form
         if (disposing)
         {
             _tick.Dispose();
+            _anim.Dispose();
             _labelFont.Dispose();
             _valueFont.Dispose();
             _smallFont.Dispose();

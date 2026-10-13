@@ -77,9 +77,9 @@ sealed class TrayAppContext : ApplicationContext
     readonly NotifyIcon _trayIcon;
     readonly PopupForm _popup = new();
     readonly System.Windows.Forms.Timer _pollTimer;
-    readonly System.Windows.Forms.Timer _blinkTimer = new() { Interval = 1000 };
+    readonly System.Windows.Forms.Timer _blinkTimer = new() { Interval = 100 }; // 10 fps tray fade
     int _blinkTicks;
-    bool _workingEdgeShown;
+    int _workingFrameAlpha;
     readonly ToolStripMenuItem _autostartItem;
     readonly ToolStripMenuItem _alwaysOnTopItem;
     readonly ToolStripMenuItem _miniModeItem;
@@ -433,13 +433,15 @@ sealed class TrayAppContext : ApplicationContext
         _pollTimer.Start();
 
         // Working blink: re-read session state every 5 s (local transcript tails, cheap),
-        // toggle the tray's green edge every second while any session is Working
+        // and fade a green frame around the tray icon (1.2 s breath) while any session is Working
         _blinkTimer.Tick += (_, _) =>
         {
-            if (++_blinkTicks % 5 == 0) RefreshSessionContext();
-            bool edge = _blinkTicks % 2 == 0 && _popup.Sessions.Any(s => s.State == SessionState.Working);
-            if (edge == _workingEdgeShown) return;
-            _workingEdgeShown = edge;
+            if (++_blinkTicks % 50 == 0) RefreshSessionContext();
+            int alpha = _popup.Sessions.Any(s => s.State == SessionState.Working)
+                ? 40 + (int)(215 * IconRenderer.WorkingPulse())
+                : 0;
+            if (alpha == _workingFrameAlpha) return; // idle: no icon churn at all
+            _workingFrameAlpha = alpha;
             RenderTrayIcon();
         };
         _blinkTimer.Start();
@@ -1011,11 +1013,11 @@ sealed class TrayAppContext : ApplicationContext
         if (_settings.TrayShows == "both")
         {
             var (session, weekly) = TrayTwoRowValues();
-            SetIcon(IconRenderer.RenderTwoRow(session, weekly, _workingEdgeShown));
+            SetIcon(IconRenderer.RenderTwoRow(session, weekly, _workingFrameAlpha));
         }
         else
         {
-            SetIcon(IconRenderer.Render(TrayDisplayValue(), _workingEdgeShown));
+            SetIcon(IconRenderer.Render(TrayDisplayValue(), _workingFrameAlpha));
         }
     }
 

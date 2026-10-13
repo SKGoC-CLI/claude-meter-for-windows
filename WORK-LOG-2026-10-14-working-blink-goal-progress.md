@@ -35,3 +35,20 @@
 - Task id เป็นเลขเรียงต่อ session; TaskUpdate อาจมี `status: deleted` → ไม่นับ
 - session ที่ไม่ใช่ sprint แต่โฟลเดอร์มี NEXT-SESSION.md `status: active` ค้าง → จะโชว์ progress ของ sprint เก่า (ยอมรับได้ เพราะ `status: active` หมายถึง sprint ค้างจริง)
 - tray วาดใหม่ทุก 1 วิ → ต้อง Dispose HICON เก่าทุกครั้ง (กัน GDI leak)
+
+## รอบ 2 (grilling) — ปรับไฟกระพริบให้หรูขึ้น
+
+หลัง step 1-2 (dc30df2, 866e55c) คุณสมกกขอให้ถี่ขึ้น + fade in/out และเปลี่ยนไอคอน tray เป็นกรอบรอบ.
+โควตาตอนนี้: five_hour 12%, seven_day 96% (เกิน 80%).
+
+| ข้อ | เรื่อง | เลือก |
+|----|------|------|
+| 1 | จุดใน popup | A. Breathing glow: fade sine รอบละ 1.2 วิ + halo เขียวอ่อนตอนสว่างสุด; timer ~30 fps เฉพาะตอน popup เปิดและมี Working |
+| 2 | ไอคอน tray | A. กรอบเต็ม 4 ด้าน 1px วาดใต้ตัวเลข (ตัวเลขชนะตรงที่ทับ) แทนเส้นซ้าย |
+| 3 | ความถี่ tray | A. 10 เฟรม/วิ จังหวะ 1.2 วิเท่า popup (fade = alpha ของกรอบ) |
+
+### Sprint รอบ 2
+| Step | งาน | ใคร | หยุดตรงนี้ได้ = |
+|------|-----|-----|------|
+| 2a | popup: breathing glow + anim timer | main | จุด popup หรูแล้ว |
+| 2b | tray: กรอบ fade 10 fps (alpha แทน bool) | main | ครบรอบ 2 |

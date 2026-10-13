@@ -10,6 +10,10 @@ static class IconRenderer
     public static readonly Color Danger = ColorTranslator.FromHtml("#ff5c5c");
     public static readonly Color Working = ColorTranslator.FromHtml("#6bcb77"); // = popup's dark Success dot
 
+    /// <summary>Shared breathing phase for the Working indicators: 0→1→0 on a 1.2 s cosine.</summary>
+    public static double WorkingPulse() =>
+        0.5 - 0.5 * Math.Cos(2 * Math.PI * (Environment.TickCount64 % 1200) / 1200.0);
+
     public static Color ColorFor(double utilization) =>
         utilization >= 90 ? Danger : utilization >= 70 ? Warning : Accent;
 
@@ -18,7 +22,7 @@ static class IconRenderer
     /// fill bar underneath, color-coded by severity. Gray "--" when no data.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon Render(double? maxUtilization, bool workingEdge = false)
+    public static Icon Render(double? maxUtilization, int workingFrameAlpha = 0)
     {
         const int size = 32;
         using var bmp = new Bitmap(size, size);
@@ -27,6 +31,7 @@ static class IconRenderer
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             g.Clear(Color.Transparent);
+            DrawWorkingFrame(g, size, 2, workingFrameAlpha); // ~1px after the 16px downscale
 
             var color = maxUtilization is { } u ? ColorFor(u) : Color.Gray;
             string text = maxUtilization is { } v ? Math.Clamp((int)Math.Round(v), 0, 100).ToString() : "--";
@@ -51,7 +56,6 @@ static class IconRenderer
                 int width = (int)Math.Round((size - 4) * Math.Clamp(pct, 0, 100) / 100.0);
                 if (width > 0) g.FillRectangle(fillBrush, 2, size - 8, width, 5);
             }
-            if (workingEdge) DrawWorkingEdge(g, size, 3); // ~1.5px after the 16px downscale
         }
 
         IntPtr hIcon = bmp.GetHicon();
@@ -116,9 +120,9 @@ static class IconRenderer
     /// present value is drawn vertically centred rather than leaving a blank row.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon RenderTwoRow(double? session, double? weekly, bool workingEdge = false)
+    public static Icon RenderTwoRow(double? session, double? weekly, int workingFrameAlpha = 0)
     {
-        if (session is null && weekly is null) return Render(null, workingEdge);
+        if (session is null && weekly is null) return Render(null, workingFrameAlpha);
 
         // Integer pixel scale only — a fractional one would reintroduce the very
         // resampling this font exists to avoid. The canvas is then 16*k rather than
@@ -135,6 +139,8 @@ static class IconRenderer
         {
             g.SmoothingMode = SmoothingMode.None;
             g.Clear(Color.Transparent);
+            // under the digits: rows 0/15 are digit rows, so the digits win where they meet
+            DrawWorkingFrame(g, size, k, workingFrameAlpha);
 
             if (session is { } s && weekly is { } w)
             {
@@ -149,7 +155,6 @@ static class IconRenderer
             {
                 DrawRow(g, wOnly, RowSlot.Center, k);
             }
-            if (workingEdge) DrawWorkingEdge(g, size, k); // column 0 is always empty: digits start at x>=2
         }
 
         IntPtr hIcon = bmp.GetHicon();
@@ -199,11 +204,15 @@ static class IconRenderer
         }
     }
 
-    /// <summary>Green left-edge line shown on alternate seconds while any session is Working.</summary>
-    static void DrawWorkingEdge(Graphics g, int size, int width)
+    /// <summary>Green border around the whole icon, faded by alpha, while any session is Working.</summary>
+    static void DrawWorkingFrame(Graphics g, int size, int width, int alpha)
     {
-        using var brush = new SolidBrush(Working);
-        g.FillRectangle(brush, 0, 0, width, size);
+        if (alpha <= 0) return;
+        using var brush = new SolidBrush(Color.FromArgb(Math.Min(alpha, 255), Working));
+        g.FillRectangle(brush, 0, 0, size, width);
+        g.FillRectangle(brush, 0, size - width, size, width);
+        g.FillRectangle(brush, 0, width, width, size - 2 * width);
+        g.FillRectangle(brush, size - width, width, width, size - 2 * width);
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]
