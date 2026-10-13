@@ -52,3 +52,15 @@
 |------|-----|-----|------|
 | 2a | popup: breathing glow + anim timer | main | จุด popup หรูแล้ว |
 | 2b | tray: กรอบ fade 10 fps (alpha แทน bool) | main | ครบรอบ 2 |
+
+รอบ 2 เสร็จ commit `f169ec3` (CPU 0.23 วิ/20 วิ, GDI คงที่ 31).
+
+## รอบ 3 (grilling) — taskbar เป็นตัวเลข cross fade, popup เป็น glow แผ่ออก ช้าลง
+
+| ข้อ | เรื่อง | เลือก |
+|----|------|------|
+| 1 | taskbar | A. เอากรอบออก ตัวเลข cross-fade สีเดิม ↔ เขียว Working (โหมดตัวเลขเดียว: ขาว ↔ เขียว) |
+| 2 | จุด popup | A. จุดนิ่ง + แสงแผ่ออกจากจุดแล้วจาง (ease-out), รอบ 1.2 → **1.6 วิ** ใช้ร่วมกับ taskbar |
+
+ทำเลยในรอบเดียว: `IconRenderer.WorkingPhase()` (ramp) + `WorkingPulse()` (cosine) รอบ 1.6 วิ, `Mix()` ผสมสีไปทางเขียว,
+tray ปัดค่า mix เป็น 20 ขั้นเพื่อข้ามเฟรมที่เหมือนเดิม. วัดได้ CPU 0.22 วิ/20 วิ, GDI 31 คงที่.

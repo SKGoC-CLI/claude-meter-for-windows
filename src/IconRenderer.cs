@@ -10,9 +10,17 @@ static class IconRenderer
     public static readonly Color Danger = ColorTranslator.FromHtml("#ff5c5c");
     public static readonly Color Working = ColorTranslator.FromHtml("#6bcb77"); // = popup's dark Success dot
 
-    /// <summary>Shared breathing phase for the Working indicators: 0→1→0 on a 1.2 s cosine.</summary>
-    public static double WorkingPulse() =>
-        0.5 - 0.5 * Math.Cos(2 * Math.PI * (Environment.TickCount64 % 1200) / 1200.0);
+    const int WorkingCycleMs = 1600;
+
+    /// <summary>Linear 0→1 ramp over one Working cycle (popup glow spreading outward).</summary>
+    public static double WorkingPhase() => (Environment.TickCount64 % WorkingCycleMs) / (double)WorkingCycleMs;
+
+    /// <summary>Smooth 0→1→0 over the same cycle (tray digits cross-fading to green).</summary>
+    public static double WorkingPulse() => 0.5 - 0.5 * Math.Cos(2 * Math.PI * WorkingPhase());
+
+    /// <summary>Cross-fade <paramref name="c"/> toward the Working green by <paramref name="t"/> (0..1).</summary>
+    static Color Mix(Color c, double t) => t <= 0 ? c : Color.FromArgb(c.A,
+        (int)(c.R + (Working.R - c.R) * t), (int)(c.G + (Working.G - c.G) * t), (int)(c.B + (Working.B - c.B) * t));
 
     public static Color ColorFor(double utilization) =>
         utilization >= 90 ? Danger : utilization >= 70 ? Warning : Accent;
@@ -22,7 +30,7 @@ static class IconRenderer
     /// fill bar underneath, color-coded by severity. Gray "--" when no data.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon Render(double? maxUtilization, int workingFrameAlpha = 0)
+    public static Icon Render(double? maxUtilization, double working = 0)
     {
         const int size = 32;
         using var bmp = new Bitmap(size, size);
@@ -31,14 +39,13 @@ static class IconRenderer
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             g.Clear(Color.Transparent);
-            DrawWorkingFrame(g, size, 2, workingFrameAlpha); // ~1px after the 16px downscale
 
             var color = maxUtilization is { } u ? ColorFor(u) : Color.Gray;
             string text = maxUtilization is { } v ? Math.Clamp((int)Math.Round(v), 0, 100).ToString() : "--";
 
             using var font = new Font("Segoe UI", 15f, FontStyle.Bold, GraphicsUnit.Pixel);
             var textSize = g.MeasureString(text, font);
-            using var textBrush = new SolidBrush(Color.White);
+            using var textBrush = new SolidBrush(Mix(Color.White, working));
             // "100" overflows at full width, so squeeze it horizontally instead of
             // shrinking the font — glyph height is what survives the 16 px downscale.
             float scaleX = textSize.Width > size - 1 ? (size - 1) / textSize.Width : 1f;
@@ -120,9 +127,9 @@ static class IconRenderer
     /// present value is drawn vertically centred rather than leaving a blank row.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon RenderTwoRow(double? session, double? weekly, int workingFrameAlpha = 0)
+    public static Icon RenderTwoRow(double? session, double? weekly, double working = 0)
     {
-        if (session is null && weekly is null) return Render(null, workingFrameAlpha);
+        if (session is null && weekly is null) return Render(null, working);
 
         // Integer pixel scale only — a fractional one would reintroduce the very
         // resampling this font exists to avoid. The canvas is then 16*k rather than
@@ -139,21 +146,19 @@ static class IconRenderer
         {
             g.SmoothingMode = SmoothingMode.None;
             g.Clear(Color.Transparent);
-            // under the digits: rows 0/15 are digit rows, so the digits win where they meet
-            DrawWorkingFrame(g, size, k, workingFrameAlpha);
 
             if (session is { } s && weekly is { } w)
             {
-                DrawRow(g, s, RowSlot.Top, k);
-                DrawRow(g, w, RowSlot.Bottom, k);
+                DrawRow(g, s, RowSlot.Top, k, working);
+                DrawRow(g, w, RowSlot.Bottom, k, working);
             }
             else if (session is { } sOnly)
             {
-                DrawRow(g, sOnly, RowSlot.Center, k);
+                DrawRow(g, sOnly, RowSlot.Center, k, working);
             }
             else if (weekly is { } wOnly)
             {
-                DrawRow(g, wOnly, RowSlot.Center, k);
+                DrawRow(g, wOnly, RowSlot.Center, k, working);
             }
         }
 
@@ -170,7 +175,7 @@ static class IconRenderer
     }
 
     /// <summary>Draws one row of digits at a logical 16x16 position, scaled by k.</summary>
-    static void DrawRow(Graphics g, double value, RowSlot slot, int k)
+    static void DrawRow(Graphics g, double value, RowSlot slot, int k, double working)
     {
         string text = Math.Clamp((int)Math.Round(value), 0, 100).ToString();
         bool small = text.Length == 3;
@@ -186,7 +191,7 @@ static class IconRenderer
             _ => small ? 5 : 4, // Center
         };
 
-        using var brush = new SolidBrush(ColorFor(value));
+        using var brush = new SolidBrush(Mix(ColorFor(value), working));
         for (int i = 0; i < text.Length; i++)
         {
             var glyph = font[text[i] - '0'];
@@ -202,17 +207,6 @@ static class IconRenderer
                 }
             }
         }
-    }
-
-    /// <summary>Green border around the whole icon, faded by alpha, while any session is Working.</summary>
-    static void DrawWorkingFrame(Graphics g, int size, int width, int alpha)
-    {
-        if (alpha <= 0) return;
-        using var brush = new SolidBrush(Color.FromArgb(Math.Min(alpha, 255), Working));
-        g.FillRectangle(brush, 0, 0, size, width);
-        g.FillRectangle(brush, 0, size - width, size, width);
-        g.FillRectangle(brush, 0, width, width, size - 2 * width);
-        g.FillRectangle(brush, size - width, width, width, size - 2 * width);
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]

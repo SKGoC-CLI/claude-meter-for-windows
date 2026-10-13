@@ -13,6 +13,7 @@ status: active
 | 2 | tray: เส้นเขียวขอบกระพริบเมื่อมี session Working | main | ✅ |
 | 2a | รอบ 2: popup breathing glow 1.2 วิ + halo | main | ✅ |
 | 2b | รอบ 2: tray กรอบเขียว fade 10 fps (แทนเส้นซ้าย) | main | ✅ (commit รวมกับ 2a — 2a ใช้ `IconRenderer.WorkingPulse`) |
+| 2c | รอบ 3: taskbar ตัวเลข cross-fade ↔ เขียว (เอากรอบออก) + popup glow แผ่ออก 1.6 วิ | main | ✅ |
 | 3–7 | Goal progress (ดู WORK-LOG) | — | ⬜ ยังไม่สั่ง |
 
 ③ สถานะจริง: step 1–2 build Release 0 error, commit แล้ว. portable สลับเป็น build ใหม่และรันอยู่

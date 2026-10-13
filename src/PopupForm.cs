@@ -911,22 +911,24 @@ sealed class PopupForm : Form
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
             if (ctx.State == SessionState.Working)
             {
-                // breathing glow: dot fades 110→255 on the shared 1.2 s pulse, a soft halo
-                // blooms around it at the bright end; _anim repaints just this rect at ~30 fps
-                double p = IconRenderer.WorkingPulse();
-                var halo = RectangleF.Inflate(dotRect, dot * 0.8f, dot * 0.8f);
-                using (var path = new System.Drawing.Drawing2D.GraphicsPath())
+                // outward glow: the dot stays solid while a soft green halo spreads out from it
+                // and fades, once per 1.6 s cycle; _anim repaints just this rect at ~30 fps
+                double t = IconRenderer.WorkingPhase();
+                float spread = dot * 1.1f;
+                float grow = (float)(1 - (1 - t) * (1 - t)); // ease-out: fast start, settles as it fades
+                var halo = RectangleF.Inflate(dotRect, spread * grow, spread * grow);
+                if (halo.Width > dot)
                 {
+                    using var path = new System.Drawing.Drawing2D.GraphicsPath();
                     path.AddEllipse(halo);
                     using var haloBrush = new System.Drawing.Drawing2D.PathGradientBrush(path)
                     {
-                        CenterColor = Color.FromArgb((int)(150 * p), dotColor),
+                        CenterColor = Color.FromArgb((int)(170 * (1 - t)), dotColor),
                         SurroundColors = new[] { Color.FromArgb(0, dotColor) },
                     };
                     g.FillEllipse(haloBrush, halo);
                 }
-                dotColor = Color.FromArgb(110 + (int)(145 * p), dotColor);
-                _workingDotRects.Add(Rectangle.Ceiling(RectangleF.Inflate(halo, 1, 1)));
+                _workingDotRects.Add(Rectangle.Ceiling(RectangleF.Inflate(dotRect, spread + 1, spread + 1)));
             }
             using var dotBrush = new SolidBrush(dotColor);
             g.FillEllipse(dotBrush, dotRect);
