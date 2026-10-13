@@ -8,6 +8,7 @@ static class IconRenderer
     public static readonly Color Accent = ColorTranslator.FromHtml("#4da3ff");
     public static readonly Color Warning = ColorTranslator.FromHtml("#ffa940");
     public static readonly Color Danger = ColorTranslator.FromHtml("#ff5c5c");
+    public static readonly Color Working = ColorTranslator.FromHtml("#6bcb77"); // = popup's dark Success dot
 
     public static Color ColorFor(double utilization) =>
         utilization >= 90 ? Danger : utilization >= 70 ? Warning : Accent;
@@ -17,7 +18,7 @@ static class IconRenderer
     /// fill bar underneath, color-coded by severity. Gray "--" when no data.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon Render(double? maxUtilization)
+    public static Icon Render(double? maxUtilization, bool workingEdge = false)
     {
         const int size = 32;
         using var bmp = new Bitmap(size, size);
@@ -50,6 +51,7 @@ static class IconRenderer
                 int width = (int)Math.Round((size - 4) * Math.Clamp(pct, 0, 100) / 100.0);
                 if (width > 0) g.FillRectangle(fillBrush, 2, size - 8, width, 5);
             }
+            if (workingEdge) DrawWorkingEdge(g, size, 3); // ~1.5px after the 16px downscale
         }
 
         IntPtr hIcon = bmp.GetHicon();
@@ -114,9 +116,9 @@ static class IconRenderer
     /// present value is drawn vertically centred rather than leaving a blank row.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon RenderTwoRow(double? session, double? weekly)
+    public static Icon RenderTwoRow(double? session, double? weekly, bool workingEdge = false)
     {
-        if (session is null && weekly is null) return Render(null);
+        if (session is null && weekly is null) return Render(null, workingEdge);
 
         // Integer pixel scale only — a fractional one would reintroduce the very
         // resampling this font exists to avoid. The canvas is then 16*k rather than
@@ -147,6 +149,7 @@ static class IconRenderer
             {
                 DrawRow(g, wOnly, RowSlot.Center, k);
             }
+            if (workingEdge) DrawWorkingEdge(g, size, k); // column 0 is always empty: digits start at x>=2
         }
 
         IntPtr hIcon = bmp.GetHicon();
@@ -194,6 +197,13 @@ static class IconRenderer
                 }
             }
         }
+    }
+
+    /// <summary>Green left-edge line shown on alternate seconds while any session is Working.</summary>
+    static void DrawWorkingEdge(Graphics g, int size, int width)
+    {
+        using var brush = new SolidBrush(Working);
+        g.FillRectangle(brush, 0, 0, width, size);
     }
 
     [System.Runtime.InteropServices.DllImport("user32.dll")]

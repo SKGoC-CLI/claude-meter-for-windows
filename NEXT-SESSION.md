@@ -10,12 +10,20 @@ status: active
 |------|-----|-----|-------|
 | 0 | grilling + CONTEXT.md + WORK-LOG | main | ✅ |
 | 1 | popup: จุด Working กระพริบ | main | ✅ |
-| 2 | tray: เส้นเขียวขอบกระพริบเมื่อมี session Working | main | ⬜ |
+| 2 | tray: เส้นเขียวขอบกระพริบเมื่อมี session Working | main | ✅ |
 | 3–7 | Goal progress (ดู WORK-LOG) | — | ⬜ ยังไม่สั่ง |
 
-③ สถานะจริง: ยังไม่เริ่มโค้ด. `docs/PROMO_TODO.md` (modified) + ไฟล์ docs/ untracked เป็นของเก่า **ไม่เกี่ยว อย่า commit รวม**.
+③ สถานะจริง: step 1–2 build Release 0 error, commit แล้ว. portable สลับเป็น build ใหม่และรันอยู่
+(exe เก่าอยู่ `bin\portable-pre-blink-backup\`). ยังไม่ release, **ยังไม่ผ่าน reviewer subagent**
+(ข้ามเพราะโควตา 7 วัน 95% — main ตรวจเองแล้ว). ภาพไอคอนเรนเดอร์ด้วย reflection ดูแล้วโอเค
+แต่ **คุณสมกกยังไม่ได้ดูของจริงบน taskbar**.
+`docs/PROMO_TODO.md` (modified) + ไฟล์ docs/ untracked เป็นของเก่า **ไม่เกี่ยว อย่า commit รวม**.
 
-④ ถัดไป: step 1
+การทำงาน: `TrayAppContext._blinkTimer` 1 วิ — ทุก 5 วิ `RefreshSessionContext()` (อ่าน tail transcript),
+สลับ `_workingEdgeShown` ทุกวินาทีถ้ามี session Working → `RenderTrayIcon()` วาดเส้นเขียวซ้าย
+(`IconRenderer.DrawWorkingEdge`, สี `#6bcb77`). ปิด SESSION CONTEXT = ไม่มี session = ไม่กระพริบ.
+
+④ ถัดไป: รอคุณสมกกดูจริง → ปรับ. แล้วค่อย step 3 (หลังโควตา 7 วันรีเซ็ต) + ส่ง reviewer ตรวจ dc30df2..HEAD
 
 ⑤ กับดัก
 - ห้ามใส่ backtick ใน bash heredoc — เขียน md ด้วย Write/Edit เท่านั้น

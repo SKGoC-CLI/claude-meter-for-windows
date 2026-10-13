@@ -77,6 +77,9 @@ sealed class TrayAppContext : ApplicationContext
     readonly NotifyIcon _trayIcon;
     readonly PopupForm _popup = new();
     readonly System.Windows.Forms.Timer _pollTimer;
+    readonly System.Windows.Forms.Timer _blinkTimer = new() { Interval = 1000 };
+    int _blinkTicks;
+    bool _workingEdgeShown;
     readonly ToolStripMenuItem _autostartItem;
     readonly ToolStripMenuItem _alwaysOnTopItem;
     readonly ToolStripMenuItem _miniModeItem;
@@ -428,6 +431,18 @@ sealed class TrayAppContext : ApplicationContext
         _pollTimer = new System.Windows.Forms.Timer { Interval = PollIntervalMs };
         _pollTimer.Tick += async (_, _) => await RefreshAsync();
         _pollTimer.Start();
+
+        // Working blink: re-read session state every 5 s (local transcript tails, cheap),
+        // toggle the tray's green edge every second while any session is Working
+        _blinkTimer.Tick += (_, _) =>
+        {
+            if (++_blinkTicks % 5 == 0) RefreshSessionContext();
+            bool edge = _blinkTicks % 2 == 0 && _popup.Sessions.Any(s => s.State == SessionState.Working);
+            if (edge == _workingEdgeShown) return;
+            _workingEdgeShown = edge;
+            RenderTrayIcon();
+        };
+        _blinkTimer.Start();
 
         // autostart defaults on, but only on true first run — never override a user choice
         if (!_settings.AutostartConfigured)
@@ -931,15 +946,7 @@ sealed class TrayAppContext : ApplicationContext
         _popup.RawWindows = _lastSnapshot?.Windows ?? Array.Empty<UsageWindow>(); // mini mode ignores HiddenLimits
         _fixLoginItem.Visible = _lastErrorNeedsRelogin;
 
-        if (_settings.TrayShows == "both")
-        {
-            var (session, weekly) = TrayTwoRowValues();
-            SetIcon(IconRenderer.RenderTwoRow(session, weekly));
-        }
-        else
-        {
-            SetIcon(IconRenderer.Render(TrayDisplayValue()));
-        }
+        RenderTrayIcon();
 
         string tooltip = _lastSnapshot is null
             ? "Claude Meter — " + (_lastError is null ? "loading…" : "error")
@@ -999,6 +1006,19 @@ sealed class TrayAppContext : ApplicationContext
         _settings.Save();
     }
 
+    void RenderTrayIcon()
+    {
+        if (_settings.TrayShows == "both")
+        {
+            var (session, weekly) = TrayTwoRowValues();
+            SetIcon(IconRenderer.RenderTwoRow(session, weekly, _workingEdgeShown));
+        }
+        else
+        {
+            SetIcon(IconRenderer.Render(TrayDisplayValue(), _workingEdgeShown));
+        }
+    }
+
     void SetIcon(Icon icon)
     {
         var old = _currentIcon;
@@ -1042,6 +1062,7 @@ sealed class TrayAppContext : ApplicationContext
     {
         _hotkeyWindow?.Dispose();
         _pollTimer.Stop();
+        _blinkTimer.Dispose();
         _trayIcon.Visible = false;
         _trayIcon.Dispose();
         _popup.Dispose();
