@@ -1,34 +1,36 @@
 # NEXT-SESSION — ล้างคำต้องห้าม "ab***t" ออกจาก GitHub
 
-status: active
+status: done
 
 > **ห้ามพิมพ์คำเต็มลงไฟล์ใด ๆ ใน repo** (รวมไฟล์นี้) — ใช้ "ab***t" แทนเสมอ
 
-① 2026-10-14 · commit ล่าสุดตอนเริ่ม: `effeb57` (ก่อน rewrite) — **ไฟล์นี้อาจเก่า เช็ค `git log --oneline -5` ก่อน** · หลัง rewrite SHA เปลี่ยนทั้งหมดตั้งแต่ `662cb88`
+① 2026-10-14 · **ประวัติถูก rewrite แล้ว — SHA ตั้งแต่ `662cb88` เดิมเปลี่ยนหมด** · main ใหม่เริ่ม `a97d099` — ไฟล์นี้อาจเก่า เช็ค `git log --oneline -5` ก่อน
 
 ② ขั้นตอน (คุณสมกกเลือก B = แก้ไฟล์ + exe + เขียนประวัติ git ใหม่)
 
 | Step | งาน | ใคร | สถานะ |
 |------|-----|-----|-------|
 | 0 | สำรวจ + grilling + NEXT-SESSION/WORK-LOG | main | ✅ |
-| 1 | backup repo ทั้งก้อน (`git clone --mirror` → `bin\repo-backup-pre-rewrite.git`) | main | ✅ ครบทุก tag |
-| 2 | เปลี่ยนชื่อ session ตัวอย่างใน `src/PopupShot.cs` → `design-archive` + วาดชื่อใหม่ทับใน 8 ภาพ (pixel-match err=0, สคริปต์ใน scratchpad replace.ps1) | main | ✅ |
-| 3 | `git filter-repo` เขียนประวัติใหม่ (แทนข้อความ + แทน blob ภาพ) แล้วตรวจ `git log -S` ว่าไม่เหลือ | main | ✅ 0 hit, ภาพเหลือเวอร์ชันเดียว |
-| 4 | force push main + ย้าย tag v1.9.1 / v1.10.0 | main | ⬜ |
-| 5 | build zip ใหม่จาก tag v1.9.1 และ v1.10.0 → `gh release upload --clobber` | main | ⬜ |
-| 6 | ตรวจจากภายนอก (raw/README/release) + จด memory | main | ⬜ |
+| 1 | backup repo (`bin\repo-backup-pre-rewrite.git`, mirror ครบทุก tag) | main | ✅ |
+| 2 | ชื่อตัวอย่างใน `src/PopupShot.cs` → `design-archive` + วาดชื่อใหม่ทับใน 7 ภาพ (pixel-match err=0) | main | ✅ |
+| 3 | `git filter-repo` — 0 hit ใน `git log -S` ทุก ref, ภาพเหลือเวอร์ชันเดียว | main | ✅ |
+| 4 | force push main (lease = SHA เก่าเต็ม) + tag v1.9.1 / v1.10.0 | main | ✅ |
+| 5 | build zip ใหม่จาก tag ทั้งสอง (dll ตรวจแล้วไม่มีคำ) → `gh release upload --clobber` | main | ✅ |
+| 6 | ตรวจภายนอก + portable สลับ + memory | main | ✅ |
 
-หยุดตรงนี้ได้ = หลังขั้น 2 (ยังไม่ได้แตะ GitHub) หรือหลังขั้น 5 (ทุกอย่างบน GitHub สะอาด เหลือแค่ตรวจ)
+③ สถานะจริง: GitHub main / tag / release / raw / README สะอาด
+**ยังเหลือ**: commit เก่าเปิดด้วย SHA ตรงได้ (เช่น `.../commit/662cb88.patch` ยังเห็นคำ) — ต้องให้ GitHub Support ล้าง
+ข้อความพร้อมส่งอยู่ `docs/GITHUB_SUPPORT_PURGE_2026-10-14.md` (untracked ตั้งใจ ไม่ commit)
+`docs/PROMO_TODO.md` (modified) + ไฟล์ docs/ untracked อื่นเป็นของเก่า ไม่เกี่ยว
 
-③ สถานะจริง: ยังไม่เริ่มแก้ · โควตา 5h 33% · 7d 3%
-งานเก่าที่ค้าง: สปรินต์ Working blink จบแล้ว (v1.10.0 release แล้ว) เหลือ step 3–7 Goal progress ยังไม่สั่ง — ดู [WORK-LOG-2026-10-14-working-blink-goal-progress.md](WORK-LOG-2026-10-14-working-blink-goal-progress.md)
-
-④ ถัดไป: ขั้น 4 force push (old remote main = effeb57)
+④ ถัดไป: คุณสมกกส่งคำขอ GitHub Support → หลังเขาตอบ ตรวจ `https://github.com/SKGoC-CLI/claude-meter-for-windows/commit/662cb88` ต้อง 404
+งานเก่ารอสั่ง: step 3–7 Goal progress — ดู [WORK-LOG-2026-10-14-working-blink-goal-progress.md](WORK-LOG-2026-10-14-working-blink-goal-progress.md)
 
 ⑤ กับดัก
 - ห้ามพิมพ์คำเต็มลงไฟล์ใน repo / commit message
-- hero GIF `docs/demo-v1.10.0.gif` มีชื่อโปรเจกต์จริงอีกตัว (Dental Freelance...) — คุณสมกกยังไม่ได้ตอบว่าให้เบลอไหม (ไม่ได้เลือก C)
-- commit เก่าอาจยังเปิดด้วย SHA ตรงได้บน GitHub จนกว่า GitHub Support จะล้าง cache
-- ห้ามใส่ backtick ใน bash heredoc — เขียน md ด้วย Write/Edit เท่านั้น
+- clone อื่นบนเครื่อง/เครื่องอื่นที่ยังเป็นประวัติเก่า: ห้าม push — ให้ clone ใหม่ (ไม่งั้นคำกลับมา)
+- `git filter-repo` ลบ remote origin + ทำ reset --hard → ต้อง backup ไฟล์ที่แก้ค้างก่อน และ add remote คืน
+- `--force-with-lease=main:<sha ย่อ>` ล้มหลัง rewrite (object หาย) → ใช้ SHA เต็มจาก backup
+- hero GIF `docs/demo-v1.10.0.gif` มีชื่อโปรเจกต์จริงอีกตัว (Dental Freelance...) — คุณสมกกยังไม่ได้ตัดสิน
 
 ⑥ log เต็ม: [WORK-LOG-2026-10-14-scrub-word.md](WORK-LOG-2026-10-14-scrub-word.md)
