@@ -1,29 +1,29 @@
-# NEXT-SESSION — Goal progress (แถบความคืบหน้าใน SESSION CONTEXT)
+# NEXT-SESSION — เตรียม release v1.11.0 (Step progress)
 
-status: done
+status: active
 
-> **ห้ามพิมพ์คำต้องห้าม "ab***t" เต็ม ๆ ลงไฟล์ใด ๆ ใน repo** (จากสปรินต์ก่อน)
+> **ห้ามพิมพ์คำต้องห้าม "ab***t" เต็ม ๆ ลงไฟล์ใด ๆ ใน repo** · ห้ามชื่อโปรเจกต์จริงหลุดในภาพ/GIF ที่ขึ้น GitHub
 
-① 2026-10-15 · เริ่มจาก HEAD `0e09cc2` — ไฟล์นี้อาจเก่า เช็ค `git log --oneline -5` ก่อน
+① 2026-10-15 · เริ่มจาก HEAD `65f0b96` — ไฟล์นี้อาจเก่า เช็ค `git log --oneline -5` ก่อน
 
-② ขั้นตอน (ต่อจาก WORK-LOG 2026-10-14 ขั้น 3–7; ขั้น 1–2 ไฟกระพริบ ออกไปกับ v1.10.0 แล้ว)
+② ขั้นตอน (คุณสมกกเลือก: GIF จากคลิป 02:24 + ปิดชื่อ, ทำครบ + Draft release)
 
 | Step | งาน | ใคร | สถานะ |
 |------|-----|-----|-------|
-| 3 | ContextMonitor: อ่านแผนจาก transcript — `mcp__ccd_turn__update_plan` (แอป desktop) + TaskCreate/TaskUpdate (CLI) → done/total + ชื่อขั้นที่กำลังทำ, อ่านแบบต่อท้าย (cache offset ต่อไฟล์ เพราะ transcript ใหญ่ถึง 37 MB) | main | ✅ |
-| 4 | fallback: NEXT-SESSION.md ใน cwd (`status: active`, นับ ✅/⬜) | main | ✅ |
-| 5 | PopupForm: บรรทัดที่ 3 แถบฟ้า + `Step 3/6 · 50% · ชื่อขั้น` + fixture `--popup-shot` | main | ✅ |
-| 6 | reviewer + rebuild portable + ภาพให้คุณสมกกดู | reviewer/main | ✅ |
-| 7 | ~~กฎ "สร้าง Task ทุก sprint" ใน CLAUDE.md~~ → **ไม่ต้องทำ**: แอป desktop บังคับ update_plan ทุกงานหลายขั้นอยู่แล้ว | — | ✅ |
+| 1 | version 1.11.0 + CHANGELOG + docs/RELEASE_NOTES_v1.11.0.md | main | ⬜ |
+| 2 | docs/popup-v1.11.0.png จาก `--popup-shot` | main | ⬜ |
+| 3 | docs/demo-v1.11.0.gif จาก `docs/Recording 2026-10-15 022419.mp4` ช่วงที่ลำดับแถวนิ่ง + วาดทับชื่อ (Oracle Exam Website → exam-site, KKS Card Management App → card-manager) + ลายน้ำ (skill demo-gif) | main | ⬜ |
+| 4 | README ชี้ภาพ/GIF ใหม่ + อธิบาย Step progress | main | ⬜ |
+| 5 | reviewer ตรวจ `7713b91..HEAD` + build zip portable | reviewer/main | ⬜ |
+| 6 | commit + push + `gh release create v1.11.0 --draft` แนบ zip | main | ⬜ |
 
-③ สถานะจริง: ครบทุกขั้น, reviewer ตรวจแล้ว + แก้ 3 ข้อ (`ccef0bd`), portable ใหม่รันอยู่ — **ยังไม่ release** (ยังเป็น v1.10.0) · `ClaudeMeter.exe --goal-selftest` ผ่าน + อ่าน session จริงได้ (ยังไม่แสดงใน popup) · ไฟล์ docs/ untracked + `docs/PROMO_TODO.md` เป็นของเก่า ไม่เกี่ยว
+③ สถานะจริง: โค้ด v1.11.0 อยู่บน main แล้ว (`65f0b96`) portable รันอยู่ · ไฟล์ในเครื่อง: docs/Recording*.mp4 untracked ตั้งใจไม่ commit
 
-④ ถัดไป: คุณสมกกดูของจริงใน popup → ปรับหน้าตา หรือออก release v1.11.0 (ต้องถามก่อน release)
+④ ถัดไป: ขั้น 1
 
 ⑤ กับดัก
-- transcript มี `prompt_snapshot` ที่มีคำว่า update_plan/TaskCreate อยู่ในข้อความ system prompt → ต้องจับเฉพาะ `"type":"tool_use"` ที่ `name` ตรง ไม่ใช่ค้นคำเฉย ๆ
-- TaskCreate id = ลำดับ 1,2,3… ต่อ session; TaskUpdate `status: deleted` ไม่นับ
-- update_plan: `items` = แทนทั้งชุด, `advance` = in_progress→completed แล้วตัว pending ถัดไป→in_progress, `done:[n]`/`start:n` เลข 1-based; `wrap_up` ติ๊กทุกขั้นเสร็จ
-- tray วาดใหม่ทุก 1 วิ → Dispose HICON เก่า (มีอยู่แล้ว ห้ามทำพัง)
+- คลิป 02:24: ลำดับ session สลับกลางคลิป → ใช้เฉพาะช่วงต้นที่ลำดับนิ่ง ไม่งั้นต้องไล่ปิดชื่อตามตำแหน่ง
+- ห้าม `gh release create` แบบไม่ใส่ `--draft` — คุณสมกกกด Publish เอง
+- ห้าม backtick ในคำสั่ง Bash heredoc (พังจริง 2026-10-15) → เขียน commit message ลงไฟล์ด้วย Write แล้ว `git commit -F`
 
-⑥ log เต็ม: [WORK-LOG-2026-10-14-working-blink-goal-progress.md](WORK-LOG-2026-10-14-working-blink-goal-progress.md)
+⑥ log เต็ม: [WORK-LOG-2026-10-14-working-blink-goal-progress.md](WORK-LOG-2026-10-14-working-blink-goal-progress.md) หัวข้อ "รอบ 9"

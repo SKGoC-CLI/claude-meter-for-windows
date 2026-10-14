@@ -177,5 +177,19 @@ Sprint รอบ 7:
 | ขั้น | งาน | ใคร | หยุดตรงนี้ได้ = |
 |-----|-----|-----|----------------|
 | 8a | PopupForm บรรทัด 2 + Idle, กันข้อความซ้ายชนอายุ, ComputeWidth เผื่อ Idle | main | ได้ |
-| 8b | ภาพ popup-shot + สลับ portable + commit/push | main | ได้ | · วัดจริง: private mem 70 MB, CPU 0.53 วิ/20 วิ (เดิม 0.23 — เพิ่มจากการอ่าน transcript ทุก 2 วิ; ยังเบา)
+| 8b | ภาพ popup-shot + สลับ portable + commit/push | main | ได้ |
+
+รอบ 8 เสร็จ `65f0b96` — คุณสมกก "ok pass".
+
+## 2026-10-15 รอบ 9 (grilling) — เตรียม release v1.11.0
+
+โควตาจากมิเตอร์: 5h ~73% (จากคลิป) — ⚠️ ใกล้ 80%, ขั้นที่ตัดได้ก่อน = GIF (ขั้น 3)
+สื่อใน docs/: Recording 01:46 = ก่อนมี Step, 01:53 = แบบ 3 บรรทัดเลิกแล้ว, Screenshot 02:20 = ก่อนใส่ "Step"/อายุขวา → ใช้ไม่ได้ทั้งสาม; ใช้ได้แค่ Recording 02:24
+
+| ข้อ | เรื่อง | เลือก |
+|----|------|------|
+| 1 | hero GIF | **A.** จากคลิป 02:24 + วาดทับชื่อจริง (Oracle Exam Website → exam-site, KKS Card Management App → card-manager); ภาพนิ่งจาก popup-shot |
+| 2 | จุดหยุด | **A.** ทำครบ + GitHub release แบบ **Draft** — คุณสมกกกด Publish เอง |
+
+Sprint: ดูตารางใน NEXT-SESSION.md (6 ขั้น, main ทำเกือบหมด, reviewer ขั้น 5) · วัดจริง: private mem 70 MB, CPU 0.53 วิ/20 วิ (เดิม 0.23 — เพิ่มจากการอ่าน transcript ทุก 2 วิ; ยังเบา)
 
