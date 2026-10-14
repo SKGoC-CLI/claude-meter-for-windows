@@ -17,9 +17,9 @@ status: done
 | 5 | reviewer ตรวจ `7713b91..HEAD` + build zip portable | reviewer/main | ✅ |
 | 6 | commit + push + `gh release create v1.11.0 --draft` แนบ zip | main | ✅ |
 
-③ สถานะจริง: v1.11.0 ครบ — main `c97fd94` push แล้ว, Draft release v1.11.0 มี ClaudeMeter-portable.zip (exe เดียว 63 MB), portable รัน v1.11.0.0 · docs/Recording*.mp4 + demo-v1.11.0-wm.mp4 untracked ตั้งใจไม่ commit
+③ สถานะจริง: v1.11.0 ครบ — main `c97fd94` push แล้ว, release v1.11.0 (published) มี ClaudeMeter-portable.zip (exe เดียว 63 MB), portable รัน v1.11.0.0 · docs/Recording*.mp4 + demo-v1.11.0-wm.mp4 untracked ตั้งใจไม่ commit
 
-④ ถัดไป: คุณสมกกกด Publish ที่ https://github.com/SKGoC-CLI/claude-meter-for-windows/releases (Draft v1.11.0) · หลัง publish เช็คหน้า release เปิดได้แบบ logged-out
+④ ถัดไป: v1.11.0 PUBLISHED แล้ว (Latest, tag `1b003f4`) — ไม่มีงานค้างในสปรินต์นี้
 
 ⑤ กับดัก
 - คลิป 02:24: ลำดับ session สลับกลางคลิป → ใช้เฉพาะช่วงต้นที่ลำดับนิ่ง ไม่งั้นต้องไล่ปิดชื่อตามตำแหน่ง

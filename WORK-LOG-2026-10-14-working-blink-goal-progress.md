@@ -199,5 +199,6 @@ Sprint: ดูตารางใน NEXT-SESSION.md (6 ขั้น, main ทำ
 - `d5b21e2` README ชี้ GIF/ภาพใหม่ + bullet Step progress
 - reviewer: ไม่มี blocker; แก้ 3 ข้อเล็ก (`c97fd94`): NEXT-SESSION ✅ ครบ = ซ่อน, ไม่เปิดไฟล์ถ้าไม่มี byte ใหม่, comment เก่า
 - zip = exe เดียว 63.2 MB → Draft release v1.11.0 (`gh release create --draft --target main`) — **ยังไม่ public** รอคุณสมกกกด Publish
+- **PUBLISHED** 2026-10-15 03:18 (คุณสมกกสั่ง "publish ให้ฉันเลย") — tag v1.11.0 = `1b003f4`, Latest; หน้า release / zip / GIF raw ตอบ 200
 - คุณสมกกส่งรูปผิดมากลางทาง (ภาพทั้งจอ) → ไม่ใช้ ตามที่บอก "ไม่มีอะไร" · วัดจริง: private mem 70 MB, CPU 0.53 วิ/20 วิ (เดิม 0.23 — เพิ่มจากการอ่าน transcript ทุก 2 วิ; ยังเบา)
 
