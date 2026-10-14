@@ -228,24 +228,41 @@ static class ContextMonitor
             if (!Plans.TryGetValue(file.FullName, out plan!)) Plans[file.FullName] = plan = new Plan();
         lock (plan)
         {
-            if (file.Length < plan.Pos) { plan.Pos = 0; plan.Steps.Clear(); } // rewritten
-            if (file.Length > plan.Pos)
+            try
             {
                 using var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                if (fs.Length < plan.Pos) { plan.Pos = 0; plan.Steps.Clear(); } // rewritten
                 fs.Seek(plan.Pos, SeekOrigin.Begin);
-                var buf = new byte[fs.Length - plan.Pos];
-                int read = fs.ReadAtLeast(buf, buf.Length, throwOnEndOfStream: false);
-                int end = Array.LastIndexOf(buf, (byte)'\n', read - 1); // keep a half-written last line for next time
-                if (end >= 0)
+                // 1 MB chunks, so a 37 MB transcript's first read never holds the whole file;
+                // only complete lines are consumed — a half-written last line waits for next time
+                var buf = new byte[1 << 20];
+                var line = new MemoryStream();
+                int read;
+                while ((read = fs.Read(buf, 0, buf.Length)) > 0)
                 {
-                    foreach (var line in Encoding.UTF8.GetString(buf, 0, end).Split('\n'))
-                        if (line.Contains("\"tool_use\"") && (line.Contains("update_plan") || line.Contains("wrap_up") || line.Contains("\"name\":\"Task")))
-                            ApplyPlanLine(plan.Steps, line);
-                    plan.Pos += end + 1;
+                    int start = 0;
+                    for (int nl; (nl = Array.IndexOf(buf, (byte)'\n', start, read - start)) >= 0; start = nl + 1)
+                    {
+                        line.Write(buf, start, nl - start);
+                        plan.Pos += line.Length + 1;
+                        if (line.Length > 0) ApplyIfPlanLine(plan.Steps, Encoding.UTF8.GetString(line.GetBuffer(), 0, (int)line.Length));
+                        line.SetLength(0);
+                    }
+                    line.Write(buf, start, read - start);
                 }
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                // goal is extra: a locked/rotating file must not drop the session row
             }
             return ToGoal(plan.Steps);
         }
+    }
+
+    static void ApplyIfPlanLine(List<(string Text, string Status)> steps, string line)
+    {
+        if (line.Contains("\"tool_use\"") && (line.Contains("update_plan") || line.Contains("wrap_up") || line.Contains("\"name\":\"Task")))
+            ApplyPlanLine(steps, line);
     }
 
     static void ApplyPlanLine(List<(string Text, string Status)> steps, string line)
@@ -301,7 +318,8 @@ static class ContextMonitor
     static Goal? ToGoal(List<(string Text, string Status)> steps)
     {
         var live = steps.Where(s => s.Status != "deleted").ToList();
-        if (live.Count == 0) return null;
+        // a finished list is history: hide it (and let an active NEXT-SESSION.md show instead)
+        if (live.Count == 0 || live.All(s => s.Status == "completed")) return null;
         var current = live.FirstOrDefault(s => s.Status == "in_progress");
         if (current.Text is null) current = live.FirstOrDefault(s => s.Status != "completed");
         return new Goal(live.Count(s => s.Status == "completed"), live.Count, current.Text);
@@ -363,7 +381,7 @@ static class ContextMonitor
             File.AppendAllText(path, "age\":{}}\n" + Call("mcp__ccd_turn__update_plan", "{\"done\":[2],\"start\":3}"));
             Expect(ReadPlan(new FileInfo(path)), new Goal(2, 3, "C"), "done/start");
             File.AppendAllText(path, Call("mcp__ccd_turn__wrap_up", "{\"recap\":\"x\"}"));
-            Expect(ReadPlan(new FileInfo(path)), new Goal(3, 3, null), "wrap_up");
+            Expect(ReadPlan(new FileInfo(path)), null, "wrap_up hides a finished list");
 
             File.Delete(path);
             path += "2";

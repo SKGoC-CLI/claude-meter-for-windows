@@ -976,9 +976,8 @@ sealed class PopupForm : Form
         {
             int gy = barY + S(10);
             int goalPct = (int)Math.Round(goal.Done * 100.0 / goal.Total);
-            string head = goal.Done >= goal.Total ? $"Done {goal.Total}/{goal.Total} · 100%"
-                : $"Step {goal.Done + 1}/{goal.Total} · {goalPct}%";
-            string text = string.IsNullOrWhiteSpace(goal.Current) || goal.Done >= goal.Total ? head : $"{head} · {goal.Current}";
+            string head = $"Step {Math.Min(goal.Done + 1, goal.Total)}/{goal.Total} · {goalPct}%";
+            string text = string.IsNullOrWhiteSpace(goal.Current) ? head : $"{head} · {goal.Current}";
             using var fmt = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter };
             g.DrawString(text, _tinyFont, mutedBrush, new RectangleF(pad, gy, contentWidth, S(16)), fmt);
 
