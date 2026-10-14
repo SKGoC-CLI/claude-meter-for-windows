@@ -9,17 +9,17 @@
 [![Latest release](https://img.shields.io/github/v/release/SKGoC-CLI/claude-meter-for-windows)](../../releases/latest)
 
 <p align="center">
-  <img src="docs/demo-v1.10.0.gif" width="640" alt="Claude Meter v1.10.0 demo — the popup open above the Windows tray, showing Session, Weekly and Cloud credit bars, then two Claude Code sessions labelled Opus · Medium whose state dots change from amber (Waiting) to a pulsing green (Working)">
+  <img src="docs/demo-v1.11.0.gif" width="640" alt="Claude Meter v1.11.0 demo — the popup open above the Windows tray; in SESSION CONTEXT the first session reads Step 1/3 · Deploy to Vercel prod with its age on the right, state dots pulse, and an idle session sits on a single line">
 </p>
 
 A tiny Windows system-tray app that shows your **Claude usage limits** in real time —
 the same *Session (5h) / Weekly / per-model weekly* percentages you see in
 Claude Code's `/usage`, always one click away.
 
-*New in v1.10.0 — each Claude Code session shows whether it is Working, Waiting or Asking you a question, the tray pulses while a session is busy, and a cloud credit row shows what is left of your cloud-session credit:*
+*New in v1.11.0 — each Claude Code session shows how far it is through its task (`Step 3/6 · <current step>`), every row shows the session's age on the right, and idle sessions shrink to one line:*
 
 <p align="center">
-  <img src="docs/popup-v1.10.0.png" alt="Claude Meter v1.10.0 — dark-theme popup with three Claude Code sessions, each with a state dot and a model label such as Opus · High, and the Cloud credit row under the limits">
+  <img src="docs/popup-v1.11.0.png" alt="Claude Meter v1.11.0 — dark-theme popup; the first session reads Step 3/6 · Draw the goal progress row with 3h old on the right, and the idle session sits on one line">
 </p>
 
 *The tray icon can show both limits at once, Session (5h) stacked over Weekly, so a draining week can't hide behind a fresh session:*
@@ -55,6 +55,7 @@ Claude Code's `/usage`, always one click away.
 - Credit spending graph shows cumulative month-to-date usage-credit spend up to your monthly limit, with a dashed limit line and live "now" marker; stays accurate even if the meter isn't running (45-day history sampled every 30 minutes)
 - Burn-rate estimate under each limit — "full in ~2h 41m" at your current pace, measured over a window matched to the limit's own length, and kept quiet whenever the limit would reset before it ever fills
 - Session state dots in SESSION CONTEXT: green while Working, amber when Waiting for you or Asking a question, grey when Idle
+- Step progress per session — `Step 3/6 · <current step>`, read from the session's task list (Claude desktop app plan, or TaskCreate/TaskUpdate in the CLI), falling back to an active `NEXT-SESSION.md` sprint table; toggle under *Session context → Show step progress*
 - Session alerts: the tray digits dim while a session is Working and the tray turns orange while one is Asking; speed and each effect can be set under *Session context → Session alerts*
 - Effort level shown next to each session's model, e.g. "Opus · High"
 - Cloud credit row shows the remaining cloud-session credit in dollars and its expiry date; it stays out of the tray icon, alerts and ETA
