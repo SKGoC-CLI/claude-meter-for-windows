@@ -94,3 +94,30 @@ Sprint รอบ 5:
 | 5c | reviewer ตรวจ dc30df2..HEAD | reviewer | ทิ้งได้ถ้าโควตาไม่พอ — ทำหลัง 7d รีเซ็ต |
 
 ประเมินโควตา (เดา ไม่ใช่วัด): 5a ~1–2% ของ 5h.
+5a เสร็จ commit `0589b33` (floor 45%, คาบ 2 วิ, portable สลับแล้ว).
+
+## รอบ 6 (grilling) — สถานะ Asking (ส้มกระพริบ) + เมนู Session alerts
+
+โควตาจากมิเตอร์: 5h 4% · 7d **98%** ⚠️
+
+ข้อเท็จจริงที่หาเจอก่อนถาม: `ContextMonitor.IsTurnEnd` นับ AskUserQuestion/ExitPlanMode เป็น turn จบ
+→ ตอนนี้ = **Waiting ส้มนิ่ง** ปนกับ "ตอบจบแล้ว". permission prompt ไม่อยู่ใน transcript → ตรวจไม่ได้ (ยังเขียว).
+ตัวเลข tray ใช้ส้ม `#ffa940` สำหรับโควตา 70–90% อยู่แล้ว.
+
+| ข้อ | เรื่อง | เลือก |
+|----|------|------|
+| 1 | ส้มกระพริบใช้กับอะไร | **A.** state ใหม่ **Asking** = คำถามค้าง (AskUserQuestion/ExitPlanMode) เท่านั้น; ตอบจบยังเป็น Waiting ส้มนิ่ง |
+| 2 | taskbar ตอน Asking | **A.** พื้นหลังสี่เหลี่ยมส้ม fade 0 ↔ ~60% รอบ ~1 วิ, ตัวเลขไม่จาง; Asking ชนะ Working |
+| 3 | เมนู "Session alerts" (submenu กลุ่ม SESSION CONTEXT, เก็บใน settings.json) | **A+B+C**: ความเร็ว ช้า(×1.5)/ปกติ/เร็ว(×0.6) ใช้ทั้ง tray+popup · toggle tray Working · toggle tray Asking. **ไม่เอา** balloon แจ้งเตือน |
+
+Sprint รอบ 6 (ยังไม่ลงมือ — รอคุณสมกกยืนยัน):
+
+| ขั้น | งาน | ใคร | หยุดตรงนี้ได้ = |
+|-----|-----|-----|----------------|
+| 6a | `SessionState.Asking` ใน ContextMonitor (IsTurnEnd คืนค่าแยก) + popup จุดส้ม fade | coder | ได้ — popup แยก Asking แล้ว |
+| 6b | tray: พื้นหลังส้ม fade ตอน Asking (Asking > Working) | coder | ได้ |
+| 6c | settings 3 ค่า + submenu Session alerts | coder | ได้ |
+| 6d | build + สลับ portable + CONTEXT.md + commit | main | ได้ — รอคุณสมกกดูจริง |
+| 6e | reviewer ตรวจ dc30df2..HEAD | reviewer | ทิ้งได้ — ทำหลัง 7d รีเซ็ต |
+
+ประเมินโควตา (เดา): 6a–6d รวม ~8–15% ของ 5h. 7d 98% อาจชนเพดานกลางทาง — 6c ตัดทิ้งได้ก่อน.
