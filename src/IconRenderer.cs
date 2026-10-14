@@ -9,7 +9,7 @@ static class IconRenderer
     public static readonly Color Warning = ColorTranslator.FromHtml("#ffa940");
     public static readonly Color Danger = ColorTranslator.FromHtml("#ff5c5c");
     /// <summary>Working fade: 0 → 1 → 0 on a cosine with the given period, from the shared clock
-    /// (popup dot 1.4 s, tray digits 1.2 s).</summary>
+    /// (popup dot 1.4 s, Asking 1 s; tray digits 2.0 s, tray Asking bg 1.0 s; all × AlertMul).</summary>
     public static double WorkingPulse(int periodMs) =>
         0.5 - 0.5 * Math.Cos(2 * Math.PI * (Environment.TickCount64 % periodMs) / periodMs);
 

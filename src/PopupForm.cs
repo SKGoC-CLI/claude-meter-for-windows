@@ -151,7 +151,16 @@ sealed class PopupForm : Form
     public IReadOnlyList<SessionContext> Sessions
     {
         get => _sessions;
-        set { _sessions = value ?? Array.Empty<SessionContext>(); _workingDotRects.Clear(); RecomputeLayout(); }
+        set
+        {
+            var next = value ?? Array.Empty<SessionContext>();
+            if (next.SequenceEqual(_sessions)) return;
+            _sessions = next;
+            _workingDotRects.Clear();
+            // same size: just repaint, no Reposition
+            if (ComputeWidth() == Width && ComputeHeight() == Height) Invalidate();
+            else RecomputeLayout();
+        }
     }
 
     int ContextHeaderHeight => S(20);
@@ -222,6 +231,7 @@ sealed class PopupForm : Form
         _tick.Tick += (_, _) => Invalidate(); // live countdown + "resets in" refresh
         _anim.Tick += (_, _) =>
         {
+            if (_workingDotRects.Count == 0) { _anim.Stop(); return; } // OnPaint restarts it when a dot appears
             foreach (var r in _workingDotRects) Invalidate(r);
         };
 
@@ -574,6 +584,7 @@ sealed class PopupForm : Form
         var g = e.Graphics;
         g.SmoothingMode = SmoothingMode.AntiAlias;
         g.Clear(Background);
+        _workingDotRects.Clear(); // rebuilt below by every Working dot (stays empty in mini mode)
 
         if (_miniMode)
         {
@@ -879,12 +890,12 @@ sealed class PopupForm : Form
         g.DrawString(header, _tinyFont, mutedBrush, pad, y + S(8));
 
         int by = y + ContextHeaderHeight;
-        _workingDotRects.Clear(); // rebuilt below by every Working dot
         foreach (var ctx in _sessions)
         {
             DrawContextBlock(g, ctx, by, pad, contentWidth);
             by += ContextBlockHeight;
         }
+        if (_workingDotRects.Count > 0 && !_anim.Enabled && Visible) _anim.Start();
     }
 
     void DrawContextBlock(Graphics g, SessionContext ctx, int y, int pad, int contentWidth)

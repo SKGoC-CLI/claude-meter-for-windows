@@ -22,7 +22,8 @@ status: active
 | 6d | build + สลับ portable + commit | main | ✅ คุณสมกกดูจริงผ่าน — tray ส้ม fade 45% (ลอง 60/35/ทึบมาแล้ว) |
 | 6f | SESSION CONTEXT แสดง effort ข้างชื่อ model ("Opus · High") — อ่าน `"effort":"..."` จาก tail transcript (`ContextMonitor.Parse`) | main | ✅ portable สลับแล้ว (exe เก่า `bin\portable-pre-effort-backup\`) — รอคุณสมกกดูจริง |
 | 6e | reviewer ตรวจ dc30df2..HEAD (รวม 6f) | reviewer | ✅ ไม่มีบั๊กร้ายแรง — ดู [CODE-REVIEW-2026-10-14.md](CODE-REVIEW-2026-10-14.md) |
-| 6g | แก้ข้อ review 1,2 (+4,5,6,10) ก่อน release | coder | ⬜ รอคุณสมกกสั่ง |
+| 6g | แก้ข้อ review 1,2,4,5,6,10 (scan session ย้ายไป `Task.Run`, popup ไม่ Reposition ถ้าขนาดเท่าเดิม, `_anim` หยุดเองเมื่อไม่มีจุด, try/catch ใน blink tick) | coder + main ตรวจ diff | ✅ build 0 error, portable สลับแล้ว — รอคุณสมกกดูว่า popup/tray ยังกระพริบปกติ |
+| 6h | ข้อ review 3: Asking ค้างเกิน 10 นาทีให้หยุดกระพริบส้มไหม | — | ⬜ คุณสมกกเลือกไม่แก้ (14 ต.ค.) |
 | 3–7 | Goal progress (ดู WORK-LOG) | — | ⬜ ยังไม่สั่ง |
 
 ③ สถานะจริง: step 1–2 build Release 0 error, commit แล้ว. portable สลับเป็น build ใหม่และรันอยู่

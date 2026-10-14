@@ -463,16 +463,20 @@ sealed class TrayAppContext : ApplicationContext
         // effect can be switched off (TrayAskingPulse / TrayWorkingPulse).
         _blinkTimer.Tick += (_, _) =>
         {
-            if (++_blinkTicks % 20 == 0) RefreshSessionContext();
-            double mul = _settings.AlertMul, fade = 0, bg = 0;
-            if (_settings.TrayAskingPulse && _popup.Sessions.Any(s => s.State == SessionState.Asking))
-                bg = Math.Round(IconRenderer.WorkingPulse((int)(1000 * mul)) * 20) / 20 * 0.45;
-            else if (_settings.TrayWorkingPulse && _popup.Sessions.Any(s => s.State == SessionState.Working))
-                fade = Math.Round(IconRenderer.WorkingPulse((int)(2000 * mul)) * 20) / 20 * 0.55; // 20 steps: skip identical frames
-            if (fade == _workingFade && bg == _askingBg) return; // idle: no icon churn at all
-            _workingFade = fade;
-            _askingBg = bg;
-            RenderTrayIcon();
+            try
+            {
+                if (++_blinkTicks % 20 == 0) RefreshSessionContext();
+                double mul = _settings.AlertMul, fade = 0, bg = 0;
+                if (_settings.TrayAskingPulse && _popup.Sessions.Any(s => s.State == SessionState.Asking))
+                    bg = Math.Round(IconRenderer.WorkingPulse((int)(1000 * mul)) * 20) / 20 * 0.45;
+                else if (_settings.TrayWorkingPulse && _popup.Sessions.Any(s => s.State == SessionState.Working))
+                    fade = Math.Round(IconRenderer.WorkingPulse((int)(2000 * mul)) * 20) / 20 * 0.55; // 20 steps: skip identical frames
+                if (fade == _workingFade && bg == _askingBg) return; // idle: no icon churn at all
+                _workingFade = fade;
+                _askingBg = bg;
+                RenderTrayIcon();
+            }
+            catch { /* best-effort: a GDI+ hiccup must not raise the unhandled-exception dialog every tick */ }
         };
         _blinkTimer.Start();
 
@@ -596,11 +600,23 @@ sealed class TrayAppContext : ApplicationContext
         _settings.Save();
     }
 
-    void RefreshSessionContext()
+    bool _sessionScanRunning;
+
+    // the scan walks ~1000 jsonl files, so it runs off the UI thread; the await resumes back on it
+    async void RefreshSessionContext()
     {
-        _popup.Sessions = _settings.ShowContext
-            ? ContextMonitor.GetActive(ContextMonitor.DropAfter, _settings.MaxContextSessions, _settings.ContextSort)
-            : Array.Empty<SessionContext>();
+        if (!_settings.ShowContext) { _popup.Sessions = Array.Empty<SessionContext>(); return; }
+        if (_sessionScanRunning) return;
+        _sessionScanRunning = true;
+        int max = _settings.MaxContextSessions;
+        var sort = _settings.ContextSort;
+        try
+        {
+            var list = await Task.Run(() => ContextMonitor.GetActive(ContextMonitor.DropAfter, max, sort));
+            if (!_popup.IsDisposed && _settings.ShowContext) _popup.Sessions = list;
+        }
+        catch { /* best-effort */ }
+        finally { _sessionScanRunning = false; }
     }
 
     void OnToggleShowLogo(object? sender, EventArgs e)
