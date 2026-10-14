@@ -325,7 +325,7 @@ sealed class PopupForm : Form
         {
             float nameW = g.MeasureString($"{s.Project} · {s.Model}", _smallBoldFont).Width;
             float pctW = g.MeasureString("100%", _smallBoldFont).Width;
-            float tokW = g.MeasureString($"{FmtTokens(s.Tokens)} / {FmtTokens(s.WindowSize)}", _smallFont).Width;
+            float tokW = g.MeasureString(TokensText(s) + (s.State == SessionState.Idle ? " · 23h old" : ""), _smallFont).Width;
             widest = Math.Max(widest, StateDotSize + S(5) + nameW + S(6) + pctW + S(16) + tokW);
         }
 
@@ -943,33 +943,33 @@ sealed class PopupForm : Form
         string pct = $"{Math.Round(ctx.Percent)}%";
         g.DrawString(pct, _smallBoldFont, idle ? mutedBrush : pctBrush, nameX + nameSize.Width + S(6), y);
 
-        string tokens = $"{FmtTokens(ctx.Tokens)} / {FmtTokens(ctx.WindowSize)}";
+        // Idle = name line only, so its age rides after the tokens
+        string ageText = AgeText(ctx);
+        string tokens = TokensText(ctx) + (idle ? $" · {ageText}" : "");
         var tokSize = g.MeasureString(tokens, _smallFont);
         g.DrawString(tokens, _smallFont, mutedBrush, pad + contentWidth - tokSize.Width, y);
 
-        if (idle) return; // Idle = name line only
+        if (idle) return;
 
-        // line 2: the step list ("3/6 · <step>") when there is one, else distance to auto-compact + age
+        // line 2: step list ("Step 3/6 · <step>") or distance to auto-compact (left), age (right)
         string line2;
         if (ctx.Goal is { } goal)
         {
-            string head = $"{Math.Min(goal.Done + 1, goal.Total)}/{goal.Total}";
+            string head = $"Step {Math.Min(goal.Done + 1, goal.Total)}/{goal.Total}";
             line2 = string.IsNullOrWhiteSpace(goal.Current) ? head : $"{head} · {goal.Current}";
         }
         else
         {
             long compactAt = (long)(ctx.WindowSize * 0.8);
-            string compactText = ctx.Tokens < compactAt
+            line2 = ctx.Tokens < compactAt
                 ? $"~{(compactAt - ctx.Tokens) / 1000}k to auto-compact"
                 : "past auto-compact";
-            var age = DateTimeOffset.Now - ctx.StartedAt;
-            string ageText = age.TotalDays >= 1 ? $"{(int)age.TotalDays}d old"
-                : age.TotalHours >= 1 ? $"{(int)age.TotalHours}h old"
-                : $"{Math.Max(1, (int)age.TotalMinutes)}m old";
-            line2 = $"{compactText}  ·  {ageText}";
         }
+        int line2Y = y + S(17);
+        float ageW = g.MeasureString(ageText, _tinyFont).Width;
+        g.DrawString(ageText, _tinyFont, mutedBrush, pad + contentWidth - ageW, line2Y);
         using (var fmt = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter })
-            g.DrawString(line2, _tinyFont, mutedBrush, new RectangleF(pad, y + S(17), contentWidth, S(16)), fmt);
+            g.DrawString(line2, _tinyFont, mutedBrush, new RectangleF(pad, line2Y, Math.Max(0, contentWidth - ageW - S(12)), S(16)), fmt);
 
         // thin bar
         int barY = y + S(37);
@@ -985,6 +985,16 @@ sealed class PopupForm : Form
     }
 
     int StateDotSize => Math.Max(5, S(7));
+
+    static string TokensText(SessionContext s) => $"{FmtTokens(s.Tokens)} / {FmtTokens(s.WindowSize)}";
+
+    static string AgeText(SessionContext s)
+    {
+        var age = DateTimeOffset.Now - s.StartedAt;
+        return age.TotalDays >= 1 ? $"{(int)age.TotalDays}d old"
+            : age.TotalHours >= 1 ? $"{(int)age.TotalHours}h old"
+            : $"{Math.Max(1, (int)age.TotalMinutes)}m old";
+    }
 
     /// <summary>Compact token count: 169k, 1.0M, or the raw number below 1000.</summary>
     static string FmtTokens(long n) =>
