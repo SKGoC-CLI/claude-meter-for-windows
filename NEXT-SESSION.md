@@ -19,7 +19,7 @@ status: active
 | 6a | Asking state (คำถามค้าง) แยกจาก Waiting + popup จุดส้ม fade | coder | ✅ |
 | 6b | tray พื้นหลังส้ม fade ตอน Asking (ชนะ Working) | coder | ✅ |
 | 6c | เมนู Session alerts: ความเร็ว ช้า/ปกติ/เร็ว + toggle tray Working + toggle tray Asking | coder | ✅ |
-| 6d | build + สลับ portable + commit | main | ✅ รอคุณสมกกดูจริง |
+| 6d | build + สลับ portable + commit | main | ✅ คุณสมกกดูจริงผ่าน — tray ส้ม fade 45% (ลอง 60/35/ทึบมาแล้ว) |
 | 6e | reviewer ตรวจ dc30df2..HEAD | reviewer | ⬜ หลัง 7d รีเซ็ต |
 | 3–7 | Goal progress (ดู WORK-LOG) | — | ⬜ ยังไม่สั่ง |
 
@@ -33,7 +33,7 @@ status: active
 สลับ `_workingEdgeShown` ทุกวินาทีถ้ามี session Working → `RenderTrayIcon()` วาดเส้นเขียวซ้าย
 (`IconRenderer.DrawWorkingEdge`, สี `#6bcb77`). ปิด SESSION CONTEXT = ไม่มี session = ไม่กระพริบ.
 
-④ ถัดไป: รอบ 6 ทำเสร็จ portable รันอยู่ — รอคุณสมกกดูจริง (ส้มกระพริบตอนมีคำถามค้าง + เมนู Session context → Session alerts). แล้ว 6e reviewer หลัง 7d รีเซ็ต.
+④ ถัดไป: รอบ 6 ผ่านแล้ว. เหลือ 6e reviewer ตรวจ dc30df2..HEAD (หลัง 7d รีเซ็ต) แล้วค่อยตัดสินว่าจะ release หรือไป step 3 Goal progress.
 รอบ 5 (taskbar จาง 45%) คุณสมกกยังไม่ได้ยืนยันว่าผ่าน. ค่าอยู่ `TrayAppContext.cs` บรรทัด ~442: `WorkingPulse(2000)` = คาบ, `* 0.55` = ความลึกการจาง. แล้วค่อย step 3 (หลังโควตา 7 วันรีเซ็ต) + ส่ง reviewer ตรวจ dc30df2..HEAD
 
 ⑤ กับดัก

@@ -78,8 +78,9 @@
   ตอน Working จุดเขียว **fade** 100% ↔ 25% รอบละ 1.4 วิ (ไม่มี glow);
   **ตัวเลขบนไอคอน tray จางเหลือ ~45% แล้วกลับ** (สีเดิม) รอบละ 2 วิ ที่ 10 เฟรม/วิ
   ถ้ามี session ใดก็ได้เป็น Working (โหมดตัวเลขเดียว: แถบ % ยังอยู่ จางเฉพาะตัวเลข).
-  **Asking** (ตกลง 2026-10-14, ยังไม่ทำ) = Claude ถามค้างด้วย AskUserQuestion/ExitPlanMode — แยกออกจาก
-  Waiting: จุดส้ม fade ใน popup + พื้นหลัง tray ส้ม fade; Asking ชนะ Working บน tray.
+  **Asking** (ทำแล้ว 2026-10-14) = Claude ถามค้างด้วย AskUserQuestion/ExitPlanMode — แยกออกจาก
+  Waiting: จุดส้ม fade 1 วิ ใน popup + พื้นหลัง tray ส้ม fade 0 ↔ 45% รอบ 1 วิ (ตัวเลขสีเดิม); Asking ชนะ Working บน tray.
+  อ่านสถานะทุก 2 วิ. เมนู Session context → Session alerts: Speed ช้า/ปกติ/เร็ว (×1.5/1/0.6) + ปิด pulse tray แยกได้.
   Waiting จึงเหลือความหมายเดียว = ตอบจบ turn แล้ว (ส้มนิ่ง).
 - **Goal progress** — ความคืบหน้าของงานใน session = ขั้นที่เสร็จ ÷ ขั้นทั้งหมด แสดงเป็นบรรทัดที่ 3
   แถบฟ้า + `Step 3/6 · 50% · <ชื่อขั้นที่กำลังทำ>`. แหล่งข้อมูล: รายการ **Task** ใน transcript
