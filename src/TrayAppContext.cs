@@ -456,7 +456,7 @@ sealed class TrayAppContext : ApplicationContext
 
         // Session alerts: re-read session state every 5 s (local transcript tails, cheap).
         // Any session Asking (pending AskUserQuestion/ExitPlanMode) wins: the whole tray icon
-        // background pulses orange (alpha 0..0.6, 1 s cycle), digits untouched. Otherwise, while
+        // background pulses orange (alpha 0..0.35 — 0.6 drowned the digits; 1 s cycle), digits untouched. Otherwise, while
         // any session is Working the digits dim to ~45% and back (2 s cycle) — fading them out
         // completely left a blank slot that looked silly. Periods scale by AlertSpeed; each
         // effect can be switched off (TrayAskingPulse / TrayWorkingPulse).
@@ -465,7 +465,7 @@ sealed class TrayAppContext : ApplicationContext
             if (++_blinkTicks % 50 == 0) RefreshSessionContext();
             double mul = _settings.AlertMul, fade = 0, bg = 0;
             if (_settings.TrayAskingPulse && _popup.Sessions.Any(s => s.State == SessionState.Asking))
-                bg = Math.Round(IconRenderer.WorkingPulse((int)(1000 * mul)) * 20) / 20 * 0.6; // 20 steps: skip identical frames
+                bg = Math.Round(IconRenderer.WorkingPulse((int)(1000 * mul)) * 20) / 20 * 0.35; // 20 steps: skip identical frames
             else if (_settings.TrayWorkingPulse && _popup.Sessions.Any(s => s.State == SessionState.Working))
                 fade = Math.Round(IconRenderer.WorkingPulse((int)(2000 * mul)) * 20) / 20 * 0.55;
             if (fade == _workingFade && bg == _askingBg) return; // idle: no icon churn at all
