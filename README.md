@@ -8,6 +8,10 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![Latest release](https://img.shields.io/github/v/release/SKGoC-CLI/claude-meter-for-windows)](../../releases/latest)
 
+<p align="center">
+  <img src="docs/demo-v1.10.0.gif" width="640" alt="Claude Meter v1.10.0 demo — the popup open above the Windows tray, showing Session, Weekly and Cloud credit bars, then two Claude Code sessions labelled Opus · Medium whose state dots change from amber (Waiting) to a pulsing green (Working)">
+</p>
+
 A tiny Windows system-tray app that shows your **Claude usage limits** in real time —
 the same *Session (5h) / Weekly / per-model weekly* percentages you see in
 Claude Code's `/usage`, always one click away.

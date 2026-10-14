@@ -3,6 +3,10 @@
 Each Claude Code session now shows whether it is working, waiting, or asking you a question, the tray pulses while a session is busy, and a cloud credit row shows what is left of your cloud-session credit.
 
 <p align="center">
+  <img src="https://raw.githubusercontent.com/SKGoC-CLI/claude-meter-for-windows/main/docs/demo-v1.10.0.gif" width="640" alt="Claude Meter v1.10.0 demo — two Claude Code sessions labelled Opus · Medium, their state dots changing from amber (Waiting) to a pulsing green (Working)">
+</p>
+
+<p align="center">
   <img src="https://raw.githubusercontent.com/SKGoC-CLI/claude-meter-for-windows/main/docs/popup-v1.10.0.png" alt="Claude Meter v1.10.0 — dark-theme popup with three Claude Code sessions, each with a state dot and a model label such as Opus · High, and the Cloud credit row under the limits">
 </p>
 
