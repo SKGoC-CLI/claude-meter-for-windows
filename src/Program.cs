@@ -13,6 +13,12 @@ static class Program
             return;
         }
 
+        if (args.Contains("--goal-selftest"))
+        {
+            ContextMonitor.GoalSelfTest();
+            return;
+        }
+
         if (args.Contains("--popup-shot"))
         {
             ApplicationConfiguration.Initialize();

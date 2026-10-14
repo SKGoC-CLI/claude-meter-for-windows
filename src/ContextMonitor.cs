@@ -11,12 +11,16 @@ sealed record SessionContext(
     long WindowSize,
     DateTimeOffset StartedAt,
     DateTimeOffset LastActive,
-    SessionState State = SessionState.Working)
+    SessionState State = SessionState.Working,
+    Goal? Goal = null)
 {
     public double Percent => Math.Clamp(Tokens * 100.0 / WindowSize, 0, 100);
 }
 
 enum SessionState { Working, Asking, Waiting, Idle }
+
+/// <summary>The session's step list: Done of Total finished; Current = the step being worked on (null when all done).</summary>
+sealed record Goal(int Done, int Total, string? Current);
 
 /// <summary>
 /// Reads the context-window fill of the most recently active Claude Code
@@ -115,7 +119,7 @@ static class ContextMonitor
             string model = FriendlyModel(modelId);
             if (effort is { Length: > 0 }) model += " · " + (effort == "xhigh" ? "XHigh" : char.ToUpper(effort[0]) + effort[1..]);
 
-            return new SessionContext(project, model, tokens, window, startedAt, active, state);
+            return new SessionContext(project, model, tokens, window, startedAt, active, state, ReadPlan(file));
         }
         catch
         {
@@ -203,6 +207,144 @@ static class ContextMonitor
             : null;
         return text?.StartsWith("[Request interrupted", StringComparison.Ordinal) == true;
     }
+
+    // ---- step list (goal progress) ----
+    // The plan can sit anywhere in a transcript that grows to tens of MB, so each file is
+    // read once and then only its new bytes; the step list is replayed from the tool calls.
+
+    sealed class Plan
+    {
+        public long Pos;
+        public readonly List<(string Text, string Status)> Steps = new();
+    }
+
+    static readonly Dictionary<string, Plan> Plans = new(StringComparer.OrdinalIgnoreCase);
+
+    static Goal? ReadPlan(FileInfo file)
+    {
+        Plan plan;
+        lock (Plans)
+            if (!Plans.TryGetValue(file.FullName, out plan!)) Plans[file.FullName] = plan = new Plan();
+        lock (plan)
+        {
+            if (file.Length < plan.Pos) { plan.Pos = 0; plan.Steps.Clear(); } // rewritten
+            if (file.Length > plan.Pos)
+            {
+                using var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                fs.Seek(plan.Pos, SeekOrigin.Begin);
+                var buf = new byte[fs.Length - plan.Pos];
+                int read = fs.ReadAtLeast(buf, buf.Length, throwOnEndOfStream: false);
+                int end = Array.LastIndexOf(buf, (byte)'\n', read - 1); // keep a half-written last line for next time
+                if (end >= 0)
+                {
+                    foreach (var line in Encoding.UTF8.GetString(buf, 0, end).Split('\n'))
+                        if (line.Contains("\"tool_use\"") && (line.Contains("update_plan") || line.Contains("wrap_up") || line.Contains("\"name\":\"Task")))
+                            ApplyPlanLine(plan.Steps, line);
+                    plan.Pos += end + 1;
+                }
+            }
+            return ToGoal(plan.Steps);
+        }
+    }
+
+    static void ApplyPlanLine(List<(string Text, string Status)> steps, string line)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(line);
+            var root = doc.RootElement;
+            if (root.TryGetProperty("isSidechain", out var sc) && sc.ValueKind == JsonValueKind.True) return;
+            if (!root.TryGetProperty("message", out var msg) || msg.ValueKind != JsonValueKind.Object
+                || !msg.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array) return;
+            foreach (var b in content.EnumerateArray())
+            {
+                if (b.ValueKind != JsonValueKind.Object || Str(b, "type") != "tool_use"
+                    || !b.TryGetProperty("input", out var input) || input.ValueKind != JsonValueKind.Object) continue;
+                string name = Str(b, "name") ?? "";
+                if (name.EndsWith("update_plan", StringComparison.Ordinal)) ApplyUpdatePlan(steps, input);
+                else if (name.EndsWith("__wrap_up", StringComparison.Ordinal)) // the app checks the list off
+                    for (int i = 0; i < steps.Count; i++) { if (steps[i].Status != "deleted") steps[i] = (steps[i].Text, "completed"); }
+                else if (name == "TaskCreate")
+                    steps.Add((Str(input, "activeForm") ?? Str(input, "subject") ?? "", "pending"));
+                else if (name == "TaskUpdate" && int.TryParse(Str(input, "taskId"), out int id) && id >= 1 && id <= steps.Count
+                         && Str(input, "status") is { } st)
+                    steps[id - 1] = (steps[id - 1].Text, st);
+            }
+        }
+        catch (JsonException) { } // a line we can't read just doesn't move the plan
+    }
+
+    /// <summary>items = new list; advance = finish the in_progress step, start the next pending; done:[n] / start:n are 1-based.</summary>
+    static void ApplyUpdatePlan(List<(string Text, string Status)> steps, JsonElement input)
+    {
+        if (input.TryGetProperty("items", out var items) && items.ValueKind == JsonValueKind.Array)
+        {
+            steps.Clear();
+            foreach (var it in items.EnumerateArray())
+                if (it.ValueKind == JsonValueKind.Object)
+                    steps.Add((Str(it, "content") ?? "", Str(it, "status") ?? "pending"));
+            return;
+        }
+        void Set(int i, string status) { if (i >= 0 && i < steps.Count) steps[i] = (steps[i].Text, status); }
+        if (input.TryGetProperty("advance", out var adv) && adv.ValueKind == JsonValueKind.True)
+        {
+            Set(steps.FindIndex(s => s.Status == "in_progress"), "completed");
+            Set(steps.FindIndex(s => s.Status == "pending"), "in_progress");
+        }
+        if (input.TryGetProperty("done", out var done) && done.ValueKind == JsonValueKind.Array)
+            foreach (var n in done.EnumerateArray())
+                if (n.TryGetInt32(out int k)) Set(k - 1, "completed");
+        if (input.TryGetProperty("start", out var start) && start.TryGetInt32(out int s1)) Set(s1 - 1, "in_progress");
+    }
+
+    static Goal? ToGoal(List<(string Text, string Status)> steps)
+    {
+        var live = steps.Where(s => s.Status != "deleted").ToList();
+        if (live.Count == 0) return null;
+        var current = live.FirstOrDefault(s => s.Status == "in_progress");
+        if (current.Text is null) current = live.FirstOrDefault(s => s.Status != "completed");
+        return new Goal(live.Count(s => s.Status == "completed"), live.Count, current.Text);
+    }
+
+    /// <summary>Runnable check, `--goal-selftest`: replays both tool styles, incrementally, from a temp transcript.</summary>
+    public static void GoalSelfTest()
+    {
+        static string Call(string name, string input) =>
+            "{\"type\":\"assistant\",\"message\":{\"content\":[{\"type\":\"tool_use\",\"name\":\"" + name + "\",\"input\":" + input + "}]}}\n";
+        void Expect(Goal? got, Goal? want, string what)
+        {
+            if (got != want) throw new Exception($"{what}: got {got}, want {want}");
+        }
+        string path = Path.Combine(Path.GetTempPath(), $"goal-selftest-{Guid.NewGuid():N}.jsonl");
+        try
+        {
+            File.WriteAllText(path, Call("mcp__ccd_turn__update_plan",
+                "{\"items\":[{\"content\":\"A\",\"status\":\"in_progress\"},{\"content\":\"B\",\"status\":\"pending\"},{\"content\":\"C\",\"status\":\"pending\"}]}"));
+            Expect(ReadPlan(new FileInfo(path)), new Goal(0, 3, "A"), "items");
+            File.AppendAllText(path, Call("mcp__ccd_turn__update_plan", "{\"advance\":true}") + "{\"type\":\"assistant\",\"mess"); // half line
+            Expect(ReadPlan(new FileInfo(path)), new Goal(1, 3, "B"), "advance");
+            File.AppendAllText(path, "age\":{}}\n" + Call("mcp__ccd_turn__update_plan", "{\"done\":[2],\"start\":3}"));
+            Expect(ReadPlan(new FileInfo(path)), new Goal(2, 3, "C"), "done/start");
+            File.AppendAllText(path, Call("mcp__ccd_turn__wrap_up", "{\"recap\":\"x\"}"));
+            Expect(ReadPlan(new FileInfo(path)), new Goal(3, 3, null), "wrap_up");
+
+            File.Delete(path);
+            path += "2";
+            File.WriteAllText(path,Call("TaskCreate", "{\"subject\":\"s1\",\"activeForm\":\"Doing 1\"}")
+                + Call("TaskCreate", "{\"subject\":\"s2\"}") + Call("TaskCreate", "{\"subject\":\"s3\"}")
+                + Call("TaskUpdate", "{\"taskId\":\"1\",\"status\":\"completed\"}")
+                + Call("TaskUpdate", "{\"taskId\":\"3\",\"status\":\"deleted\"}"));
+            Expect(ReadPlan(new FileInfo(path)), new Goal(1, 2, "s2"), "tasks");
+        }
+        finally { File.Delete(path); }
+
+        foreach (var s in GetActive(TimeSpan.FromHours(2), 12, "active"))
+            Console.WriteLine($"{s.Project}: {s.Goal}");
+        Console.WriteLine("goal selftest OK");
+    }
+
+    static string? Str(JsonElement e, string prop) =>
+        e.TryGetProperty(prop, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() : null;
 
     static string ReadChunk(FileInfo file, bool fromEnd, int size)
     {
