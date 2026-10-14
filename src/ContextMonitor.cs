@@ -119,7 +119,8 @@ static class ContextMonitor
             string model = FriendlyModel(modelId);
             if (effort is { Length: > 0 }) model += " · " + (effort == "xhigh" ? "XHigh" : char.ToUpper(effort[0]) + effort[1..]);
 
-            return new SessionContext(project, model, tokens, window, startedAt, active, state, ReadPlan(file));
+            var goal = ReadPlan(file) ?? (cwd.Length > 0 ? ReadNextSession(cwd.Replace("\\\\", "\\")) : null);
+            return new SessionContext(project, model, tokens, window, startedAt, active, state, goal);
         }
         catch
         {
@@ -306,6 +307,42 @@ static class ContextMonitor
         return new Goal(live.Count(s => s.Status == "completed"), live.Count, current.Text);
     }
 
+    /// <summary>
+    /// Fallback for sessions without a step list: the sprint brief NEXT-SESSION.md in the
+    /// session's folder, when its "status: active" line says a sprint is running. Table rows
+    /// with ⬜ are steps to do, rows with ✅ are done; the first ⬜ row's task cell names the step.
+    /// </summary>
+    static Goal? ReadNextSession(string cwd)
+    {
+        try
+        {
+            string path = Path.Combine(cwd, "NEXT-SESSION.md");
+            if (!File.Exists(path)) return null;
+            var lines = File.ReadAllLines(path);
+            if (!lines.Take(15).Any(l => l.StartsWith("status: active", StringComparison.OrdinalIgnoreCase))) return null;
+            int done = 0, total = 0;
+            string? current = null;
+            foreach (var l in lines.Where(l => l.TrimStart().StartsWith('|')))
+            {
+                if (l.Contains('⬜'))
+                {
+                    total++;
+                    if (current is null)
+                    {
+                        var cells = l.Split('|').Select(c => c.Trim()).Where(c => c.Length > 0).ToArray();
+                        current = (cells.Length > 1 ? cells[1] : cells[0]).Replace("`", "").Replace("**", "");
+                    }
+                }
+                else if (l.Contains('✅')) { total++; done++; }
+            }
+            return total > 0 ? new Goal(done, total, current) : null;
+        }
+        catch
+        {
+            return null; // locked mid-save etc.; the next poll tries again
+        }
+    }
+
     /// <summary>Runnable check, `--goal-selftest`: replays both tool styles, incrementally, from a temp transcript.</summary>
     public static void GoalSelfTest()
     {
@@ -337,6 +374,17 @@ static class ContextMonitor
             Expect(ReadPlan(new FileInfo(path)), new Goal(1, 2, "s2"), "tasks");
         }
         finally { File.Delete(path); }
+
+        string dir = Directory.CreateTempSubdirectory("goal-selftest").FullName;
+        try
+        {
+            string ns = Path.Combine(dir, "NEXT-SESSION.md");
+            File.WriteAllText(ns, "# x\n\nstatus: active\n\n| Step | งาน | สถานะ |\n|---|---|---|\n| 1 | a | ✅ |\n| 2 | **b** `c` | ⬜ |\n| 3 | d | ⬜ |\n");
+            Expect(ReadNextSession(dir), new Goal(1, 3, "b c"), "NEXT-SESSION active");
+            File.WriteAllText(ns, File.ReadAllText(ns).Replace("status: active", "status: done"));
+            Expect(ReadNextSession(dir), null, "NEXT-SESSION done");
+        }
+        finally { Directory.Delete(dir, true); }
 
         foreach (var s in GetActive(TimeSpan.FromHours(2), 12, "active"))
             Console.WriteLine($"{s.Project}: {s.Goal}");
