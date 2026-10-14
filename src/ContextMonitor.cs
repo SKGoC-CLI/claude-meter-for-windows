@@ -110,7 +110,12 @@ static class ContextMonitor
             if (age > DropAfter) return null;
             var state = !ended ? SessionState.Working : asking ? SessionState.Asking : age <= WaitingFor ? SessionState.Waiting : SessionState.Idle;
 
-            return new SessionContext(project, FriendlyModel(modelId), tokens, window, startedAt, active, state);
+            // effort lives on every user line ("effort":"medium"); absent on old transcripts
+            string? effort = LastString(tail, "\"effort\":\\s*\"([a-z]+)\"");
+            string model = FriendlyModel(modelId);
+            if (effort is { Length: > 0 }) model += " · " + (effort == "xhigh" ? "XHigh" : char.ToUpper(effort[0]) + effort[1..]);
+
+            return new SessionContext(project, model, tokens, window, startedAt, active, state);
         }
         catch
         {
