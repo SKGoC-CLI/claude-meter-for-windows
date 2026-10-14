@@ -165,7 +165,9 @@ sealed class PopupForm : Form
 
     int ContextHeaderHeight => S(20);
     int ContextBlockHeight => S(55);
-    int ContextSectionHeight => _sessions.Count > 0 ? ContextHeaderHeight + _sessions.Count * ContextBlockHeight : 0;
+    int GoalRowHeight => S(24); // extra line 3 when the session has a step list
+    int BlockHeight(SessionContext s) => ContextBlockHeight + (s.Goal is null ? 0 : GoalRowHeight);
+    int ContextSectionHeight => _sessions.Count > 0 ? ContextHeaderHeight + _sessions.Sum(BlockHeight) : 0;
 
     static Color ContextColor(double pct) =>
         pct >= 85 ? Theme.Danger : pct >= 60 ? Theme.Warning : Theme.Accent;
@@ -893,7 +895,7 @@ sealed class PopupForm : Form
         foreach (var ctx in _sessions)
         {
             DrawContextBlock(g, ctx, by, pad, contentWidth);
-            by += ContextBlockHeight;
+            by += BlockHeight(ctx);
         }
         if (_workingDotRects.Count > 0 && !_anim.Enabled && Visible) _anim.Start();
     }
@@ -967,6 +969,29 @@ sealed class PopupForm : Form
         {
             using var fillBrush = new SolidBrush(idle ? MutedColor : color);
             FillRounded(g, fillBrush, new Rectangle(pad, barY, fillW, barH), barH / 2);
+        }
+
+        // line 3 (only with a step list): "Step 3/6 · 50% · <step>" + thin accent bar
+        if (ctx.Goal is { } goal)
+        {
+            int gy = barY + S(10);
+            int goalPct = (int)Math.Round(goal.Done * 100.0 / goal.Total);
+            string head = goal.Done >= goal.Total ? $"Done {goal.Total}/{goal.Total} · 100%"
+                : $"Step {goal.Done + 1}/{goal.Total} · {goalPct}%";
+            string text = string.IsNullOrWhiteSpace(goal.Current) || goal.Done >= goal.Total ? head : $"{head} · {goal.Current}";
+            using var fmt = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter };
+            g.DrawString(text, _tinyFont, mutedBrush, new RectangleF(pad, gy, contentWidth, S(16)), fmt);
+
+            int gBarY = gy + S(16);
+            int gBarH = Math.Max(2, S(3));
+            using (var trackBrush = new SolidBrush(TrackColor))
+                FillRounded(g, trackBrush, new Rectangle(pad, gBarY, contentWidth, gBarH), gBarH / 2);
+            int gFillW = (int)Math.Round(contentWidth * goal.Done / (double)goal.Total);
+            if (gFillW >= gBarH)
+            {
+                using var goalBrush = new SolidBrush(idle ? MutedColor : Theme.Accent);
+                FillRounded(g, goalBrush, new Rectangle(pad, gBarY, gFillW, gBarH), gBarH / 2);
+            }
         }
     }
 
