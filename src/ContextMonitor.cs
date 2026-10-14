@@ -228,6 +228,7 @@ static class ContextMonitor
             if (!Plans.TryGetValue(file.FullName, out plan!)) Plans[file.FullName] = plan = new Plan();
         lock (plan)
         {
+            if (file.Length == plan.Pos) return ToGoal(plan.Steps); // nothing new since last poll
             try
             {
                 using var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
@@ -353,7 +354,7 @@ static class ContextMonitor
                 }
                 else if (l.Contains('✅')) { total++; done++; }
             }
-            return total > 0 ? new Goal(done, total, current) : null;
+            return total > done ? new Goal(done, total, current) : null; // all ✅ = finished, hidden like a done task list
         }
         catch
         {

@@ -31,7 +31,7 @@ sealed class AppSettings
     public bool MiniMode { get; set; }               // collapsed one-bar popup: 5h % · weekly %
     public bool ShowEta { get; set; } = true;         // burn-rate ETA line under each row
     public string AlertSpeed { get; set; } = "normal";   // Working/Asking pulse speed: slow | normal | fast
-    public bool ShowStepProgress { get; set; } = true;   // "Step 3/6 · 50% · ..." line under each session
+    public bool ShowStepProgress { get; set; } = true;   // "Step 3/6 · <step>" on each session's second line
     public bool TrayWorkingPulse { get; set; } = true;   // dim the tray digits while a session is Working
     public bool TrayAskingPulse { get; set; } = true;    // pulse the tray background orange while a session is Asking
 
