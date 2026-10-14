@@ -12,10 +12,10 @@ A tiny Windows system-tray app that shows your **Claude usage limits** in real t
 the same *Session (5h) / Weekly / per-model weekly* percentages you see in
 Claude Code's `/usage`, always one click away.
 
-*New in v1.9.1 — the light theme is now a real light theme with readable status colours meeting the 4.5:1 contrast requirement, a near-white surface instead of a disabled-panel grey, and a visible window edge in light mode; dark mode is unchanged:*
+*New in v1.10.0 — each Claude Code session shows whether it is Working, Waiting or Asking you a question, the tray pulses while a session is busy, and a cloud credit row shows what is left of your cloud-session credit:*
 
 <p align="center">
-  <img src="docs/light-dark-v1.9.1.png" alt="Claude Meter v1.9.1 — the popup rendered in light theme on the left and dark theme on the right, showing the rebuilt light-theme colours and surface alongside the unchanged dark theme">
+  <img src="docs/popup-v1.10.0.png" alt="Claude Meter v1.10.0 — dark-theme popup with three Claude Code sessions, each with a state dot and a model label such as Opus · High, and the Cloud credit row under the limits">
 </p>
 
 *The tray icon can show both limits at once, Session (5h) stacked over Weekly, so a draining week can't hide behind a fresh session:*
@@ -50,6 +50,10 @@ Claude Code's `/usage`, always one click away.
 - Usage graph plots session remaining over a 12 or 24 hour axis, with hourly ticks, reset markers for both past and upcoming resets, and an adjustable "now" position
 - Credit spending graph shows cumulative month-to-date usage-credit spend up to your monthly limit, with a dashed limit line and live "now" marker; stays accurate even if the meter isn't running (45-day history sampled every 30 minutes)
 - Burn-rate estimate under each limit — "full in ~2h 41m" at your current pace, measured over a window matched to the limit's own length, and kept quiet whenever the limit would reset before it ever fills
+- Session state dots in SESSION CONTEXT: green while Working, amber when Waiting for you or Asking a question, grey when Idle
+- Session alerts: the tray digits dim while a session is Working and the tray turns orange while one is Asking; speed and each effect can be set under *Session context → Session alerts*
+- Effort level shown next to each session's model, e.g. "Opus · High"
+- Cloud credit row shows the remaining cloud-session credit in dollars and its expiry date; it stays out of the tray icon, alerts and ETA
 - Mini mode collapses the whole popup to a single bar (`5h 29% · W 34%`) for people who want the numbers on screen all day
 - Pin the popup anywhere on screen; optionally let mouse clicks pass through it while pinned; a minimize button hides it again without unpinning
 - Dark and light themes, three popup sizes, five opacity levels with full opacity restored on hover
