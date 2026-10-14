@@ -12,14 +12,14 @@ status: active
 |------|-----|-----|-------|
 | 1 | version 1.11.0 + CHANGELOG + docs/RELEASE_NOTES_v1.11.0.md | main | ✅ |
 | 2 | docs/popup-v1.11.0.png จาก `--popup-shot` | main | ✅ |
-| 3 | docs/demo-v1.11.0.gif จาก `docs/Recording 2026-10-15 022419.mp4` ช่วงที่ลำดับแถวนิ่ง + วาดทับชื่อ (Oracle Exam Website → exam-site, KKS Card Management App → card-manager) + ลายน้ำ (skill demo-gif) | main | ⬜ |
+| 3 | docs/demo-v1.11.0.gif จาก `docs/Recording 2026-10-15 022419.mp4` ช่วงที่ลำดับแถวนิ่ง + วาดทับชื่อ (Oracle Exam Website → exam-site, KKS Card Management App → card-manager) + ลายน้ำ (skill demo-gif) | main | ✅ |
 | 4 | README ชี้ภาพ/GIF ใหม่ + อธิบาย Step progress | main | ⬜ |
 | 5 | reviewer ตรวจ `7713b91..HEAD` + build zip portable | reviewer/main | ⬜ |
 | 6 | commit + push + `gh release create v1.11.0 --draft` แนบ zip | main | ⬜ |
 
 ③ สถานะจริง: โค้ด v1.11.0 อยู่บน main แล้ว (`65f0b96`) portable รันอยู่ · ไฟล์ในเครื่อง: docs/Recording*.mp4 untracked ตั้งใจไม่ commit
 
-④ ถัดไป: ขั้น 3 — GIF
+④ ถัดไป: ขั้น 4 — README (ใช้ 0–21 วิ ของคลิป, กล่องทับชื่อวาดด้วย GDI+ Segoe UI Bold 17px ที่ x=180)
 
 ⑤ กับดัก
 - คลิป 02:24: ลำดับ session สลับกลางคลิป → ใช้เฉพาะช่วงต้นที่ลำดับนิ่ง ไม่งั้นต้องไล่ปิดชื่อตามตำแหน่ง
