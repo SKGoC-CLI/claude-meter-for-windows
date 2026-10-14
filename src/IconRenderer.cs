@@ -24,7 +24,7 @@ static class IconRenderer
     /// fill bar underneath, color-coded by severity. Gray "--" when no data.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon Render(double? maxUtilization, double fade = 0)
+    public static Icon Render(double? maxUtilization, double fade = 0, double bgAlpha = 0)
     {
         const int size = 32;
         using var bmp = new Bitmap(size, size);
@@ -33,6 +33,7 @@ static class IconRenderer
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             g.Clear(Color.Transparent);
+            if (bgAlpha > 0) { using var bg = new SolidBrush(Color.FromArgb((int)(255 * bgAlpha), Warning)); g.FillRectangle(bg, 0, 0, size, size); }
 
             var color = maxUtilization is { } u ? ColorFor(u) : Color.Gray;
             string text = maxUtilization is { } v ? Math.Clamp((int)Math.Round(v), 0, 100).ToString() : "--";
@@ -121,9 +122,9 @@ static class IconRenderer
     /// present value is drawn vertically centred rather than leaving a blank row.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon RenderTwoRow(double? session, double? weekly, double fade = 0)
+    public static Icon RenderTwoRow(double? session, double? weekly, double fade = 0, double bgAlpha = 0)
     {
-        if (session is null && weekly is null) return Render(null, fade);
+        if (session is null && weekly is null) return Render(null, fade, bgAlpha);
 
         // Integer pixel scale only — a fractional one would reintroduce the very
         // resampling this font exists to avoid. The canvas is then 16*k rather than
@@ -140,6 +141,7 @@ static class IconRenderer
         {
             g.SmoothingMode = SmoothingMode.None;
             g.Clear(Color.Transparent);
+            if (bgAlpha > 0) { using var bg = new SolidBrush(Color.FromArgb((int)(255 * bgAlpha), Warning)); g.FillRectangle(bg, 0, 0, size, size); }
 
             if (session is { } s && weekly is { } w)
             {

@@ -30,6 +30,12 @@ sealed class AppSettings
     public List<string> HiddenLimits { get; set; } = new(); // limit keys the user unticked in "Show limits"
     public bool MiniMode { get; set; }               // collapsed one-bar popup: 5h % · weekly %
     public bool ShowEta { get; set; } = true;         // burn-rate ETA line under each row
+    public string AlertSpeed { get; set; } = "normal";   // Working/Asking pulse speed: slow | normal | fast
+    public bool TrayWorkingPulse { get; set; } = true;   // dim the tray digits while a session is Working
+    public bool TrayAskingPulse { get; set; } = true;    // pulse the tray background orange while a session is Asking
+
+    [System.Text.Json.Serialization.JsonIgnore]
+    public double AlertMul => AlertSpeed switch { "slow" => 1.5, "fast" => 0.6, _ => 1.0 }; // pulse period multiplier
 
     static readonly string FilePath =
         Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "ClaudeMeter", "settings.json");

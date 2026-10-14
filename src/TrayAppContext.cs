@@ -80,6 +80,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly System.Windows.Forms.Timer _blinkTimer = new() { Interval = 100 }; // 10 fps tray fade
     int _blinkTicks;
     double _workingFade; // 0 = digits as usual, 1 = faded out
+    double _askingBg;    // alpha of the orange tray background while Asking
     readonly ToolStripMenuItem _autostartItem;
     readonly ToolStripMenuItem _alwaysOnTopItem;
     readonly ToolStripMenuItem _miniModeItem;
@@ -99,6 +100,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly Dictionary<int, ToolStripMenuItem> _creditNowPosItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _maxContextItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _contextSortItems = new();
+    readonly Dictionary<string, ToolStripMenuItem> _alertSpeedItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _themeItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _trayShowsItems = new();
     readonly Dictionary<string, ToolStripMenuItem> _hotkeyItems = new();
@@ -338,11 +340,30 @@ sealed class TrayAppContext : ApplicationContext
             trayShowsMenu.DropDownItems.Add(item);
         }
 
+        var alertSpeedMenu = new ToolStripMenuItem("Speed");
+        foreach (var (key, label) in new[] { ("slow", "Slow"), ("normal", "Normal"), ("fast", "Fast") })
+        {
+            string k = key;
+            var item = new ToolStripMenuItem(label, null, (_, _) => SetAlertSpeed(k))
+            {
+                Checked = _settings.AlertSpeed == k,
+            };
+            _alertSpeedItems[k] = item;
+            alertSpeedMenu.DropDownItems.Add(item);
+        }
+        var alertsMenu = new ToolStripMenuItem("Session alerts");
+        alertsMenu.DropDownItems.Add(alertSpeedMenu);
+        alertsMenu.DropDownItems.Add(new ToolStripMenuItem("Pulse tray while Working", null, (_, _) => { _settings.TrayWorkingPulse = !_settings.TrayWorkingPulse; _settings.Save(); })
+            { Checked = _settings.TrayWorkingPulse, CheckOnClick = true });
+        alertsMenu.DropDownItems.Add(new ToolStripMenuItem("Pulse tray orange while Asking", null, (_, _) => { _settings.TrayAskingPulse = !_settings.TrayAskingPulse; _settings.Save(); })
+            { Checked = _settings.TrayAskingPulse, CheckOnClick = true });
+
         // feature submenus: each popup section owns its toggle + its options
         var sessionContextMenu = new ToolStripMenuItem("Session context");
         sessionContextMenu.DropDownItems.Add(_showContextItem);
         sessionContextMenu.DropDownItems.Add(maxContextMenu);
         sessionContextMenu.DropDownItems.Add(contextSortMenu);
+        sessionContextMenu.DropDownItems.Add(alertsMenu);
 
         // session-remaining graph and month-to-date credit graph are separate popup
         // sections, so each gets its own submenu (matching the section titles)
@@ -396,6 +417,7 @@ sealed class TrayAppContext : ApplicationContext
         _popup.ShowLogo = _settings.ShowLogo;
         _popup.MiniMode = _settings.MiniMode;
         _popup.ShowEta = _settings.ShowEta;
+        _popup.AlertMul = _settings.AlertMul;
         Theme.Light = _settings.Theme == "light";
         _popup.ApplyTheme();
         _popup.ApplyScale(_settings.Scale);
@@ -432,17 +454,23 @@ sealed class TrayAppContext : ApplicationContext
         _pollTimer.Tick += async (_, _) => await RefreshAsync();
         _pollTimer.Start();
 
-        // Working blink: re-read session state every 5 s (local transcript tails, cheap),
-        // and dim the tray digits to ~45% and back (2 s cycle) while any session is Working —
-        // fading them out completely left a blank slot that looked silly
+        // Session alerts: re-read session state every 5 s (local transcript tails, cheap).
+        // Any session Asking (pending AskUserQuestion/ExitPlanMode) wins: the whole tray icon
+        // background pulses orange (alpha 0..0.6, 1 s cycle), digits untouched. Otherwise, while
+        // any session is Working the digits dim to ~45% and back (2 s cycle) — fading them out
+        // completely left a blank slot that looked silly. Periods scale by AlertSpeed; each
+        // effect can be switched off (TrayAskingPulse / TrayWorkingPulse).
         _blinkTimer.Tick += (_, _) =>
         {
             if (++_blinkTicks % 50 == 0) RefreshSessionContext();
-            double fade = _popup.Sessions.Any(s => s.State == SessionState.Working)
-                ? Math.Round(IconRenderer.WorkingPulse(2000) * 20) / 20 * 0.55 // 20 steps: skip identical frames
-                : 0;
-            if (fade == _workingFade) return; // idle: no icon churn at all
+            double mul = _settings.AlertMul, fade = 0, bg = 0;
+            if (_settings.TrayAskingPulse && _popup.Sessions.Any(s => s.State == SessionState.Asking))
+                bg = Math.Round(IconRenderer.WorkingPulse((int)(1000 * mul)) * 20) / 20 * 0.6; // 20 steps: skip identical frames
+            else if (_settings.TrayWorkingPulse && _popup.Sessions.Any(s => s.State == SessionState.Working))
+                fade = Math.Round(IconRenderer.WorkingPulse((int)(2000 * mul)) * 20) / 20 * 0.55;
+            if (fade == _workingFade && bg == _askingBg) return; // idle: no icon churn at all
             _workingFade = fade;
+            _askingBg = bg;
             RenderTrayIcon();
         };
         _blinkTimer.Start();
@@ -556,6 +584,14 @@ sealed class TrayAppContext : ApplicationContext
         _settings.ContextSort = sort;
         foreach (var (k, item) in _contextSortItems) item.Checked = k == sort;
         RefreshSessionContext();
+        _settings.Save();
+    }
+
+    void SetAlertSpeed(string speed)
+    {
+        _settings.AlertSpeed = speed;
+        _popup.AlertMul = _settings.AlertMul;
+        foreach (var (k, item) in _alertSpeedItems) item.Checked = k == speed;
         _settings.Save();
     }
 
@@ -1014,11 +1050,11 @@ sealed class TrayAppContext : ApplicationContext
         if (_settings.TrayShows == "both")
         {
             var (session, weekly) = TrayTwoRowValues();
-            SetIcon(IconRenderer.RenderTwoRow(session, weekly, _workingFade));
+            SetIcon(IconRenderer.RenderTwoRow(session, weekly, _workingFade, _askingBg));
         }
         else
         {
-            SetIcon(IconRenderer.Render(TrayDisplayValue(), _workingFade));
+            SetIcon(IconRenderer.Render(TrayDisplayValue(), _workingFade, _askingBg));
         }
     }
 

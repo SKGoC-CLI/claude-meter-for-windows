@@ -16,10 +16,10 @@ status: active
 | 2c | รอบ 3: taskbar ตัวเลข cross-fade ↔ เขียว (เอากรอบออก) + popup glow แผ่ออก 1.6 วิ | main | ✅ |
 | 2d | รอบ 4: popup fade 1.4 วิ ไม่มี glow + taskbar ตัวเลข fade หาย/กลับ 1.2 วิ | main | ✅ |
 | 2e | รอบ 5: popup ผ่าน · taskbar จางเหลือ ~45% (ไม่หายหมด) รอบละ 2 วิ | main | ✅ portable สลับแล้ว — รอคุณสมกกดูจริง |
-| 6a | Asking state (คำถามค้าง) แยกจาก Waiting + popup จุดส้ม fade | coder | ⬜ |
-| 6b | tray พื้นหลังส้ม fade ตอน Asking (ชนะ Working) | coder | ⬜ |
-| 6c | เมนู Session alerts: ความเร็ว ช้า/ปกติ/เร็ว + toggle tray Working + toggle tray Asking | coder | ⬜ |
-| 6d | build + สลับ portable + commit | main | ⬜ |
+| 6a | Asking state (คำถามค้าง) แยกจาก Waiting + popup จุดส้ม fade | coder | ✅ |
+| 6b | tray พื้นหลังส้ม fade ตอน Asking (ชนะ Working) | coder | ✅ |
+| 6c | เมนู Session alerts: ความเร็ว ช้า/ปกติ/เร็ว + toggle tray Working + toggle tray Asking | coder | ✅ |
+| 6d | build + สลับ portable + commit | main | ✅ รอคุณสมกกดูจริง |
 | 6e | reviewer ตรวจ dc30df2..HEAD | reviewer | ⬜ หลัง 7d รีเซ็ต |
 | 3–7 | Goal progress (ดู WORK-LOG) | — | ⬜ ยังไม่สั่ง |
 
@@ -33,7 +33,7 @@ status: active
 สลับ `_workingEdgeShown` ทุกวินาทีถ้ามี session Working → `RenderTrayIcon()` วาดเส้นเขียวซ้าย
 (`IconRenderer.DrawWorkingEdge`, สี `#6bcb77`). ปิด SESSION CONTEXT = ไม่มี session = ไม่กระพริบ.
 
-④ ถัดไป: รอบ 6 (Asking ส้มกระพริบ + เมนู Session alerts) — สเปกเต็มใน WORK-LOG หัวข้อ "รอบ 6". ทำ ⬜ แถวแรกในตาราง.
+④ ถัดไป: รอบ 6 ทำเสร็จ portable รันอยู่ — รอคุณสมกกดูจริง (ส้มกระพริบตอนมีคำถามค้าง + เมนู Session context → Session alerts). แล้ว 6e reviewer หลัง 7d รีเซ็ต.
 รอบ 5 (taskbar จาง 45%) คุณสมกกยังไม่ได้ยืนยันว่าผ่าน. ค่าอยู่ `TrayAppContext.cs` บรรทัด ~442: `WorkingPulse(2000)` = คาบ, `* 0.55` = ความลึกการจาง. แล้วค่อย step 3 (หลังโควตา 7 วันรีเซ็ต) + ส่ง reviewer ตรวจ dc30df2..HEAD
 
 ⑤ กับดัก

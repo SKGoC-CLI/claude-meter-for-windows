@@ -37,6 +37,8 @@ sealed class PopupForm : Form
     // ~30 fps breathing glow on Working dots; repaints only their rects, idles when none
     readonly System.Windows.Forms.Timer _anim = new() { Interval = 33 };
     readonly List<Rectangle> _workingDotRects = new();
+    /// <summary>Pulse period multiplier (Session alerts → Speed).</summary>
+    public double AlertMul = 1;
 
     /// <summary>Always-on-top mode: no auto-hide on focus loss, draggable, remembers position.</summary>
     public bool Pinned { get; set; }
@@ -900,7 +902,7 @@ sealed class PopupForm : Form
         var dotColor = ctx.State switch
         {
             SessionState.Working => Theme.Success,
-            SessionState.Waiting => Theme.Warning,
+            SessionState.Asking or SessionState.Waiting => Theme.Warning,
             _ => MutedColor,
         };
         int dot = StateDotSize;
@@ -909,10 +911,10 @@ sealed class PopupForm : Form
         {
             var oldMode = g.SmoothingMode;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            if (ctx.State == SessionState.Working)
+            if (ctx.State is SessionState.Working or SessionState.Asking)
             {
-                // fade 100% → 25% → 100% once per 1.4 s; _anim repaints just this rect at ~30 fps
-                double p = IconRenderer.WorkingPulse(1400);
+                // fade 100% → 25% → 100% (Working 1.4 s, Asking 1 s); _anim repaints just this rect at ~30 fps
+                double p = IconRenderer.WorkingPulse((int)((ctx.State == SessionState.Asking ? 1000 : 1400) * AlertMul));
                 dotColor = Color.FromArgb(255 - (int)(191 * p), dotColor);
                 _workingDotRects.Add(Rectangle.Ceiling(RectangleF.Inflate(dotRect, 1, 1)));
             }

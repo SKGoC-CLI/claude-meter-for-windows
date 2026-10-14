@@ -16,7 +16,7 @@ sealed record SessionContext(
     public double Percent => Math.Clamp(Tokens * 100.0 / WindowSize, 0, 100);
 }
 
-enum SessionState { Working, Waiting, Idle }
+enum SessionState { Working, Asking, Waiting, Idle }
 
 /// <summary>
 /// Reads the context-window fill of the most recently active Claude Code
@@ -102,13 +102,13 @@ static class ContextMonitor
 
             // file LastWriteTime is unreliable: metadata lines (no timestamp) are appended
             // long after the conversation goes quiet, so use the last line's own timestamp
-            var (ended, lastTs) = Classify(tail, wholeFile: file.Length <= TailBytes);
+            var (ended, asking, lastTs) = Classify(tail, wholeFile: file.Length <= TailBytes);
             if (lastTs is null && file.Length > TailBytes) // last line(s) longer than the tail
-                (ended, lastTs) = Classify(ReadChunk(file, fromEnd: true, 2 * 1024 * 1024), file.Length <= 2 * 1024 * 1024);
+                (ended, asking, lastTs) = Classify(ReadChunk(file, fromEnd: true, 2 * 1024 * 1024), file.Length <= 2 * 1024 * 1024);
             var active = lastTs ?? new DateTimeOffset(file.LastWriteTime);
             var age = DateTimeOffset.Now - active;
             if (age > DropAfter) return null;
-            var state = !ended ? SessionState.Working : age <= WaitingFor ? SessionState.Waiting : SessionState.Idle;
+            var state = !ended ? SessionState.Working : asking ? SessionState.Asking : age <= WaitingFor ? SessionState.Waiting : SessionState.Idle;
 
             return new SessionContext(project, FriendlyModel(modelId), tokens, window, startedAt, active, state);
         }
@@ -126,9 +126,10 @@ static class ContextMonitor
     /// </summary>
     const int TailBytes = 128 * 1024;
 
-    static (bool ended, DateTimeOffset? ts) Classify(string tail, bool wholeFile)
+    static (bool ended, bool asking, DateTimeOffset? ts) Classify(string tail, bool wholeFile)
     {
         bool? ended = null;
+        bool asking = false;
         DateTimeOffset? ts = null;
         try
         {
@@ -151,20 +152,21 @@ static class ContextMonitor
                     {
                         string? type = root.TryGetProperty("type", out var ty) && ty.ValueKind == JsonValueKind.String ? ty.GetString() : null;
                         if (type is "assistant" or "user" or "system" or "attachment")
-                            ended = IsTurnEnd(type, root);
+                            ended = IsTurnEnd(type, root, out asking);
                     }
                 }
             }
         }
         catch
         {
-            return (false, null); // default to Working
+            return (false, false, null); // default to Working
         }
-        return (ended ?? false, ts);
+        return (ended ?? false, asking, ts);
     }
 
-    static bool IsTurnEnd(string type, JsonElement root)
+    static bool IsTurnEnd(string type, JsonElement root, out bool asking)
     {
+        asking = false;
         if (type == "system")
             return root.TryGetProperty("subtype", out var st) && st.ValueKind == JsonValueKind.String
                 && st.GetString() is "stop_hook_summary" or "turn_duration";
@@ -181,8 +183,9 @@ static class ContextMonitor
             if (msg.TryGetProperty("content", out var c) && c.ValueKind == JsonValueKind.Array && c.GetArrayLength() > 0)
             {
                 var last = c[c.GetArrayLength() - 1];
-                return last.ValueKind == JsonValueKind.Object && last.TryGetProperty("type", out var bt) && bt.GetString() == "tool_use"
+                asking = last.ValueKind == JsonValueKind.Object && last.TryGetProperty("type", out var bt) && bt.GetString() == "tool_use"
                     && last.TryGetProperty("name", out var nm) && nm.GetString() is "AskUserQuestion" or "ExitPlanMode";
+                return asking;
             }
             return false;
         }
