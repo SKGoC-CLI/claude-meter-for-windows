@@ -361,6 +361,9 @@ sealed class TrayAppContext : ApplicationContext
         // feature submenus: each popup section owns its toggle + its options
         var sessionContextMenu = new ToolStripMenuItem("Session context");
         sessionContextMenu.DropDownItems.Add(_showContextItem);
+        sessionContextMenu.DropDownItems.Add(new ToolStripMenuItem("Show step progress", null, (_, _) =>
+            { _settings.ShowStepProgress = !_settings.ShowStepProgress; _settings.Save(); RefreshSessionContext(); })
+            { Checked = _settings.ShowStepProgress, CheckOnClick = true });
         sessionContextMenu.DropDownItems.Add(maxContextMenu);
         sessionContextMenu.DropDownItems.Add(contextSortMenu);
         sessionContextMenu.DropDownItems.Add(alertsMenu);
@@ -613,6 +616,7 @@ sealed class TrayAppContext : ApplicationContext
         try
         {
             var list = await Task.Run(() => ContextMonitor.GetActive(ContextMonitor.DropAfter, max, sort));
+            if (!_settings.ShowStepProgress) list = list.Select(s => s with { Goal = null }).ToList();
             if (!_popup.IsDisposed && _settings.ShowContext) _popup.Sessions = list;
         }
         catch { /* best-effort */ }

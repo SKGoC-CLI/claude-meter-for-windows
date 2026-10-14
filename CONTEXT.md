@@ -85,5 +85,5 @@
 - **Goal progress** — ความคืบหน้าของงานใน session = ขั้นที่เสร็จ ÷ ขั้นทั้งหมด แสดงเป็นบรรทัดที่ 3
   แถบฟ้า + `Step 3/6 · 50% · <ชื่อขั้นที่กำลังทำ>`. แหล่งข้อมูล: **รายการขั้นตอน** ใน transcript
   (แอป desktop = `update_plan`, CLI = TaskCreate/TaskUpdate) ก่อน ถ้าไม่มีหรือเสร็จครบแล้วใช้ตาราง ✅/⬜ ใน `NEXT-SESSION.md`
-  ของโฟลเดอร์ session (เฉพาะ `status: active`) ไม่มีทั้งคู่ = ไม่แสดง. รายการที่เสร็จครบ (หลัง wrap_up) = ซ่อน.
+  ของโฟลเดอร์ session (เฉพาะ `status: active`) ไม่มีทั้งคู่ = ไม่แสดง. รายการที่เสร็จครบ (หลัง wrap_up) = ซ่อน. ปิดได้ที่เมนู Session context → Show step progress.
   **ไม่ใช่** % context (นั่นคือ context window เต็มแค่ไหน). (ทำแล้ว 2026-10-15, ยังไม่ release)

@@ -140,5 +140,6 @@ Sprint รอบ 6 (ยังไม่ลงมือ — รอคุณสม�
 - `7713b91` ขั้น 5 popup บรรทัด 3 (แถบ Accent + ตัด … ถ้ายาว) + fixture popup-shot
 - `ccef0bd` แก้ตาม reviewer: รายการที่เสร็จครบซ่อน (เดิมค้าง "Done N/N" ทั้ง session และบัง NEXT-SESSION), อ่านทีละ 1 MB (ไฟล์ 37 MB ไม่โหลดทั้งก้อน), อ่านพลาด → แค่ไม่มี goal ไม่ทำแถว session หาย
 - reviewer ข้อที่ไม่แก้ (ความเสี่ยงต่ำ): ตาราง ✅/⬜ อื่นใน NEXT-SESSION.md (เช่นตารางกับดัก) จะถูกนับรวม · Task id สมมติเรียง 1,2,3 · cache ไม่ล้างตลอดอายุ process (โตช้ามาก)
+- คุณสมกกขอเมนูปิด/เปิด → tray เมนู Session context → **Show step progress** (`ShowStepProgress` ใน settings.json ค่าเริ่ม true; ปิดแล้วตัด Goal ทิ้งตอน refresh)
 - portable สลับแล้ว (backup `bin\portable-v1.10.0.0-backup\`) · วัดจริง: private mem 70 MB, CPU 0.53 วิ/20 วิ (เดิม 0.23 — เพิ่มจากการอ่าน transcript ทุก 2 วิ; ยังเบา)
 
