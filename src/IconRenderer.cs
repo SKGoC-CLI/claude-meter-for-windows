@@ -1,4 +1,4 @@
-using System.Drawing.Drawing2D;
+﻿using System.Drawing.Drawing2D;
 using System.Drawing.Text;
 
 namespace ClaudeMeter;
@@ -24,7 +24,7 @@ static class IconRenderer
     /// fill bar underneath, color-coded by severity. Gray "--" when no data.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon Render(double? maxUtilization, double fade = 0, bool alert = false)
+    public static Icon Render(double? maxUtilization, double fade = 0, double bgAlpha = 0)
     {
         const int size = 32;
         using var bmp = new Bitmap(size, size);
@@ -33,14 +33,14 @@ static class IconRenderer
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
             g.Clear(Color.Transparent);
-            if (alert) { using var bg = new SolidBrush(Warning); g.FillRectangle(bg, 0, 0, size, size); } // Asking: solid orange, black digits
+            if (bgAlpha > 0) { using var bg = new SolidBrush(Color.FromArgb((int)(255 * bgAlpha), Warning)); g.FillRectangle(bg, 0, 0, size, size); }
 
-            var color = alert ? Color.Black : maxUtilization is { } u ? ColorFor(u) : Color.Gray;
+            var color = maxUtilization is { } u ? ColorFor(u) : Color.Gray;
             string text = maxUtilization is { } v ? Math.Clamp((int)Math.Round(v), 0, 100).ToString() : "--";
 
             using var font = new Font("Segoe UI", 15f, FontStyle.Bold, GraphicsUnit.Pixel);
             var textSize = g.MeasureString(text, font);
-            using var textBrush = new SolidBrush(Fade(alert ? Color.Black : Color.White, fade));
+            using var textBrush = new SolidBrush(Fade(Color.White, fade));
             // "100" overflows at full width, so squeeze it horizontally instead of
             // shrinking the font — glyph height is what survives the 16 px downscale.
             float scaleX = textSize.Width > size - 1 ? (size - 1) / textSize.Width : 1f;
@@ -122,9 +122,9 @@ static class IconRenderer
     /// present value is drawn vertically centred rather than leaving a blank row.
     /// Caller owns the returned icon and must destroy its handle via Dispose.
     /// </summary>
-    public static Icon RenderTwoRow(double? session, double? weekly, double fade = 0, bool alert = false)
+    public static Icon RenderTwoRow(double? session, double? weekly, double fade = 0, double bgAlpha = 0)
     {
-        if (session is null && weekly is null) return Render(null, fade, alert);
+        if (session is null && weekly is null) return Render(null, fade, bgAlpha);
 
         // Integer pixel scale only — a fractional one would reintroduce the very
         // resampling this font exists to avoid. The canvas is then 16*k rather than
@@ -141,20 +141,20 @@ static class IconRenderer
         {
             g.SmoothingMode = SmoothingMode.None;
             g.Clear(Color.Transparent);
-            if (alert) { using var bg = new SolidBrush(Warning); g.FillRectangle(bg, 0, 0, size, size); } // Asking: solid orange, black digits
+            if (bgAlpha > 0) { using var bg = new SolidBrush(Color.FromArgb((int)(255 * bgAlpha), Warning)); g.FillRectangle(bg, 0, 0, size, size); }
 
             if (session is { } s && weekly is { } w)
             {
-                DrawRow(g, s, RowSlot.Top, k, fade, alert);
-                DrawRow(g, w, RowSlot.Bottom, k, fade, alert);
+                DrawRow(g, s, RowSlot.Top, k, fade);
+                DrawRow(g, w, RowSlot.Bottom, k, fade);
             }
             else if (session is { } sOnly)
             {
-                DrawRow(g, sOnly, RowSlot.Center, k, fade, alert);
+                DrawRow(g, sOnly, RowSlot.Center, k, fade);
             }
             else if (weekly is { } wOnly)
             {
-                DrawRow(g, wOnly, RowSlot.Center, k, fade, alert);
+                DrawRow(g, wOnly, RowSlot.Center, k, fade);
             }
         }
 
@@ -171,7 +171,7 @@ static class IconRenderer
     }
 
     /// <summary>Draws one row of digits at a logical 16x16 position, scaled by k.</summary>
-    static void DrawRow(Graphics g, double value, RowSlot slot, int k, double fade, bool alert)
+    static void DrawRow(Graphics g, double value, RowSlot slot, int k, double fade)
     {
         string text = Math.Clamp((int)Math.Round(value), 0, 100).ToString();
         bool small = text.Length == 3;
@@ -187,7 +187,7 @@ static class IconRenderer
             _ => small ? 5 : 4, // Center
         };
 
-        using var brush = new SolidBrush(Fade(alert ? Color.Black : ColorFor(value), fade));
+        using var brush = new SolidBrush(Fade(ColorFor(value), fade));
         for (int i = 0; i < text.Length; i++)
         {
             var glyph = font[text[i] - '0'];

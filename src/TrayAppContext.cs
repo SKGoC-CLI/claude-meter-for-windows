@@ -80,7 +80,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly System.Windows.Forms.Timer _blinkTimer = new() { Interval = 100 }; // 10 fps tray fade
     int _blinkTicks;
     double _workingFade; // 0 = digits as usual, 1 = faded out
-    bool _askingOn;      // Asking blink phase: solid orange tray, black digits
+    double _askingBg;    // alpha of the orange tray background while Asking
     readonly ToolStripMenuItem _autostartItem;
     readonly ToolStripMenuItem _alwaysOnTopItem;
     readonly ToolStripMenuItem _miniModeItem;
@@ -455,24 +455,23 @@ sealed class TrayAppContext : ApplicationContext
         _pollTimer.Start();
 
         // Session alerts: re-read session state every 2 s (local transcript tails, cheap).
-        // Any session Asking (pending AskUserQuestion/ExitPlanMode) wins: the tray icon blinks
-        // solid orange with black digits / normal, 1 s cycle (a translucent orange turned muddy brown
-        // on the dark taskbar). Otherwise, while
+        // Any session Asking (pending AskUserQuestion/ExitPlanMode) wins: the tray background fades
+        // orange 0..45% and back, 1 s cycle, digits untouched (35% went muddy brown on the dark taskbar,
+        // 60% drowned the digits; a solid on/off blink was rejected). Otherwise, while
         // any session is Working the digits dim to ~45% and back (2 s cycle) — fading them out
         // completely left a blank slot that looked silly. Periods scale by AlertSpeed; each
         // effect can be switched off (TrayAskingPulse / TrayWorkingPulse).
         _blinkTimer.Tick += (_, _) =>
         {
             if (++_blinkTicks % 20 == 0) RefreshSessionContext();
-            double mul = _settings.AlertMul, fade = 0;
-            bool on = false;
+            double mul = _settings.AlertMul, fade = 0, bg = 0;
             if (_settings.TrayAskingPulse && _popup.Sessions.Any(s => s.State == SessionState.Asking))
-                on = IconRenderer.WorkingPulse((int)(1000 * mul)) >= 0.5;
+                bg = Math.Round(IconRenderer.WorkingPulse((int)(1000 * mul)) * 20) / 20 * 0.45;
             else if (_settings.TrayWorkingPulse && _popup.Sessions.Any(s => s.State == SessionState.Working))
                 fade = Math.Round(IconRenderer.WorkingPulse((int)(2000 * mul)) * 20) / 20 * 0.55; // 20 steps: skip identical frames
-            if (fade == _workingFade && on == _askingOn) return; // idle: no icon churn at all
+            if (fade == _workingFade && bg == _askingBg) return; // idle: no icon churn at all
             _workingFade = fade;
-            _askingOn = on;
+            _askingBg = bg;
             RenderTrayIcon();
         };
         _blinkTimer.Start();
@@ -1052,11 +1051,11 @@ sealed class TrayAppContext : ApplicationContext
         if (_settings.TrayShows == "both")
         {
             var (session, weekly) = TrayTwoRowValues();
-            SetIcon(IconRenderer.RenderTwoRow(session, weekly, _workingFade, _askingOn));
+            SetIcon(IconRenderer.RenderTwoRow(session, weekly, _workingFade, _askingBg));
         }
         else
         {
-            SetIcon(IconRenderer.Render(TrayDisplayValue(), _workingFade, _askingOn));
+            SetIcon(IconRenderer.Render(TrayDisplayValue(), _workingFade, _askingBg));
         }
     }
 
