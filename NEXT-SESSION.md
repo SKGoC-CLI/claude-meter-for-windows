@@ -13,7 +13,7 @@ status: active
 | 0 | สำรวจ + grilling + NEXT-SESSION/WORK-LOG | main | ✅ |
 | 1 | backup repo ทั้งก้อน (`git clone --mirror` → `bin\repo-backup-pre-rewrite.git`) | main | ✅ ครบทุก tag |
 | 2 | เปลี่ยนชื่อ session ตัวอย่างใน `src/PopupShot.cs` → `design-archive` + วาดชื่อใหม่ทับใน 8 ภาพ (pixel-match err=0, สคริปต์ใน scratchpad replace.ps1) | main | ✅ |
-| 3 | `git filter-repo` เขียนประวัติใหม่ (แทนข้อความ + แทน blob ภาพ) แล้วตรวจ `git log -S` ว่าไม่เหลือ | main | ⬜ |
+| 3 | `git filter-repo` เขียนประวัติใหม่ (แทนข้อความ + แทน blob ภาพ) แล้วตรวจ `git log -S` ว่าไม่เหลือ | main | ✅ 0 hit, ภาพเหลือเวอร์ชันเดียว |
 | 4 | force push main + ย้าย tag v1.9.1 / v1.10.0 | main | ⬜ |
 | 5 | build zip ใหม่จาก tag v1.9.1 และ v1.10.0 → `gh release upload --clobber` | main | ⬜ |
 | 6 | ตรวจจากภายนอก (raw/README/release) + จด memory | main | ⬜ |
@@ -23,7 +23,7 @@ status: active
 ③ สถานะจริง: ยังไม่เริ่มแก้ · โควตา 5h 33% · 7d 3%
 งานเก่าที่ค้าง: สปรินต์ Working blink จบแล้ว (v1.10.0 release แล้ว) เหลือ step 3–7 Goal progress ยังไม่สั่ง — ดู [WORK-LOG-2026-10-14-working-blink-goal-progress.md](WORK-LOG-2026-10-14-working-blink-goal-progress.md)
 
-④ ถัดไป: ขั้น 3 git filter-repo (blob-callback แทนภาพเก่าทุกเวอร์ชัน + replace-text)
+④ ถัดไป: ขั้น 4 force push (old remote main = effeb57)
 
 ⑤ กับดัก
 - ห้ามพิมพ์คำเต็มลงไฟล์ใน repo / commit message
