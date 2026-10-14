@@ -1,6 +1,6 @@
 # NEXT-SESSION — Goal progress (แถบความคืบหน้าใน SESSION CONTEXT)
 
-status: active
+status: done
 
 > **ห้ามพิมพ์คำต้องห้าม "ab***t" เต็ม ๆ ลงไฟล์ใด ๆ ใน repo** (จากสปรินต์ก่อน)
 
@@ -13,12 +13,12 @@ status: active
 | 3 | ContextMonitor: อ่านแผนจาก transcript — `mcp__ccd_turn__update_plan` (แอป desktop) + TaskCreate/TaskUpdate (CLI) → done/total + ชื่อขั้นที่กำลังทำ, อ่านแบบต่อท้าย (cache offset ต่อไฟล์ เพราะ transcript ใหญ่ถึง 37 MB) | main | ✅ |
 | 4 | fallback: NEXT-SESSION.md ใน cwd (`status: active`, นับ ✅/⬜) | main | ✅ |
 | 5 | PopupForm: บรรทัดที่ 3 แถบฟ้า + `Step 3/6 · 50% · ชื่อขั้น` + fixture `--popup-shot` | main | ✅ |
-| 6 | reviewer + rebuild portable + ภาพให้คุณสมกกดู | reviewer/main | ⬜ |
-| 7 | ~~กฎ "สร้าง Task ทุก sprint" ใน CLAUDE.md~~ → **ไม่ต้องทำ**: แอป desktop บังคับ update_plan ทุกงานหลายขั้นอยู่แล้ว | — | ⬜ |
+| 6 | reviewer + rebuild portable + ภาพให้คุณสมกกดู | reviewer/main | ✅ |
+| 7 | ~~กฎ "สร้าง Task ทุก sprint" ใน CLAUDE.md~~ → **ไม่ต้องทำ**: แอป desktop บังคับ update_plan ทุกงานหลายขั้นอยู่แล้ว | — | ✅ |
 
-③ สถานะจริง: ขั้น 3–5 เสร็จ (popup วาดบรรทัด Step x/y แล้ว ภาพผ่าน `--popup-shot`) — `ClaudeMeter.exe --goal-selftest` ผ่าน + อ่าน session จริงได้ (ยังไม่แสดงใน popup) · ไฟล์ docs/ untracked + `docs/PROMO_TODO.md` เป็นของเก่า ไม่เกี่ยว
+③ สถานะจริง: ครบทุกขั้น, reviewer ตรวจแล้ว + แก้ 3 ข้อ (`ccef0bd`), portable ใหม่รันอยู่ — **ยังไม่ release** (ยังเป็น v1.10.0) · `ClaudeMeter.exe --goal-selftest` ผ่าน + อ่าน session จริงได้ (ยังไม่แสดงใน popup) · ไฟล์ docs/ untracked + `docs/PROMO_TODO.md` เป็นของเก่า ไม่เกี่ยว
 
-④ ถัดไป: ขั้น 6 — reviewer ตรวจ `0e09cc2..HEAD` แล้ว rebuild portable (ดู memory always-rebuild-portable) + ให้คุณสมกกดูของจริง
+④ ถัดไป: คุณสมกกดูของจริงใน popup → ปรับหน้าตา หรือออก release v1.11.0 (ต้องถามก่อน release)
 
 ⑤ กับดัก
 - transcript มี `prompt_snapshot` ที่มีคำว่า update_plan/TaskCreate อยู่ในข้อความ system prompt → ต้องจับเฉพาะ `"type":"tool_use"` ที่ `name` ตรง ไม่ใช่ค้นคำเฉย ๆ

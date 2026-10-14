@@ -83,7 +83,7 @@
   อ่านสถานะทุก 2 วิ. เมนู Session context → Session alerts: Speed ช้า/ปกติ/เร็ว (×1.5/1/0.6) + ปิด pulse tray แยกได้.
   Waiting จึงเหลือความหมายเดียว = ตอบจบ turn แล้ว (ส้มนิ่ง).
 - **Goal progress** — ความคืบหน้าของงานใน session = ขั้นที่เสร็จ ÷ ขั้นทั้งหมด แสดงเป็นบรรทัดที่ 3
-  แถบฟ้า + `Step 3/6 · 50% · <ชื่อขั้นที่กำลังทำ>`. แหล่งข้อมูล: รายการ **Task** ใน transcript
-  (TaskCreate/TaskUpdate) ก่อน ถ้าไม่มีใช้ตาราง ✅/⬜ ใน `NEXT-SESSION.md` ของโฟลเดอร์ session
-  (เฉพาะ `status: active`) ไม่มีทั้งคู่ = ไม่แสดง. **ไม่ใช่** % context (นั่นคือ context window เต็มแค่ไหน).
-  (ออกแบบ 2026-10-14 ยังไม่ทำ)
+  แถบฟ้า + `Step 3/6 · 50% · <ชื่อขั้นที่กำลังทำ>`. แหล่งข้อมูล: **รายการขั้นตอน** ใน transcript
+  (แอป desktop = `update_plan`, CLI = TaskCreate/TaskUpdate) ก่อน ถ้าไม่มีหรือเสร็จครบแล้วใช้ตาราง ✅/⬜ ใน `NEXT-SESSION.md`
+  ของโฟลเดอร์ session (เฉพาะ `status: active`) ไม่มีทั้งคู่ = ไม่แสดง. รายการที่เสร็จครบ (หลัง wrap_up) = ซ่อน.
+  **ไม่ใช่** % context (นั่นคือ context window เต็มแค่ไหน). (ทำแล้ว 2026-10-15, ยังไม่ release)
