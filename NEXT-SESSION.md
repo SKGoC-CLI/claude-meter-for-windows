@@ -19,11 +19,11 @@ status: done
 | 6 | ตรวจภายนอก + portable สลับ + memory | main | ✅ |
 
 ③ สถานะจริง: GitHub main / tag / release / raw / README สะอาด
-**ยังเหลือ**: commit เก่าเปิดด้วย SHA ตรงได้ (เช่น `.../commit/662cb88.patch` ยังเห็นคำ) — ต้องให้ GitHub Support ล้าง
-ข้อความพร้อมส่งอยู่ `docs/GITHUB_SUPPORT_PURGE_2026-10-14.md` (untracked ตั้งใจ ไม่ commit)
+**ยอมรับความเสี่ยงที่เหลือ** (คุณสมกกตัดสิน 14 ต.ค.): commit เก่ายังเปิดด้วย SHA ตรงได้ + code search index ค้าง — **ไม่ส่ง GitHub Support** (repo มีแค่ 5 ดาว ไม่น่ามีคนคุ้ย) · ไม่เคยโพสต์ภาพ light-dark ที่ไหน · zip เก่าที่อาจถูกโหลดไป = ยอมรับ · archive ภายนอก = ไม่ตรวจ
+ไฟล์คำขอ Support ลบทิ้งแล้ว
 `docs/PROMO_TODO.md` (modified) + ไฟล์ docs/ untracked อื่นเป็นของเก่า ไม่เกี่ยว
 
-④ ถัดไป: คุณสมกกส่งคำขอ GitHub Support → หลังเขาตอบ ตรวจ `https://github.com/SKGoC-CLI/claude-meter-for-windows/commit/662cb88` ต้อง 404
+④ ถัดไป: สปรินต์นี้ปิดแล้ว · `bin\repo-backup-pre-rewrite.git` ลบได้เมื่อมั่นใจ (มีคำเดิมอยู่)
 งานเก่ารอสั่ง: step 3–7 Goal progress — ดู [WORK-LOG-2026-10-14-working-blink-goal-progress.md](WORK-LOG-2026-10-14-working-blink-goal-progress.md)
 
 ⑤ กับดัก

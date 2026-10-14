@@ -49,3 +49,7 @@
 ## โฟลเดอร์ เก็บ/ลบ
 - เก็บ: `bin\repo-backup-pre-rewrite.git` จนกว่า GitHub Support ล้างเสร็จและมั่นใจ — แล้วลบได้ (มันมีคำเดิมอยู่)
 - `docs/GITHUB_SUPPORT_PURGE_2026-10-14.md` ลบได้หลังส่งแล้ว
+
+## ปิดงาน
+- คุณสมกกตัดสิน: ไม่ส่ง GitHub Support (repo 5 ดาว ไม่น่ามีคนคุ้ย), ไม่เคยโพสต์ภาพ, ยอมรับ zip เก่า/archive ภายนอก
+- ลบ docs/GITHUB_SUPPORT_PURGE_2026-10-14.md แล้ว
