@@ -165,8 +165,7 @@ sealed class PopupForm : Form
 
     int ContextHeaderHeight => S(20);
     int ContextBlockHeight => S(55);
-    int GoalRowHeight => S(24); // extra line 3 when the session has a step list
-    int BlockHeight(SessionContext s) => ContextBlockHeight + (s.Goal is null ? 0 : GoalRowHeight);
+    int BlockHeight(SessionContext s) => s.State == SessionState.Idle ? S(28) : ContextBlockHeight; // Idle = name line only
     int ContextSectionHeight => _sessions.Count > 0 ? ContextHeaderHeight + _sessions.Sum(BlockHeight) : 0;
 
     static Color ContextColor(double pct) =>
@@ -948,16 +947,29 @@ sealed class PopupForm : Form
         var tokSize = g.MeasureString(tokens, _smallFont);
         g.DrawString(tokens, _smallFont, mutedBrush, pad + contentWidth - tokSize.Width, y);
 
-        // line 2: distance to auto-compact + age
-        long compactAt = (long)(ctx.WindowSize * 0.8);
-        string compactText = ctx.Tokens < compactAt
-            ? $"~{(compactAt - ctx.Tokens) / 1000}k to auto-compact"
-            : "past auto-compact";
-        var age = DateTimeOffset.Now - ctx.StartedAt;
-        string ageText = age.TotalDays >= 1 ? $"{(int)age.TotalDays}d old"
-            : age.TotalHours >= 1 ? $"{(int)age.TotalHours}h old"
-            : $"{Math.Max(1, (int)age.TotalMinutes)}m old";
-        g.DrawString($"{compactText}  ·  {ageText}", _tinyFont, mutedBrush, pad, y + S(17));
+        if (idle) return; // Idle = name line only
+
+        // line 2: the step list ("3/6 · <step>") when there is one, else distance to auto-compact + age
+        string line2;
+        if (ctx.Goal is { } goal)
+        {
+            string head = $"{Math.Min(goal.Done + 1, goal.Total)}/{goal.Total}";
+            line2 = string.IsNullOrWhiteSpace(goal.Current) ? head : $"{head} · {goal.Current}";
+        }
+        else
+        {
+            long compactAt = (long)(ctx.WindowSize * 0.8);
+            string compactText = ctx.Tokens < compactAt
+                ? $"~{(compactAt - ctx.Tokens) / 1000}k to auto-compact"
+                : "past auto-compact";
+            var age = DateTimeOffset.Now - ctx.StartedAt;
+            string ageText = age.TotalDays >= 1 ? $"{(int)age.TotalDays}d old"
+                : age.TotalHours >= 1 ? $"{(int)age.TotalHours}h old"
+                : $"{Math.Max(1, (int)age.TotalMinutes)}m old";
+            line2 = $"{compactText}  ·  {ageText}";
+        }
+        using (var fmt = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter })
+            g.DrawString(line2, _tinyFont, mutedBrush, new RectangleF(pad, y + S(17), contentWidth, S(16)), fmt);
 
         // thin bar
         int barY = y + S(37);
@@ -967,30 +979,8 @@ sealed class PopupForm : Form
         int fillW = (int)Math.Round(contentWidth * ctx.Percent / 100.0);
         if (fillW >= barH)
         {
-            using var fillBrush = new SolidBrush(idle ? MutedColor : color);
+            using var fillBrush = new SolidBrush(color);
             FillRounded(g, fillBrush, new Rectangle(pad, barY, fillW, barH), barH / 2);
-        }
-
-        // line 3 (only with a step list): "Step 3/6 · 50% · <step>" + thin accent bar
-        if (ctx.Goal is { } goal)
-        {
-            int gy = barY + S(10);
-            int goalPct = (int)Math.Round(goal.Done * 100.0 / goal.Total);
-            string head = $"Step {Math.Min(goal.Done + 1, goal.Total)}/{goal.Total} · {goalPct}%";
-            string text = string.IsNullOrWhiteSpace(goal.Current) ? head : $"{head} · {goal.Current}";
-            using var fmt = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter };
-            g.DrawString(text, _tinyFont, mutedBrush, new RectangleF(pad, gy, contentWidth, S(16)), fmt);
-
-            int gBarY = gy + S(16);
-            int gBarH = Math.Max(2, S(3));
-            using (var trackBrush = new SolidBrush(TrackColor))
-                FillRounded(g, trackBrush, new Rectangle(pad, gBarY, contentWidth, gBarH), gBarH / 2);
-            int gFillW = (int)Math.Round(contentWidth * goal.Done / (double)goal.Total);
-            if (gFillW >= gBarH)
-            {
-                using var goalBrush = new SolidBrush(idle ? MutedColor : Theme.Accent);
-                FillRounded(g, goalBrush, new Rectangle(pad, gBarY, gFillW, gBarH), gBarH / 2);
-            }
         }
     }
 
