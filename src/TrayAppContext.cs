@@ -433,12 +433,13 @@ sealed class TrayAppContext : ApplicationContext
         _pollTimer.Start();
 
         // Working blink: re-read session state every 5 s (local transcript tails, cheap),
-        // and fade the tray digits out and back in (1.2 s cycle) while any session is Working
+        // and dim the tray digits to ~45% and back (2 s cycle) while any session is Working —
+        // fading them out completely left a blank slot that looked silly
         _blinkTimer.Tick += (_, _) =>
         {
             if (++_blinkTicks % 50 == 0) RefreshSessionContext();
             double fade = _popup.Sessions.Any(s => s.State == SessionState.Working)
-                ? Math.Round(IconRenderer.WorkingPulse(1200) * 20) / 20 // 20 steps: skip identical frames
+                ? Math.Round(IconRenderer.WorkingPulse(2000) * 20) / 20 * 0.55 // 20 steps: skip identical frames
                 : 0;
             if (fade == _workingFade) return; // idle: no icon churn at all
             _workingFade = fade;

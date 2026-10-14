@@ -15,6 +15,7 @@ status: active
 | 2b | รอบ 2: tray กรอบเขียว fade 10 fps (แทนเส้นซ้าย) | main | ✅ (commit รวมกับ 2a — 2a ใช้ `IconRenderer.WorkingPulse`) |
 | 2c | รอบ 3: taskbar ตัวเลข cross-fade ↔ เขียว (เอากรอบออก) + popup glow แผ่ออก 1.6 วิ | main | ✅ |
 | 2d | รอบ 4: popup fade 1.4 วิ ไม่มี glow + taskbar ตัวเลข fade หาย/กลับ 1.2 วิ | main | ✅ |
+| 2e | รอบ 5: popup ผ่าน · taskbar จางเหลือ ~45% (ไม่หายหมด) รอบละ 2 วิ | main | ✅ portable สลับแล้ว — รอคุณสมกกดูจริง |
 | 3–7 | Goal progress (ดู WORK-LOG) | — | ⬜ ยังไม่สั่ง |
 
 ③ สถานะจริง: step 1–2 build Release 0 error, commit แล้ว. portable สลับเป็น build ใหม่และรันอยู่
@@ -27,7 +28,7 @@ status: active
 สลับ `_workingEdgeShown` ทุกวินาทีถ้ามี session Working → `RenderTrayIcon()` วาดเส้นเขียวซ้าย
 (`IconRenderer.DrawWorkingEdge`, สี `#6bcb77`). ปิด SESSION CONTEXT = ไม่มี session = ไม่กระพริบ.
 
-④ ถัดไป: รอคุณสมกกดูจริง → ปรับ. แล้วค่อย step 3 (หลังโควตา 7 วันรีเซ็ต) + ส่ง reviewer ตรวจ dc30df2..HEAD
+④ ถัดไป: รอคุณสมกกดู taskbar รอบ 5 (popup ผ่านแล้ว) → ปรับ/ผ่าน. ค่าอยู่ `TrayAppContext.cs` บรรทัด ~442: `WorkingPulse(2000)` = คาบ, `* 0.55` = ความลึกการจาง. แล้วค่อย step 3 (หลังโควตา 7 วันรีเซ็ต) + ส่ง reviewer ตรวจ dc30df2..HEAD
 
 ⑤ กับดัก
 - ห้ามใส่ backtick ใน bash heredoc — เขียน md ด้วย Write/Edit เท่านั้น
