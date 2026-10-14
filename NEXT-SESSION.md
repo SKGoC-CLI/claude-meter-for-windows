@@ -1,6 +1,6 @@
 # NEXT-SESSION — เตรียม release v1.11.0 (Step progress)
 
-status: active
+status: done
 
 > **ห้ามพิมพ์คำต้องห้าม "ab***t" เต็ม ๆ ลงไฟล์ใด ๆ ใน repo** · ห้ามชื่อโปรเจกต์จริงหลุดในภาพ/GIF ที่ขึ้น GitHub
 
@@ -15,11 +15,11 @@ status: active
 | 3 | docs/demo-v1.11.0.gif จาก `docs/Recording 2026-10-15 022419.mp4` ช่วงที่ลำดับแถวนิ่ง + วาดทับชื่อ (Oracle Exam Website → exam-site, KKS Card Management App → card-manager) + ลายน้ำ (skill demo-gif) | main | ✅ |
 | 4 | README ชี้ภาพ/GIF ใหม่ + อธิบาย Step progress | main | ✅ |
 | 5 | reviewer ตรวจ `7713b91..HEAD` + build zip portable | reviewer/main | ✅ |
-| 6 | commit + push + `gh release create v1.11.0 --draft` แนบ zip | main | ⬜ |
+| 6 | commit + push + `gh release create v1.11.0 --draft` แนบ zip | main | ✅ |
 
-③ สถานะจริง: โค้ด v1.11.0 อยู่บน main แล้ว (`65f0b96`) portable รันอยู่ · ไฟล์ในเครื่อง: docs/Recording*.mp4 untracked ตั้งใจไม่ commit
+③ สถานะจริง: v1.11.0 ครบ — main `c97fd94` push แล้ว, Draft release v1.11.0 มี ClaudeMeter-portable.zip (exe เดียว 63 MB), portable รัน v1.11.0.0 · docs/Recording*.mp4 + demo-v1.11.0-wm.mp4 untracked ตั้งใจไม่ commit
 
-④ ถัดไป: ขั้น 6 — push + gh release create v1.11.0 --draft
+④ ถัดไป: คุณสมกกกด Publish ที่ https://github.com/SKGoC-CLI/claude-meter-for-windows/releases (Draft v1.11.0) · หลัง publish เช็คหน้า release เปิดได้แบบ logged-out
 
 ⑤ กับดัก
 - คลิป 02:24: ลำดับ session สลับกลางคลิป → ใช้เฉพาะช่วงต้นที่ลำดับนิ่ง ไม่งั้นต้องไล่ปิดชื่อตามตำแหน่ง

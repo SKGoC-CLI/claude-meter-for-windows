@@ -191,5 +191,13 @@ Sprint รอบ 7:
 | 1 | hero GIF | **A.** จากคลิป 02:24 + วาดทับชื่อจริง (Oracle Exam Website → exam-site, KKS Card Management App → card-manager); ภาพนิ่งจาก popup-shot |
 | 2 | จุดหยุด | **A.** ทำครบ + GitHub release แบบ **Draft** — คุณสมกกกด Publish เอง |
 
-Sprint: ดูตารางใน NEXT-SESSION.md (6 ขั้น, main ทำเกือบหมด, reviewer ขั้น 5) · วัดจริง: private mem 70 MB, CPU 0.53 วิ/20 วิ (เดิม 0.23 — เพิ่มจากการอ่าน transcript ทุก 2 วิ; ยังเบา)
+Sprint: ดูตารางใน NEXT-SESSION.md (6 ขั้น, main ทำเกือบหมด, reviewer ขั้น 5)
+
+ผลรอบ 9 (ครบ 6 ขั้น):
+- `9085d77` version 1.11.0 + CHANGELOG + docs/RELEASE_NOTES_v1.11.0.md + docs/popup-v1.11.0.png (popup-shot, 728x1149)
+- `b1bb2db` docs/demo-v1.11.0.gif 2.2 MB — คลิป 02:24 วินาที 0–21 (ลำดับแถวนิ่ง เห็น Step 1/3), ทับชื่อด้วยภาพ GDI+ Segoe UI Bold 17px พื้น #1e1e1e: Oracle Exam Website → exam-site (กล่อง 180,446 332x22), KKS Card Management App → card-manager (180,662 388x22); scale 1280 + ลายน้ำ v1.11.0 y=h-th-70 · ตัวกลาง docs/demo-v1.11.0-wm.mp4 ไม่ commit
+- `d5b21e2` README ชี้ GIF/ภาพใหม่ + bullet Step progress
+- reviewer: ไม่มี blocker; แก้ 3 ข้อเล็ก (`c97fd94`): NEXT-SESSION ✅ ครบ = ซ่อน, ไม่เปิดไฟล์ถ้าไม่มี byte ใหม่, comment เก่า
+- zip = exe เดียว 63.2 MB → Draft release v1.11.0 (`gh release create --draft --target main`) — **ยังไม่ public** รอคุณสมกกกด Publish
+- คุณสมกกส่งรูปผิดมากลางทาง (ภาพทั้งจอ) → ไม่ใช้ ตามที่บอก "ไม่มีอะไร" · วัดจริง: private mem 70 MB, CPU 0.53 วิ/20 วิ (เดิม 0.23 — เพิ่มจากการอ่าน transcript ทุก 2 วิ; ยังเบา)
 
