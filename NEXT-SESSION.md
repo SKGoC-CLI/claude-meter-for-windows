@@ -24,6 +24,7 @@ status: active
 | 6e | reviewer ตรวจ dc30df2..HEAD (รวม 6f) | reviewer | ✅ ไม่มีบั๊กร้ายแรง — ดู [CODE-REVIEW-2026-10-14.md](CODE-REVIEW-2026-10-14.md) |
 | 6g | แก้ข้อ review 1,2,4,5,6,10 (scan session ย้ายไป `Task.Run`, popup ไม่ Reposition ถ้าขนาดเท่าเดิม, `_anim` หยุดเองเมื่อไม่มีจุด, try/catch ใน blink tick) | coder + main ตรวจ diff | ✅ build 0 error, portable สลับแล้ว — รอคุณสมกกดูว่า popup/tray ยังกระพริบปกติ |
 | 6h | ข้อ review 3: Asking ค้างเกิน 10 นาทีให้หยุดกระพริบส้มไหม | — | ⬜ คุณสมกกเลือกไม่แก้ (14 ต.ค.) |
+| 6i | **RELEASE v1.10.0** (tag + zip 63.2 MB + hero GIF `docs/demo-v1.10.0.gif` จาก Recording 11:04 ช่วง 15–45 วิ) | main | ✅ https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.10.0 — คนไม่ login เห็น (200), releases/latest = v1.10.0 |
 | 3–7 | Goal progress (ดู WORK-LOG) | — | ⬜ ยังไม่สั่ง |
 
 ③ สถานะจริง: step 1–2 build Release 0 error, commit แล้ว. portable สลับเป็น build ใหม่และรันอยู่
