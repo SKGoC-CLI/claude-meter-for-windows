@@ -15,14 +15,14 @@ status: active
 | 3 | (ถ้ามีฟิลด์) แถว `Usage credits: $X left` ใต้ Cloud credit (ย้ายจากเหนือ ตามคุณสมกก 2026-10-15), โชว์แม้ $0 | coder | ✅ key `credit_balance`, `UsageWindow.IsWallet`; ตอนนี้ไม่โชว์เพราะ API ส่ง null |
 | 4 | เมนูคลิกขวา 4 กลุ่ม: Popup shows / Window / Tray & alerts / App ("Show limits" → "Limits") | main | ✅ |
 | 5 | reviewer + build portable + screenshot ป๊อปอัป ให้คุณสมกกดู | reviewer/main | ✅ reviewer: ไม่มีบั๊กร้ายแรง แก้ข้อ 1 (CreateDirectory) แล้ว |
+| 5b | คุณสมกกเลือก C (2026-10-15): แถว Usage credits เป็นบรรทัดเล็ก (small font) ใต้ Cloud credit ไม่มีที่ว่าง | main | ✅ ใต้ Cloud = ขยับขึ้น S(18) สูง S(10); ใต้แถวอื่น (อาจมี ETA) = สูง S(28). ภาพ `docs/design/popup-usage-credits-small-2026-10-15.png` |
 | 6 | release — **รอคุณสมกกสั่งเท่านั้น** | main | ⬜ |
 
 ③ สถานะจริง: step 1-5 เสร็จ + commit แล้ว, build ผ่าน 0 error, portable รันเวอร์ชันใหม่อยู่. ยังไม่ bump เวอร์ชัน ยังไม่ release. แถว Usage credits **ยังไม่โผล่ในเครื่องจริง** เพราะ API ส่ง `spend.balance: null` (เห็นแค่ใน `--popup-shot` ที่ใส่ $7.50 ตัวอย่าง → `docs/design/popup-usage-credits-2026-10-15.png`)
 
-④ ถัดไป: รอคุณสมกกตรวจเมนูคลิกขวา + ภาพป๊อปอัป แล้วตัดสินข้อด้านล่าง
+④ ถัดไป: รอคุณสมกกดูภาพบรรทัดเล็ก (5b) แล้วตัดสินเรื่อง release ด้านล่าง
 
 ## รอคุณสมกกตัดสิน
-- แถว Usage credits ไม่มีหลอด เลยมีที่ว่างเปล่าใต้แถว (สูงเท่าแถวอื่น) — A. ปล่อยไว้ B. ทำแถวเตี้ยลง (ต้องแตะ layout engine) C. แสดงเป็นบรรทัดเล็กใต้ Cloud credit แทน
 - Release v1.12.0 เลยไหม — แนะนำรอจน `spend.balance` มีค่าจริงสักครั้ง (ลองเปิด usage credits บนเว็บ) จะได้รู้ว่ารูปข้อมูลที่เดาไว้ถูก
 
 ⑤ กับดัก

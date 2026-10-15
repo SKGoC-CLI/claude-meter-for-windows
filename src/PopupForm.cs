@@ -125,6 +125,12 @@ sealed class PopupForm : Form
     // the ETA line sits at y+S(38), just under the bar; the extra height is breathing room
     // *below* it, so it reads as part of its own row instead of the next row's label
     int RowHeight => _showEta ? S(66) : S(58);
+    // the prepaid balance is one small text line, no bar — tucks under the cloud credit
+    // right under the cloud credit (which never has an ETA line) it moves S(18) up into
+    // that row's empty space below the bar; elsewhere an ETA line could sit there
+    int RowHeightFor(IReadOnlyList<UsageWindow> ws, int i) =>
+        ws[i].Key != CreditBalanceKey ? RowHeight : TucksUnderCloud(ws, i) ? S(10) : S(28);
+    static bool TucksUnderCloud(IReadOnlyList<UsageWindow> ws, int i) => i > 0 && ws[i - 1].Key == CloudCreditKey;
 
     // never shorter than the minimize button's hit area, even with the logo off,
     // so "−" never lands on top of the first row's "resets …" text
@@ -540,7 +546,7 @@ sealed class PopupForm : Form
 
         int rows = _snapshot?.Windows.Count ?? 0;
         // zero rows with data and no error means every limit is hidden by choice
-        int body = rows > 0 ? rows * RowHeight
+        int body = rows > 0 ? Enumerable.Range(0, rows).Sum(i => RowHeightFor(_snapshot!.Windows, i))
             : (_snapshot is not null && _error is null) ? S(4)
             : S(64); // space for error/loading text
         if (_showFixLogin) body += S(48);               // room for the fix-login button
@@ -647,10 +653,11 @@ sealed class PopupForm : Form
         }
         else
         {
-            foreach (var w in _snapshot.Windows)
+            var ws = _snapshot.Windows;
+            for (int i = 0; i < ws.Count; i++)
             {
-                DrawRow(g, w, y, pad, contentWidth);
-                y += RowHeight;
+                DrawRow(g, ws[i], TucksUnderCloud(ws, i) ? y - S(18) : y, pad, contentWidth);
+                y += RowHeightFor(ws, i);
             }
         }
 
@@ -765,6 +772,11 @@ sealed class PopupForm : Form
     void DrawRow(Graphics g, UsageWindow w, int y, int pad, int contentWidth)
     {
         using var labelBrush = new SolidBrush(LabelColor);
+        if (w.Key == CreditBalanceKey)
+        {
+            g.DrawString($"{w.Label}: {ValueText(w)}", _smallFont, labelBrush, pad, y);
+            return;
+        }
         g.DrawString(w.Label + ":", _labelFont, labelBrush, pad, y);
 
         var barColor = Theme.ColorFor(w.Utilization);
@@ -806,8 +818,6 @@ sealed class PopupForm : Form
             var size = g.MeasureString(moneyText, _smallFont);
             g.DrawString(moneyText, _smallFont, mutedBrush, pad + contentWidth - size.Width, y + S(3));
         }
-
-        if (w.Key == CreditBalanceKey) return; // balance has no bar, ETA or reset
 
         // progress bar
         int barY = y + S(28);
