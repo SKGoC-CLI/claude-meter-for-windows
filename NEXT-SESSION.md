@@ -19,6 +19,7 @@ status: active
 | 7 | (grilling 2) เอาหลอด Cloud credit ออก → Cloud + Usage credits รวมบรรทัดเล็กบรรทัดเดียว, expiry ชิดขวา สีจาง/ส้ม ≤7d/แดง ≤1d, ลบ tuck ของ 5b | main | ✅ `DrawCreditLine` / `CreditLineText` |
 | 8 | tray tooltip Cloud credit เป็น `$X left` + CONTEXT.md | main | ✅ คำใหม่ *Credit line* |
 | 9 | reviewer + build portable + popup-shot ให้คุณสมกกดู | reviewer/main | ✅ ไม่มีบั๊ก; ภาพ `docs/design/popup-credit-line-2026-10-15.png` (ขั้น 7-9 commit รวมกัน) |
+| 10 | คุณสมกกเห็นบรรทัด Usage credits ไม่โผล่ (balance ยัง null แม้เปิดแล้ว) → เลือก A: แถว "Extra usage" เปลี่ยนป้ายเป็น "Usage credits" (คำของ API), balance เป็น "Credit balance", บรรทัดเครดิตขยับขึ้นชิดหลอดเมื่อแถวบนไม่มี ETA | main/reviewer | ✅ ภาพ `docs/design/popup-usage-credits-rename-2026-10-15.png` |
 | 6 | release — **รอคุณสมกกสั่งเท่านั้น** | main | ⬜ |
 
 ③ สถานะจริง: step 1-5, 5b, 7-9 เสร็จ + commit + push แล้ว (ล่าสุด `e59947c`), คุณสมกกดูภาพ Credit line แล้ว "ดูดีละ" (2026-10-15), build ผ่าน 0 error, portable รันเวอร์ชันใหม่อยู่. ยังไม่ bump เวอร์ชัน ยังไม่ release. แถว Usage credits **ยังไม่โผล่ในเครื่องจริง** เพราะ API ส่ง `spend.balance: null` (เห็นแค่ใน `--popup-shot` ที่ใส่ $7.50 ตัวอย่าง → `docs/design/popup-usage-credits-2026-10-15.png`)

@@ -164,7 +164,7 @@ sealed class UsageClient
                 ?? (limitDollars is > 0 ? usedDollars / limitDollars * 100 : null);
 
             if (utilization is { } u)
-                windows.Add(new UsageWindow("extra_usage", "Extra usage", u, null,
+                windows.Add(new UsageWindow("extra_usage", "Usage credits", u, null,
                     false, spend?["severity"]?.GetValue<string>() ?? "normal",
                     usedDollars, limitDollars));
         }
@@ -188,7 +188,8 @@ sealed class UsageClient
             // undocumented field changed type — lose the cloud row, never the whole poll
         }
 
-        // "Usage credits": prepaid balance, shown even when the spend toggle is off.
+        // "Credit balance": prepaid spend.balance, shown even when the spend toggle is off
+        // (the spend block itself is the "Usage credits" row above — the API's own name).
         // Shape assumed like spend.used (amount_minor + exponent); a plain number = dollars.
         try
         {
@@ -200,7 +201,7 @@ sealed class UsageClient
                 _ => null
             };
             if (balance is { } bal)
-                windows.Add(new UsageWindow("credit_balance", "Usage credits", 0, null, false, "normal", bal));
+                windows.Add(new UsageWindow("credit_balance", "Credit balance", 0, null, false, "normal", bal));
         }
         catch (Exception ex) when (ex is InvalidOperationException or FormatException)
         {

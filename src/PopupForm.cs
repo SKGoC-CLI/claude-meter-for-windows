@@ -126,7 +126,17 @@ sealed class PopupForm : Form
     // *below* it, so it reads as part of its own row instead of the next row's label
     int RowHeight => _showEta ? S(66) : S(58);
     // cloud credit + usage credits share one small text line, no bars (sorted last)
-    int CreditLineHeight => _snapshot?.Windows.Any(w => w.IsWallet) == true ? S(28) : 0;
+    bool HasCreditLine => _snapshot?.Windows.Any(w => w.IsWallet) == true;
+
+    /// <summary>How far the credit line moves up into the row above when that row draws no
+    /// ETA line — sits S(14) under its bar instead of a full row gap. The ETA can come or go
+    /// between layouts, so OnPaint relayouts when this differs from <see cref="_layoutLift"/>.</summary>
+    int CreditLineLift()
+    {
+        var last = _snapshot?.Windows.LastOrDefault(w => !w.IsWallet);
+        return last is null || (_showEta && EtaText(last) is not null) ? 0 : RowHeight - S(48);
+    }
+    int _layoutLift;
 
     // never shorter than the minimize button's hit area, even with the logo off,
     // so "−" never lands on top of the first row's "resets …" text
@@ -301,7 +311,7 @@ sealed class PopupForm : Form
         // worst-case ETA string, used below so the ETA line's width is always budgeted for
         float etaW = ShowEta ? g.MeasureString("full in ~23h 59m", _smallFont).Width : 0;
         float widest = 0;
-        if (CreditLineHeight > 0)
+        if (HasCreditLine)
         {
             var (left, right, _) = CreditLineText();
             widest = g.MeasureString(left, _smallFont).Width
@@ -566,8 +576,9 @@ sealed class PopupForm : Form
         if (_miniMode) return S(34);
 
         int rows = _snapshot?.Windows.Count ?? 0;
+        _layoutLift = CreditLineLift();
         // zero rows with data and no error means every limit is hidden by choice
-        int body = rows > 0 ? _snapshot!.Windows.Count(w => !w.IsWallet) * RowHeight + CreditLineHeight
+        int body = rows > 0 ? _snapshot!.Windows.Count(w => !w.IsWallet) * RowHeight + (HasCreditLine ? S(28) - _layoutLift : 0)
             : (_snapshot is not null && _error is null) ? S(4)
             : S(64); // space for error/loading text
         if (_showFixLogin) body += S(48);               // room for the fix-login button
@@ -679,10 +690,12 @@ sealed class PopupForm : Form
                 DrawRow(g, w, y, pad, contentWidth);
                 y += RowHeight;
             }
-            if (CreditLineHeight > 0)
+            if (HasCreditLine)
             {
-                DrawCreditLine(g, y, pad, contentWidth);
-                y += CreditLineHeight;
+                int lift = CreditLineLift();
+                if (lift != _layoutLift) BeginInvoke(RecomputeLayout); // ETA appeared/vanished
+                DrawCreditLine(g, y - lift, pad, contentWidth);
+                y += S(28) - lift;
             }
         }
 
