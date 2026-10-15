@@ -879,7 +879,7 @@ sealed class TrayAppContext : ApplicationContext
         int threshold = _settings.NotifyThreshold;
         if (threshold <= 0) return;
 
-        foreach (var w in snapshot.Windows.Where(w => w.Key != "cloud_credit")) // a wallet, never a blocking limit
+        foreach (var w in snapshot.Windows.Where(w => !w.IsWallet)) // a wallet, never a blocking limit
         {
             if (w.Utilization >= threshold)
             {
@@ -1010,7 +1010,9 @@ sealed class TrayAppContext : ApplicationContext
 
         string tooltip = _lastSnapshot is null
             ? "Claude Meter — " + (_lastError is null ? "loading…" : "error")
-            : string.Join("\n", _lastSnapshot.Windows.Select(w => $"{w.Label}: {Math.Round(w.Utilization)}%"));
+            : string.Join("\n", _lastSnapshot.Windows.Select(w => w.Key == "credit_balance"
+                ? $"{w.Label}: ${w.UsedDollars:0.00} left"
+                : $"{w.Label}: {Math.Round(w.Utilization)}%"));
         // NotifyIcon.Text caps at 127 chars
         _trayIcon.Text = tooltip.Length > 127 ? tooltip[..127] : tooltip;
     }
@@ -1024,7 +1026,7 @@ sealed class TrayAppContext : ApplicationContext
     double? TrayDisplayValue()
     {
         // cloud credit is a wallet, never a blocking limit — keep it out of the icon
-        var windows = _lastSnapshot?.Windows.Where(w => w.Key != "cloud_credit").ToList();
+        var windows = _lastSnapshot?.Windows.Where(w => !w.IsWallet).ToList();
         if (windows is null || windows.Count == 0) return null;
 
         double max = windows.Max(w => w.Utilization);

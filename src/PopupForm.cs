@@ -302,7 +302,7 @@ sealed class PopupForm : Form
         foreach (var w in _snapshot?.Windows ?? Array.Empty<UsageWindow>())
         {
             float labelW = g.MeasureString(w.Label + ":", _labelFont).Width;
-            float pctW = g.MeasureString(w.Key == CloudCreditKey ? ValueText(w) : "100%", _valueFont).Width;
+            float pctW = g.MeasureString(w.Key is CloudCreditKey or CreditBalanceKey ? ValueText(w) : "100%", _valueFont).Width;
             float resetW = 0;
             if (w.ResetsAt is { } resets)
             {
@@ -343,11 +343,13 @@ sealed class PopupForm : Form
     static string MoneyText(double used, double limit) => $"${used:0.00} / ${limit:0.00}";
 
     const string CloudCreditKey = "cloud_credit";
+    const string CreditBalanceKey = "credit_balance"; // prepaid balance: value only, no bar
 
     /// <summary>Big number beside the label: percent, except the cloud credit, which reads
     /// as dollars left (same as claude.ai's "$98 of $100 left").</summary>
     static string ValueText(UsageWindow w) =>
-        w.Key == CloudCreditKey && w.UsedDollars is { } used && w.LimitDollars is { } limit
+        w.Key == CreditBalanceKey && w.UsedDollars is { } bal ? $"${bal:0.00} left"
+        : w.Key == CloudCreditKey && w.UsedDollars is { } used && w.LimitDollars is { } limit
             ? $"${Math.Max(0, limit - used):0.00} left"
             : $"{Math.Round(w.Utilization)}%";
 
@@ -805,6 +807,8 @@ sealed class PopupForm : Form
             g.DrawString(moneyText, _smallFont, mutedBrush, pad + contentWidth - size.Width, y + S(3));
         }
 
+        if (w.Key == CreditBalanceKey) return; // balance has no bar, ETA or reset
+
         // progress bar
         int barY = y + S(28);
         int barH = Math.Max(4, S(6));
@@ -832,7 +836,7 @@ sealed class PopupForm : Form
     /// computed or would be noise (idle, just reset, or resetting before it fills).</summary>
     string? EtaText(UsageWindow w)
     {
-        if (History is null || w.Key == CloudCreditKey) return null; // expires, never "fills"
+        if (History is null || w.Key is CloudCreditKey or CreditBalanceKey) return null; // expires, never "fills"
         var now = DateTimeOffset.Now;
 
         double remaining;

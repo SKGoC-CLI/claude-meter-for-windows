@@ -20,6 +20,7 @@ static class PopupShot
             new UsageWindow("seven_day", "Weekly (all models)", 76, now.AddDays(3).AddHours(5)),
             new UsageWindow("seven_day_opus", "Weekly (Opus)", 93, now.AddDays(3).AddHours(5)),
             new UsageWindow("extra_usage", "Extra usage", 24.8, null, UsedDollars: 12.40, LimitDollars: 50.00),
+            new UsageWindow("credit_balance", "Usage credits", 0, null, UsedDollars: 7.50),
             new UsageWindow("cloud_credit", "Cloud credit", 1.49, now.AddDays(34), UsedDollars: 1.49, LimitDollars: 100),
         }, now);
 
