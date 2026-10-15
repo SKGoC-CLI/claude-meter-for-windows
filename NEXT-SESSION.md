@@ -12,7 +12,7 @@ status: active
 |------|-----|-----|-------|
 | 1 | แอปเขียน `usage-raw.json` (คำตอบดิบ API) ลง log folder ทุก poll สำเร็จ | main | ✅ |
 | 2 | build portable + รัน → อ่าน `usage-raw.json` หาฟิลด์ Balance | main | ✅ พบ `spend.balance` แต่เป็น null (usage credits ปิดอยู่ `user_disabled: true`) |
-| 3 | (ถ้ามีฟิลด์) แถว `Usage credits: $X left` เหนือ Cloud credit, โชว์แม้ $0 | coder | ✅ key `credit_balance`, `UsageWindow.IsWallet`; ตอนนี้ไม่โชว์เพราะ API ส่ง null |
+| 3 | (ถ้ามีฟิลด์) แถว `Usage credits: $X left` ใต้ Cloud credit (ย้ายจากเหนือ ตามคุณสมกก 2026-10-15), โชว์แม้ $0 | coder | ✅ key `credit_balance`, `UsageWindow.IsWallet`; ตอนนี้ไม่โชว์เพราะ API ส่ง null |
 | 4 | เมนูคลิกขวา 4 กลุ่ม: Popup shows / Window / Tray & alerts / App ("Show limits" → "Limits") | main | ✅ |
 | 5 | reviewer + build portable + screenshot ป๊อปอัป ให้คุณสมกกดู | reviewer/main | ✅ reviewer: ไม่มีบั๊กร้ายแรง แก้ข้อ 1 (CreateDirectory) แล้ว |
 | 6 | release — **รอคุณสมกกสั่งเท่านั้น** | main | ⬜ |

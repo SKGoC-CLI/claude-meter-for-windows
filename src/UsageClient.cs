@@ -209,7 +209,7 @@ sealed class UsageClient
 
         // Session first, plain weekly second, model-scoped after, wallet last.
         return windows
-            .OrderBy(w => w.Key switch { "five_hour" => 0, "seven_day" => 1, "extra_usage" => 8, "credit_balance" => 9, "cloud_credit" => 10, _ => 2 })
+            .OrderBy(w => w.Key switch { "five_hour" => 0, "seven_day" => 1, "extra_usage" => 8, "cloud_credit" => 9, "credit_balance" => 10, _ => 2 })
             .ThenBy(w => w.Label, StringComparer.Ordinal)
             .ToList();
     }

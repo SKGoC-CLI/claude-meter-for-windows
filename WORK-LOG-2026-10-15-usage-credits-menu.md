@@ -40,7 +40,7 @@ Exit
 |---|---|---|---|---|
 | 1 | แอปเขียน `usage-raw.json` ใน log folder ทุก poll สำเร็จ | coder | 2 | มีเครื่องมือดีบั๊ก ยังไม่มีฟีเจอร์ใหม่ |
 | 2 | build portable + รัน → main model อ่าน `usage-raw.json` หาฟิลด์ Balance | main | 2 | รู้แล้วว่ามี/ไม่มี Balance |
-| 3 | (ถ้ามี) parse Balance → แถว `Usage credits: $X left` เหนือ Cloud credit + PopupShot sample | coder | 4 | แถวใหม่ทำงาน (ทิ้งได้ถ้าไม่มีฟิลด์) |
+| 3 | (ถ้ามี) parse Balance → แถว `Usage credits: $X left` ใต้ Cloud credit (ย้ายจากเหนือ ตามคุณสมกก 2026-10-15) + PopupShot sample | coder | 4 | แถวใหม่ทำงาน (ทิ้งได้ถ้าไม่มีฟิลด์) |
 | 4 | จัดเมนูคลิกขวาเป็น 4 กลุ่มตามโครงข้างบน | coder | 4 | เมนูใหม่ใช้ได้ |
 | 5 | reviewer ตรวจ diff + build portable + screenshot เมนู/ป๊อปอัปให้คุณสมกกดู | reviewer + main | 3 | พร้อมให้คุณสมกกตรวจด้วยตา |
 | 6 | (รอคุณสมกกอนุมัติ) bump เวอร์ชัน + release | main | 3 | — ต้องถามก่อนเสมอ |
