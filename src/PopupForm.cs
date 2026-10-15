@@ -1002,38 +1002,35 @@ sealed class PopupForm : Form
         float ageW = g.MeasureString(ageText, _tinyFont).Width;
         g.DrawString(ageText, _tinyFont, mutedBrush, pad + contentWidth - ageW, line2Y);
 
-        // line 2, ≤10 steps: ●●◉○○○ 3/6  <step> — done green, current amber (fades while Working), rest grey
+        // line 2, ≤10 steps: ▬▬▬▭▭▭ 3/6  <step> — colourless so it never reads as the state dot:
+        // done muted, current label-bright (fades while Working), rest track
         if (ctx.Goal is { Total: > 0 and <= 10 } dg)
         {
             float lh = g.MeasureString("Ag", _tinyFont).Height;
-            int sd = Math.Max(4, S(6)), gap = Math.Max(2, S(3));
-            float x = pad;
-            var oldMode = g.SmoothingMode;
-            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            int sw = Math.Max(6, S(10)), sh = Math.Max(3, S(4)), gap = Math.Max(2, S(2));
+            int x = pad, sy = line2Y + (int)Math.Round((lh - sh) / 2f);
             for (int i = 0; i < dg.Total; i++)
             {
-                var r = new RectangleF(x, line2Y + (lh - sd) / 2f, sd, sd);
-                Color c = i < dg.Done ? Theme.Success : i == dg.Done ? Theme.Warning : TrackColor;
+                var r = new Rectangle(x, sy, sw, sh);
+                Color c = i < dg.Done ? MutedColor : i == dg.Done ? LabelColor : TrackColor;
                 if (i == dg.Done && ctx.State == SessionState.Working)
                 {
                     c = Color.FromArgb(255 - (int)(191 * IconRenderer.WorkingPulse((int)(1400 * AlertMul))), c);
-                    _workingDotRects.Add(Rectangle.Ceiling(RectangleF.Inflate(r, 1, 1)));
+                    _workingDotRects.Add(Rectangle.Inflate(r, 1, 1));
                 }
                 using var b = new SolidBrush(c);
-                g.FillEllipse(b, r);
-                x += sd + gap;
+                FillRounded(g, b, r, sh / 2);
+                x += sw + gap;
             }
-            g.SmoothingMode = oldMode;
-            x += S(3);
             string frac = $"{Math.Min(dg.Done + 1, dg.Total)}/{dg.Total}";
-            g.DrawString(frac, _tinyFont, mutedBrush, x, line2Y);
-            x += g.MeasureString(frac, _tinyFont).Width + S(4);
+            g.DrawString(frac, _tinyFont, mutedBrush, x + S(4), line2Y);
+            float tx = x + S(4) + g.MeasureString(frac, _tinyFont).Width + S(4);
             if (!string.IsNullOrWhiteSpace(dg.Current))
             {
                 using var curBrush = new SolidBrush(LabelColor);
                 using var cf = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter };
                 g.DrawString(dg.Current, _tinyFont, curBrush,
-                    new RectangleF(x, line2Y, Math.Max(0, pad + contentWidth - ageW - S(12) - x), S(16)), cf);
+                    new RectangleF(tx, line2Y, Math.Max(0, pad + contentWidth - ageW - S(12) - tx), S(16)), cf);
             }
         }
         else

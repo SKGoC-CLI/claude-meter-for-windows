@@ -14,12 +14,12 @@ status: active
 | 2 | จุด step + `3/6` จาง + หัวข้อ, >10 step = แบบเดิม, ส้มกระพริบเฉพาะ Working | main | ✅ `DrawContextBlock` |
 | 3 | TaskCreate ใช้ `subject` ก่อน `activeForm` | main | ✅ self-check ครอบแล้ว |
 | 4 | review + build portable + `--popup-shot` ให้คุณสมกกดู | main | ✅ self-review (diff ~45 บรรทัด), `--goal-selftest` OK, portable ใหม่รันอยู่, ภาพ `docs/design/popup-step-dots-2026-10-15.png` |
-| 5 | ปรับตามภาพ | main | ⬜ |
+| 5 | ปรับตามภาพ: คุณสมกกว่าจุดซ้ำกับจุดสถานะ → grilling รอบ 2 เลือกแท่งสั้นต่อกัน ▬▬▭ ไม่มีสี (เสร็จเทาอ่อน / กำลังทำขาว / ยังไม่ทำเทาเข้ม) | main | ✅ ภาพ `docs/design/popup-step-segments-2026-10-15.png`, รอคุณสมกกดูของจริง |
 | 6 | release v1.12.0 (รวมงาน credit line ที่เสร็จแล้ว) — **รอคุณสมกกสั่งเท่านั้น** | main | ⬜ |
 
 ③ สถานะจริง: step 1-4 เสร็จ + commit + push. build 0 error, portable เวอร์ชันใหม่รันอยู่. ยังไม่ bump เวอร์ชัน
 
-④ ถัดไป: step 5 ปรับตามภาพที่คุณสมกกเห็น (จุดเทา `TrackColor` ในธีมมืดอาจจางเกิน)
+④ ถัดไป: คุณสมกกดูแท่งในป๊อปอัปจริง → ผ่านแล้วค่อย release (step 6)
 
 ## รอคุณสมกกตัดสิน
 - (ไม่มีตอนนี้ — release รอสั่งหลังงานจุด step)
