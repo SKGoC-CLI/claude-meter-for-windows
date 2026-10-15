@@ -22,7 +22,10 @@ status: done
 ④ ถัดไป: ไม่มีงานค้าง — sprint จบ
 
 ## รอคุณสมกกตัดสิน
-- (ไม่มี)
+- ไฟล์ค้างนอก git (มีมาก่อน session นี้): คลิป `docs/Recording *.mp4/.gif`, `docs/demo-*-wm.mp4`, `docs/demo 16 July 2026.mp4`, `docs/Screenshot 2026-10-15 022002.png`, `docs/GITHUB_APPEAL_4649709.md`, `docs/PROMO_DRAFTS_2026-09-03.md` + `docs/PROMO_TODO.md` ที่แก้ค้าง. /zzz **ไม่ได้ commit** เพราะคลิปดิบมีชื่อโปรเจกต์จริง/ข้อความไทย และ repo เป็น public (ขัดกฎ mockup)
+  - A. ใส่ `docs/Recording*`, `docs/*-wm.mp4`, `docs/demo 16*` ลง `.gitignore`, commit แค่ PROMO_* (แนะนำ)
+  - B. ย้ายคลิปดิบออกไปเก็บนอก repo
+  - C. ปล่อยไว้แบบนี้
 
 ⑤ กับดัก
 - Bash tool ในเครื่องนี้ล่มกลาง session ("claude-xxxx-cwd: No such file") → ใช้ PowerShell แทนได้
