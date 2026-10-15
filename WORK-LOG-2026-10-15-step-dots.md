@@ -57,6 +57,13 @@
 | 6 | วาดแท่งแทนจุด + สีขาว/เทา + CONTEXT.md | main | ~1-2% | แท่งใช้ได้ |
 | 7 | build portable + popup-shot ให้คุณสมกกดู + commit | main | ~1% | รอดูภาพ |
 
+## grilling รอบ 3 (2026-10-15 16:05) — "หลัง 6/6 เอาแค่หัวข้อสั้นๆ"
+ต้นเหตุ: session ที่ wrap_up แล้วใช้ตาราง NEXT-SESSION.md แทน และเอาช่อง "งาน" มาทั้งช่อง
+| ข้อ | คำถาม | เลือก |
+|-----|-------|-------|
+| 1 | ตัดยังไง | **A** — ตัดที่เครื่องหมายแรก `(` `—` `–` `:` `·` `,` ใช้กับทุกแหล่ง (update_plan / TaskCreate / NEXT-SESSION); ยังยาวเกิน = `…` เหมือนเดิม |
+ทำแล้ว: `ContextMonitor.ShortStep` + เคสใน `--goal-selftest`
+
 ## ทำแล้ว 2026-10-15 (บ่าย)
 - step 1-4 เสร็จใน commit เดียว: หัวข้อ CURRENT SESSION(S), เมนู Current session, จุด step ใน PopupForm.DrawContextBlock (>10 ขั้น = Step x/y แบบเดิม), TaskCreate ใช้ subject ก่อน, CONTEXT.md
 - ภาพ docs/design/popup-step-dots-2026-10-15.png

@@ -15,6 +15,7 @@ status: active
 | 3 | TaskCreate ใช้ `subject` ก่อน `activeForm` | main | ✅ self-check ครอบแล้ว |
 | 4 | review + build portable + `--popup-shot` ให้คุณสมกกดู | main | ✅ self-review (diff ~45 บรรทัด), `--goal-selftest` OK, portable ใหม่รันอยู่, ภาพ `docs/design/popup-step-dots-2026-10-15.png` |
 | 5 | ปรับตามภาพ: คุณสมกกว่าจุดซ้ำกับจุดสถานะ → grilling รอบ 2 เลือกแท่งสั้นต่อกัน ▬▬▭ ไม่มีสี (เสร็จเทาอ่อน / กำลังทำขาว / ยังไม่ทำเทาเข้ม) | main | ✅ ภาพ `docs/design/popup-step-segments-2026-10-15.png`, รอคุณสมกกดูของจริง |
+| 5b | grilling รอบ 3: ชื่อขั้นยาวเกิน → ตัดที่เครื่องหมายแรก `(` `—` `:` `·` `,` (`ShortStep` ใน ContextMonitor, ทุกแหล่ง) | main | ✅ selftest ครอบ |
 | 6 | release v1.12.0 (รวมงาน credit line ที่เสร็จแล้ว) — **รอคุณสมกกสั่งเท่านั้น** | main | ⬜ |
 
 ③ สถานะจริง: step 1-4 เสร็จ + commit + push. build 0 error, portable เวอร์ชันใหม่รันอยู่. ยังไม่ bump เวอร์ชัน

@@ -323,7 +323,7 @@ static class ContextMonitor
         if (live.Count == 0 || live.All(s => s.Status == "completed")) return null;
         var current = live.FirstOrDefault(s => s.Status == "in_progress");
         if (current.Text is null) current = live.FirstOrDefault(s => s.Status != "completed");
-        return new Goal(live.Count(s => s.Status == "completed"), live.Count, current.Text);
+        return new Goal(live.Count(s => s.Status == "completed"), live.Count, ShortStep(current.Text));
     }
 
     /// <summary>
@@ -354,12 +354,22 @@ static class ContextMonitor
                 }
                 else if (l.Contains('✅')) { total++; done++; }
             }
-            return total > done ? new Goal(done, total, current) : null; // all ✅ = finished, hidden like a done task list
+            return total > done ? new Goal(done, total, current is null ? null : ShortStep(current)) : null; // all ✅ = finished, hidden like a done task list
         }
         catch
         {
             return null; // locked mid-save etc.; the next poll tries again
         }
+    }
+
+    static readonly string[] StepSeparators = { " (", "(", " —", " – ", ": ", " · ", ", " };
+
+    /// <summary>The step's headline: text before the first "(", "—", ":", "·" or ",", so a
+    /// "release v1.12.0 (incl. X) — wait for go" cell shows as "release v1.12.0".</summary>
+    static string ShortStep(string text)
+    {
+        int cut = StepSeparators.Select(s => text.IndexOf(s, StringComparison.Ordinal)).Where(i => i > 0).DefaultIfEmpty(-1).Min();
+        return cut > 0 ? text[..cut].TrimEnd() : text;
     }
 
     /// <summary>Runnable check, `--goal-selftest`: replays both tool styles, incrementally, from a temp transcript.</summary>
@@ -402,6 +412,8 @@ static class ContextMonitor
             Expect(ReadNextSession(dir), new Goal(1, 3, "b c"), "NEXT-SESSION active");
             File.WriteAllText(ns, File.ReadAllText(ns).Replace("status: active", "status: done"));
             Expect(ReadNextSession(dir), null, "NEXT-SESSION done");
+            if (ShortStep("release v1.12.0 (incl. x) — wait") != "release v1.12.0" || ShortStep("tweak: y") != "tweak"
+                || ShortStep("plain step") != "plain step") throw new Exception("ShortStep");
         }
         finally { Directory.Delete(dir, true); }
 
