@@ -114,3 +114,29 @@ claim = **GitHub**, ชื่อที่กระทบ = `SKGoC-CLI / claude-m
 others"** (ทั้งโปรไฟล์ถูกซ่อน ไม่ใช่แค่ repo เดียว), เคยติดต่อมาก่อน = **Yes**
 
 **พักโปรโมตทุกช่องต่อ** จนกว่าเปิด Incognito แล้วเข้า repo ได้
+
+---
+
+## ✅ 2026-09-03 — ปลดแฟลกแล้ว โปรโมตเดินหน้าได้
+
+ตรวจแบบไม่ล็อกอินซ้ำทุกจุดในตารางข้างบน: **200 หมด** — หน้า repo, หน้าโปรไฟล์,
+หน้า release v1.9.1, `raw.githubusercontent.com/.../README.md`,
+`api.github.com/users/SKGoC-CLI` และ `releases/latest` คืนค่า `v1.9.1`
+`gh api users/SKGoC-CLI` แบบล็อกอินก็กลับมาใช้ได้ (เดือนที่แล้ว 404 แม้ล็อกอิน)
+ไม่ได้แก้โค้ดอะไรเลยทั้งสองรอบ — ticket 4649709 ถือว่าจบ
+
+**สถานะอื่นที่ตรวจพร้อมกันวันนี้:**
+- ยอดโหลด `ClaudeMeter-portable.zip` ของ v1.9.1 = **0** (ปล่อยตอนบัญชีถูกซ่อนพอดี)
+- awesome-claude-code **#2215** ยัง open ไม่มีใครแตะตั้งแต่ 12 ก.ค. คอมเมนต์มีแค่ 2 อัน
+  คือบอต validation กับคอมเมนต์เล่าที่มาของตัวเราเอง
+  หมายเหตุ: มันเป็น **issue ไม่ใช่ PR** → `gh pr view 2215` จะ error
+  ต้องใช้ `gh api repos/hesreallyhim/awesome-claude-code/issues/2215`
+- โพสต์เก่า r/ClaudeCode `1uux0l8` ยัง `is_robot_indexable: false`,
+  `approved_at_utc: null` = ตายสนิท
+- karma ของ u/Overall_Rate_8351 ยัง = **1** (post karma 0, comment karma 1)
+  → **นี่คืออุปสรรคที่เหลืออยู่ ไม่ใช่ GitHub อีกแล้ว**
+
+**ร่างโพสต์ครบทุกช่อง + ตารางว่าต้องกดอะไรบ้าง อยู่ที่
+[`docs/PROMO_DRAFTS_2026-09-03.md`](PROMO_DRAFTS_2026-09-03.md)**
+ลำดับที่แนะนำ: X → Show HN → คอมเมนต์ #2215 → modmail r/ClaudeCode →
+(สะสม karma 1–2 สัปดาห์) → r/SideProject → r/csharp

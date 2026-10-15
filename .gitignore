@@ -19,4 +19,11 @@ docs/screenshot 3.png
 docs/demo.mp4
 docs/screenshot1 12 July 2026.png
 docs/demo 12 July 2026.mp4
-docs/Recording 2026-07-12 082350.mp4
+
+# raw screen recordings / screenshots: real project names + Thai text, never public
+docs/Recording *
+docs/Screenshot *
+docs/*-wm.mp4
+docs/demo 16 July 2026.mp4
+# personal support-ticket correspondence (real name)
+docs/GITHUB_APPEAL_*.md
