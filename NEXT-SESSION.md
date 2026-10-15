@@ -21,9 +21,11 @@ status: active
 | 9 | reviewer + build portable + popup-shot ให้คุณสมกกดู | reviewer/main | ✅ ไม่มีบั๊ก; ภาพ `docs/design/popup-credit-line-2026-10-15.png` (ขั้น 7-9 commit รวมกัน) |
 | 6 | release — **รอคุณสมกกสั่งเท่านั้น** | main | ⬜ |
 
-③ สถานะจริง: step 1-5 เสร็จ + commit แล้ว, build ผ่าน 0 error, portable รันเวอร์ชันใหม่อยู่. ยังไม่ bump เวอร์ชัน ยังไม่ release. แถว Usage credits **ยังไม่โผล่ในเครื่องจริง** เพราะ API ส่ง `spend.balance: null` (เห็นแค่ใน `--popup-shot` ที่ใส่ $7.50 ตัวอย่าง → `docs/design/popup-usage-credits-2026-10-15.png`)
+③ สถานะจริง: step 1-5, 5b, 7-9 เสร็จ + commit + push แล้ว (ล่าสุด `e59947c`), คุณสมกกดูภาพ Credit line แล้ว "ดูดีละ" (2026-10-15), build ผ่าน 0 error, portable รันเวอร์ชันใหม่อยู่. ยังไม่ bump เวอร์ชัน ยังไม่ release. แถว Usage credits **ยังไม่โผล่ในเครื่องจริง** เพราะ API ส่ง `spend.balance: null` (เห็นแค่ใน `--popup-shot` ที่ใส่ $7.50 ตัวอย่าง → `docs/design/popup-usage-credits-2026-10-15.png`)
 
 ④ ถัดไป: รอคุณสมกกดูภาพ Credit line (ขั้น 9) แล้วตัดสินเรื่อง release ด้านล่าง. สีส้ม/แดงของวันหมดอายุยังไม่ได้เห็นในภาพ (ตัวอย่างเหลือ 33 วัน)
+
+**งานคิวถัดไป (grill แล้ว 2026-10-15, ยังไม่เริ่ม):** หัวข้อ `CURRENT SESSION(S)` + จุด step ●●◉○○○ 3/6 — แผน/sprint table ครบใน [WORK-LOG-2026-10-15-step-dots.md](WORK-LOG-2026-10-15-step-dots.md). commit งาน credit line ข้างบนให้จบก่อนเริ่ม
 
 ## รอคุณสมกกตัดสิน
 - Release v1.12.0 เลยไหม — แนะนำรอจน `spend.balance` มีค่าจริงสักครั้ง (ลองเปิด usage credits บนเว็บ) จะได้รู้ว่ารูปข้อมูลที่เดาไว้ถูก
