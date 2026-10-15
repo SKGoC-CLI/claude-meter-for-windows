@@ -48,4 +48,11 @@ Exit
 % ต่อ step เป็นค่าประมาณ ไม่ใช่จากมิเตอร์. step 3 ทิ้งได้ถ้า API ไม่มี Balance; step 6 ไม่ทำจนกว่าคุณสมกกสั่ง
 
 ## สถานะ
-- grilling เสร็จ, CONTEXT.md อัปเดตข้อ Balance แล้ว — **ยังไม่ได้เขียนโค้ด** รอคุณสมกกยืนยันเริ่ม sprint
+- grilling เสร็จ → คุณสมกกสั่งเริ่ม sprint
+- Step 1 (`09297b4`): `%APPDATA%\ClaudeMeter\logs\usage-raw.json` ทับทุก poll
+- Step 2: เจอ `spend.balance` ใน API แต่ **ค่าเป็น null** (บัญชีนี้ปิด usage credits: `extra_usage.user_disabled: true`).
+  ฟิลด์ข้างเคียงที่ยังไม่ใช้: `spend.cap`, `spend.auto_reload`, `seven_day_breakdown` (สัดส่วน Claude Code/Chats/Cowork)
+- Step 3 (`415386f`): แถว `credit_balance` — เดารูป `{amount_minor, exponent}` เหมือน `spend.used` หรือเป็นตัวเลขตรงๆ; null/รูปอื่น = ไม่มีแถว. `UsageWindow.IsWallet` กันออกจาก alert/ไอคอน tray/history/ETA
+- Step 4: เมนู 4 กลุ่ม + README อัปเดต
+- Step 5: reviewer ความเสี่ยงต่ำ; แก้ CreateDirectory แล้ว. ข้อเล็กที่ปล่อยไว้: สีตัวเลขแถว balance ไม่เปลี่ยนตามยอด, log บรรทัด "usage ok" เขียน "Usage credits 0%", แถวโผล่ในเมนู Limits ให้ซ่อนได้ (ตั้งใจ)
+- ย้อนกลับ: `git revert` ทีละ commit ได้ (ทุก step แยก commit)

@@ -89,7 +89,7 @@ sealed class TrayAppContext : ApplicationContext
     readonly ToolStripMenuItem _showCreditGraphItem;
     readonly ToolStripMenuItem _showLogoItem;
     readonly ToolStripMenuItem _showContextItem;
-    readonly ToolStripMenuItem _limitsMenu = new("Show limits");
+    readonly ToolStripMenuItem _limitsMenu = new("Limits");
     readonly ToolStripMenuItem _showEtaItem;
     readonly Dictionary<string, ToolStripMenuItem> _sizeItems = new();
     readonly Dictionary<int, ToolStripMenuItem> _opacityItems = new();
@@ -245,7 +245,7 @@ sealed class TrayAppContext : ApplicationContext
             Checked = _settings.ShowContext,
         };
 
-        // ETA toggle lives at the bottom of the "Show limits" dropdown; SyncLimitsMenu()
+        // ETA toggle lives at the bottom of the "Limits" dropdown; SyncLimitsMenu()
         // rebuilds the rest of that dropdown from the API's limit keys, so it excludes
         // and re-appends this pair rather than clearing it (see SyncLimitsMenu below)
         _showEtaItem = new ToolStripMenuItem("Show ETA", null, OnToggleShowEta)
@@ -366,7 +366,6 @@ sealed class TrayAppContext : ApplicationContext
             { Checked = _settings.ShowStepProgress, CheckOnClick = true });
         sessionContextMenu.DropDownItems.Add(maxContextMenu);
         sessionContextMenu.DropDownItems.Add(contextSortMenu);
-        sessionContextMenu.DropDownItems.Add(alertsMenu);
 
         // session-remaining graph and month-to-date credit graph are separate popup
         // sections, so each gets its own submenu (matching the section titles)
@@ -380,32 +379,43 @@ sealed class TrayAppContext : ApplicationContext
         creditGraphMenu.DropDownItems.Add(creditRangeMenu);
         creditGraphMenu.DropDownItems.Add(creditNowPosMenu);
 
-        var appearanceMenu = new ToolStripMenuItem("Appearance");
-        appearanceMenu.DropDownItems.Add(themeMenu);
-        appearanceMenu.DropDownItems.Add(sizeMenu);
-        appearanceMenu.DropDownItems.Add(opacityMenu);
-        appearanceMenu.DropDownItems.Add(_showLogoItem);
+        var graphsMenu = new ToolStripMenuItem("Graphs");
+        graphsMenu.DropDownItems.Add(graphMenu);
+        graphsMenu.DropDownItems.Add(creditGraphMenu);
 
-        // popup content
-        menu.Items.Add(_limitsMenu);
-        menu.Items.Add(sessionContextMenu);
-        menu.Items.Add(graphMenu);
-        menu.Items.Add(creditGraphMenu);
-        menu.Items.Add(appearanceMenu);
-        menu.Items.Add(new ToolStripSeparator());
-        // window & tray behavior
-        menu.Items.Add(_alwaysOnTopItem);
-        menu.Items.Add(_miniModeItem);
-        menu.Items.Add(_clickThroughItem);
-        menu.Items.Add(trayShowsMenu);
-        menu.Items.Add(notifyMenu);
-        menu.Items.Add(hotkeyMenu);
-        menu.Items.Add(new ToolStripSeparator());
-        // app
-        menu.Items.Add(_autostartItem);
-        menu.Items.Add(_updateCheckItem);
-        menu.Items.Add(new ToolStripMenuItem("Open log folder", null, (_, _) => OpenLogFolder()));
-        menu.Items.Add(new ToolStripMenuItem("About…", null, (_, _) => ShowAbout()));
+        // four groups (grilling 2026-10-15): what the popup shows / the popup window
+        // itself / tray + alerts / the app
+        var popupShowsMenu = new ToolStripMenuItem("Popup shows");
+        popupShowsMenu.DropDownItems.Add(_limitsMenu);
+        popupShowsMenu.DropDownItems.Add(sessionContextMenu);
+        popupShowsMenu.DropDownItems.Add(graphsMenu);
+
+        var windowMenu = new ToolStripMenuItem("Window");
+        windowMenu.DropDownItems.Add(_alwaysOnTopItem);
+        windowMenu.DropDownItems.Add(_miniModeItem);
+        windowMenu.DropDownItems.Add(_clickThroughItem);
+        windowMenu.DropDownItems.Add(new ToolStripSeparator());
+        windowMenu.DropDownItems.Add(themeMenu);
+        windowMenu.DropDownItems.Add(sizeMenu);
+        windowMenu.DropDownItems.Add(opacityMenu);
+        windowMenu.DropDownItems.Add(_showLogoItem);
+        windowMenu.DropDownItems.Add(hotkeyMenu);
+
+        var trayAlertsMenu = new ToolStripMenuItem("Tray && alerts"); // && renders a literal &
+        trayAlertsMenu.DropDownItems.Add(trayShowsMenu);
+        trayAlertsMenu.DropDownItems.Add(notifyMenu);
+        trayAlertsMenu.DropDownItems.Add(alertsMenu);
+
+        var appMenu = new ToolStripMenuItem("App");
+        appMenu.DropDownItems.Add(_autostartItem);
+        appMenu.DropDownItems.Add(_updateCheckItem);
+        appMenu.DropDownItems.Add(new ToolStripMenuItem("Open log folder", null, (_, _) => OpenLogFolder()));
+        appMenu.DropDownItems.Add(new ToolStripMenuItem("About…", null, (_, _) => ShowAbout()));
+
+        menu.Items.Add(popupShowsMenu);
+        menu.Items.Add(windowMenu);
+        menu.Items.Add(trayAlertsMenu);
+        menu.Items.Add(appMenu);
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("Exit", null, (_, _) => ExitThread()));
 
@@ -947,7 +957,7 @@ sealed class TrayAppContext : ApplicationContext
         }
     }
 
-    /// <summary>Keeps the "Show limits" submenu in sync with the limits the API reports.</summary>
+    /// <summary>Keeps the "Limits" submenu in sync with the limits the API reports.</summary>
     void SyncLimitsMenu()
     {
         var windows = _lastSnapshot?.Windows;

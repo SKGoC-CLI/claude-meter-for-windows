@@ -88,7 +88,7 @@ sealed class UsageClient
         string body = await response.Content.ReadAsStringAsync();
         // latest raw response, overwritten each poll — the only way to see undocumented
         // fields without touching the token (holds usage numbers only, no secrets)
-        try { File.WriteAllText(Path.Combine(Log.Dir, "usage-raw.json"), body); } catch (Exception) { }
+        try { Directory.CreateDirectory(Log.Dir); File.WriteAllText(Path.Combine(Log.Dir, "usage-raw.json"), body); } catch (Exception) { }
 
         var root = JsonNode.Parse(body) as JsonObject
             ?? throw new UsageException("Unexpected response from usage endpoint.");

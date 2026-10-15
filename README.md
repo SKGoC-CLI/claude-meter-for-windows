@@ -95,7 +95,7 @@ a single self-contained exe, no .NET installation required.
 | Action | Result |
 |---|---|
 | Left-click tray icon | Show/hide the usage popup |
-| Right-click tray icon | Everything else — refresh, popup sections (Show limits / Session context / Session graph / Credit graph / Appearance), pinning, tray & alert options, hotkey, autostart |
+| Right-click tray icon | Everything else, in four groups — **Popup shows** (Limits / Session context / Graphs), **Window** (always on top, mini mode, pin, theme, size, opacity, hotkey), **Tray & alerts**, **App** (autostart, updates, log, About) |
 | Drag (while pinned) | Move the popup anywhere; position is remembered |
 | Click "−" (popup, top-right) | Hide the popup; pinning is left as it was |
 | Esc | Hide the popup |
