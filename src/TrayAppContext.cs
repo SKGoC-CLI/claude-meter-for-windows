@@ -359,7 +359,7 @@ sealed class TrayAppContext : ApplicationContext
             { Checked = _settings.TrayAskingPulse, CheckOnClick = true });
 
         // feature submenus: each popup section owns its toggle + its options
-        var sessionContextMenu = new ToolStripMenuItem("Session context");
+        var sessionContextMenu = new ToolStripMenuItem("Current session");
         sessionContextMenu.DropDownItems.Add(_showContextItem);
         sessionContextMenu.DropDownItems.Add(new ToolStripMenuItem("Show step progress", null, (_, _) =>
             { _settings.ShowStepProgress = !_settings.ShowStepProgress; _settings.Save(); RefreshSessionContext(); })

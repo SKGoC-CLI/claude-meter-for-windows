@@ -76,9 +76,9 @@
   ของที่อยากใช้ให้หมด สีตาม % ใช้ไปจึงกลับความหมาย. ในโค้ด `UsageWindow.IsWallet` = สองตัวนี้
   (ชื่อ property เก่า — ไม่ใช่ *Wallet row* ข้างบน).
 
-## Session context
+## Current session
 
-- **Session state** — สถานะของแต่ละ session ใน section `SESSION CONTEXT` มี 3 ค่า:
+- **Session state** — สถานะของแต่ละ session ใน section `CURRENT SESSION` (หลายอัน = `CURRENT SESSIONS (n)`; เดิมชื่อ SESSION CONTEXT) มี 3 ค่า:
   **Working** = Claude กำลังตอบหรือรัน tool อยู่, **Waiting** = Claude ตอบจบ turn แล้วหรือ
   ถามค้างไว้ (รอคุณสมกก) ภายใน 10 นาที, **Idle** = รอเกิน 10 นาที (แถวจาง) และหายจากลิสต์
   หลัง 30 นาที. Working ไม่มีหมดเวลาตราบที่ Claude ยังทำงานไม่จบ turn. แยก "รอคุณ" กับ
@@ -89,11 +89,11 @@
   ถ้ามี session ใดก็ได้เป็น Working (โหมดตัวเลขเดียว: แถบ % ยังอยู่ จางเฉพาะตัวเลข).
   **Asking** (ทำแล้ว 2026-10-14) = Claude ถามค้างด้วย AskUserQuestion/ExitPlanMode — แยกออกจาก
   Waiting: จุดส้ม fade 1 วิ ใน popup + พื้นหลัง tray ส้ม fade 0 ↔ 45% รอบ 1 วิ (ตัวเลขสีเดิม); Asking ชนะ Working บน tray.
-  อ่านสถานะทุก 2 วิ. เมนู Session context → Session alerts: Speed ช้า/ปกติ/เร็ว (×1.5/1/0.6) + ปิด pulse tray แยกได้.
+  อ่านสถานะทุก 2 วิ. เมนู Current session → Session alerts: Speed ช้า/ปกติ/เร็ว (×1.5/1/0.6) + ปิด pulse tray แยกได้.
   Waiting จึงเหลือความหมายเดียว = ตอบจบ turn แล้ว (ส้มนิ่ง).
 - **Goal progress** — ความคืบหน้าของงานใน session = ขั้นที่เสร็จ ÷ ขั้นทั้งหมด แสดงแทนบรรทัด 2
-  ฝั่งซ้าย (แทน auto-compact) เป็น `Step 3/6 · <ชื่อขั้นที่กำลังทำ>` ไม่มีแถบของตัวเอง (ตัดสิน 2026-10-15 รอบ 7–8).
+  ฝั่งซ้าย (แทน auto-compact) เป็นจุด `●●◉○○○ 3/6  <ชื่อขั้นสั้น>` (เสร็จ=เขียว, กำลังทำ=ส้ม กระพริบเฉพาะตอน Working, ยังไม่ทำ=เทา; เกิน 10 ขั้นกลับเป็น `Step 3/14 · <ชื่อขั้น>`) ไม่มีแถบของตัวเอง. CLI ใช้ `subject` ของ TaskCreate เป็นชื่อขั้น.
   **อายุ session** (`34m old`) ชิดขวาบรรทัด 2 ทุก session; session **Idle** ย่อเหลือบรรทัดเดียว อายุต่อท้าย token. แหล่งข้อมูล: **รายการขั้นตอน** ใน transcript
   (แอป desktop = `update_plan`, CLI = TaskCreate/TaskUpdate) ก่อน ถ้าไม่มีหรือเสร็จครบแล้วใช้ตาราง ✅/⬜ ใน `NEXT-SESSION.md`
-  ของโฟลเดอร์ session (เฉพาะ `status: active`) ไม่มีทั้งคู่ = ไม่แสดง. รายการที่เสร็จครบ (หลัง wrap_up) = ซ่อน. ปิดได้ที่เมนู Session context → Show step progress.
+  ของโฟลเดอร์ session (เฉพาะ `status: active`) ไม่มีทั้งคู่ = ไม่แสดง. รายการที่เสร็จครบ (หลัง wrap_up) = ซ่อน. ปิดได้ที่เมนู Current session → Show step progress.
   **ไม่ใช่** % context (นั่นคือ context window เต็มแค่ไหน). (ทำแล้ว 2026-10-15, ยังไม่ release)

@@ -934,7 +934,7 @@ sealed class PopupForm : Form
 
         using (var sepPen = new Pen(Theme.Grid, 1))
             g.DrawLine(sepPen, pad, y + S(3), pad + contentWidth, y + S(3));
-        string header = _sessions.Count > 1 ? $"SESSION CONTEXT ({_sessions.Count})" : "SESSION CONTEXT";
+        string header = _sessions.Count > 1 ? $"CURRENT SESSIONS ({_sessions.Count})" : "CURRENT SESSION";
         g.DrawString(header, _tinyFont, mutedBrush, pad, y + S(8));
 
         int by = y + ContextHeaderHeight;
@@ -998,25 +998,63 @@ sealed class PopupForm : Form
 
         if (idle) return;
 
-        // line 2: step list ("Step 3/6 · <step>") or distance to auto-compact (left), age (right)
-        string line2;
-        if (ctx.Goal is { } goal)
-        {
-            string head = $"Step {Math.Min(goal.Done + 1, goal.Total)}/{goal.Total}";
-            line2 = string.IsNullOrWhiteSpace(goal.Current) ? head : $"{head} · {goal.Current}";
-        }
-        else
-        {
-            long compactAt = (long)(ctx.WindowSize * 0.8);
-            line2 = ctx.Tokens < compactAt
-                ? $"~{(compactAt - ctx.Tokens) / 1000}k to auto-compact"
-                : "past auto-compact";
-        }
         int line2Y = y + S(17);
         float ageW = g.MeasureString(ageText, _tinyFont).Width;
         g.DrawString(ageText, _tinyFont, mutedBrush, pad + contentWidth - ageW, line2Y);
-        using (var fmt = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter })
-            g.DrawString(line2, _tinyFont, mutedBrush, new RectangleF(pad, line2Y, Math.Max(0, contentWidth - ageW - S(12)), S(16)), fmt);
+
+        // line 2, ≤10 steps: ●●◉○○○ 3/6  <step> — done green, current amber (fades while Working), rest grey
+        if (ctx.Goal is { Total: > 0 and <= 10 } dg)
+        {
+            float lh = g.MeasureString("Ag", _tinyFont).Height;
+            int sd = Math.Max(4, S(6)), gap = Math.Max(2, S(3));
+            float x = pad;
+            var oldMode = g.SmoothingMode;
+            g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
+            for (int i = 0; i < dg.Total; i++)
+            {
+                var r = new RectangleF(x, line2Y + (lh - sd) / 2f, sd, sd);
+                Color c = i < dg.Done ? Theme.Success : i == dg.Done ? Theme.Warning : TrackColor;
+                if (i == dg.Done && ctx.State == SessionState.Working)
+                {
+                    c = Color.FromArgb(255 - (int)(191 * IconRenderer.WorkingPulse((int)(1400 * AlertMul))), c);
+                    _workingDotRects.Add(Rectangle.Ceiling(RectangleF.Inflate(r, 1, 1)));
+                }
+                using var b = new SolidBrush(c);
+                g.FillEllipse(b, r);
+                x += sd + gap;
+            }
+            g.SmoothingMode = oldMode;
+            x += S(3);
+            string frac = $"{Math.Min(dg.Done + 1, dg.Total)}/{dg.Total}";
+            g.DrawString(frac, _tinyFont, mutedBrush, x, line2Y);
+            x += g.MeasureString(frac, _tinyFont).Width + S(4);
+            if (!string.IsNullOrWhiteSpace(dg.Current))
+            {
+                using var curBrush = new SolidBrush(LabelColor);
+                using var cf = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter };
+                g.DrawString(dg.Current, _tinyFont, curBrush,
+                    new RectangleF(x, line2Y, Math.Max(0, pad + contentWidth - ageW - S(12) - x), S(16)), cf);
+            }
+        }
+        else
+        {
+            // line 2: >10 steps "Step 3/14 · <step>", or distance to auto-compact (left)
+            string line2;
+            if (ctx.Goal is { } goal)
+            {
+                string head = $"Step {Math.Min(goal.Done + 1, goal.Total)}/{goal.Total}";
+                line2 = string.IsNullOrWhiteSpace(goal.Current) ? head : $"{head} · {goal.Current}";
+            }
+            else
+            {
+                long compactAt = (long)(ctx.WindowSize * 0.8);
+                line2 = ctx.Tokens < compactAt
+                    ? $"~{(compactAt - ctx.Tokens) / 1000}k to auto-compact"
+                    : "past auto-compact";
+            }
+            using (var fmt = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter })
+                g.DrawString(line2, _tinyFont, mutedBrush, new RectangleF(pad, line2Y, Math.Max(0, contentWidth - ageW - S(12)), S(16)), fmt);
+        }
 
         // thin bar
         int barY = y + S(37);
@@ -1054,7 +1092,7 @@ sealed class PopupForm : Form
     {
         using var mutedBrush = new SolidBrush(MutedColor);
 
-        // divider + tiny caps header, matching the SESSION CONTEXT section style
+        // divider + tiny caps header, matching the CURRENT SESSION section style
         using (var sepPen = new Pen(Theme.Grid, 1))
             g.DrawLine(sepPen, pad, top + S(3), pad + contentWidth, top + S(3));
         g.DrawString($"SESSION GRAPH ({_graphRangeHours}H)", _tinyFont, mutedBrush, pad, top + S(8));

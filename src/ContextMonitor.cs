@@ -284,7 +284,7 @@ static class ContextMonitor
                 else if (name.EndsWith("__wrap_up", StringComparison.Ordinal)) // the app checks the list off
                     for (int i = 0; i < steps.Count; i++) { if (steps[i].Status != "deleted") steps[i] = (steps[i].Text, "completed"); }
                 else if (name == "TaskCreate")
-                    steps.Add((Str(input, "activeForm") ?? Str(input, "subject") ?? "", "pending"));
+                    steps.Add((Str(input, "subject") ?? Str(input, "activeForm") ?? "", "pending"));
                 else if (name == "TaskUpdate" && int.TryParse(Str(input, "taskId"), out int id) && id >= 1 && id <= steps.Count
                          && Str(input, "status") is { } st)
                     steps[id - 1] = (steps[id - 1].Text, st);
@@ -387,7 +387,7 @@ static class ContextMonitor
             File.Delete(path);
             path += "2";
             File.WriteAllText(path,Call("TaskCreate", "{\"subject\":\"s1\",\"activeForm\":\"Doing 1\"}")
-                + Call("TaskCreate", "{\"subject\":\"s2\"}") + Call("TaskCreate", "{\"subject\":\"s3\"}")
+                + Call("TaskCreate", "{\"subject\":\"s2\",\"activeForm\":\"Doing 2\"}") + Call("TaskCreate", "{\"subject\":\"s3\"}")
                 + Call("TaskUpdate", "{\"taskId\":\"1\",\"status\":\"completed\"}")
                 + Call("TaskUpdate", "{\"taskId\":\"3\",\"status\":\"deleted\"}"));
             Expect(ReadPlan(new FileInfo(path)), new Goal(1, 2, "s2"), "tasks");
