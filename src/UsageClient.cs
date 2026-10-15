@@ -81,7 +81,12 @@ sealed class UsageClient
         if (!response.IsSuccessStatusCode)
             throw new UsageException($"Usage endpoint returned HTTP {(int)response.StatusCode}.");
 
-        var root = JsonNode.Parse(await response.Content.ReadAsStringAsync()) as JsonObject
+        string body = await response.Content.ReadAsStringAsync();
+        // latest raw response, overwritten each poll — the only way to see undocumented
+        // fields without touching the token (holds usage numbers only, no secrets)
+        try { File.WriteAllText(Path.Combine(Log.Dir, "usage-raw.json"), body); } catch (Exception) { }
+
+        var root = JsonNode.Parse(body) as JsonObject
             ?? throw new UsageException("Unexpected response from usage endpoint.");
 
         var windows = ParseWindows(root);

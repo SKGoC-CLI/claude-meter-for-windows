@@ -1,29 +1,30 @@
-# NEXT-SESSION — เตรียม release v1.11.0 (Step progress)
+# NEXT-SESSION — แถว Usage credits + จัดกลุ่มเมนูคลิกขวา
 
-status: done
+status: active
 
 > **ห้ามพิมพ์คำต้องห้าม "ab***t" เต็ม ๆ ลงไฟล์ใด ๆ ใน repo** · ห้ามชื่อโปรเจกต์จริงหลุดในภาพ/GIF ที่ขึ้น GitHub
 
-① 2026-10-15 · เริ่มจาก HEAD `65f0b96` — ไฟล์นี้อาจเก่า เช็ค `git log --oneline -5` ก่อน
+① 2026-10-15 · เริ่มจาก HEAD `4f90c7f` — ไฟล์นี้อาจเก่า เช็ค `git log --oneline -5` ก่อน
 
-② ขั้นตอน (คุณสมกกเลือก: GIF จากคลิป 02:24 + ปิดชื่อ, ทำครบ + Draft release)
+② ขั้นตอน (ตัดสินใน grilling — ดู WORK-LOG)
 
 | Step | งาน | ใคร | สถานะ |
 |------|-----|-----|-------|
-| 1 | version 1.11.0 + CHANGELOG + docs/RELEASE_NOTES_v1.11.0.md | main | ✅ |
-| 2 | docs/popup-v1.11.0.png จาก `--popup-shot` | main | ✅ |
-| 3 | docs/demo-v1.11.0.gif จาก `docs/Recording 2026-10-15 022419.mp4` ช่วงที่ลำดับแถวนิ่ง + วาดทับชื่อ (Oracle Exam Website → exam-site, KKS Card Management App → card-manager) + ลายน้ำ (skill demo-gif) | main | ✅ |
-| 4 | README ชี้ภาพ/GIF ใหม่ + อธิบาย Step progress | main | ✅ |
-| 5 | reviewer ตรวจ `7713b91..HEAD` + build zip portable | reviewer/main | ✅ |
-| 6 | commit + push + `gh release create v1.11.0 --draft` แนบ zip | main | ✅ |
+| 1 | แอปเขียน `usage-raw.json` (คำตอบดิบ API) ลง log folder ทุก poll สำเร็จ | main | ✅ |
+| 2 | build portable + รัน → อ่าน `usage-raw.json` หาฟิลด์ Balance | main | ✅ พบ `spend.balance` แต่เป็น null (usage credits ปิดอยู่ `user_disabled: true`) |
+| 3 | (ถ้ามีฟิลด์) แถว `Usage credits: $X left` เหนือ Cloud credit, โชว์แม้ $0 | coder | ⬜ |
+| 4 | เมนูคลิกขวา 4 กลุ่ม: Popup shows / Window / Tray & alerts / App | coder | ⬜ |
+| 5 | reviewer + build portable + screenshot เมนู/ป๊อปอัป ให้คุณสมกกดู | reviewer/main | ⬜ |
+| 6 | release — **รอคุณสมกกสั่งเท่านั้น** | main | ⬜ |
 
-③ สถานะจริง: v1.11.0 ครบ — main `c97fd94` push แล้ว, release v1.11.0 (published) มี ClaudeMeter-portable.zip (exe เดียว 63 MB), portable รัน v1.11.0.0 · docs/Recording*.mp4 + demo-v1.11.0-wm.mp4 untracked ตั้งใจไม่ commit
+③ สถานะจริง: step 1-2 เสร็จ, portable รัน build ใหม่แล้ว (`%APPDATA%\ClaudeMeter\logs\usage-raw.json` มีจริง). ยังไม่ release
 
-④ ถัดไป: v1.11.0 PUBLISHED แล้ว (Latest, tag `1b003f4`) — ไม่มีงานค้างในสปรินต์นี้
+④ ถัดไป: Step 3 — parse `spend.balance` (เดารูปเดียวกับ `spend.used`: amount_minor + exponent) เป็นแถว Usage credits; null = ไม่โชว์แถว
 
 ⑤ กับดัก
-- คลิป 02:24: ลำดับ session สลับกลางคลิป → ใช้เฉพาะช่วงต้นที่ลำดับนิ่ง ไม่งั้นต้องไล่ปิดชื่อตามตำแหน่ง
-- ห้าม `gh release create` แบบไม่ใส่ `--draft` — คุณสมกกกด Publish เอง
-- ห้าม backtick ในคำสั่ง Bash heredoc (พังจริง 2026-10-15) → เขียน commit message ลงไฟล์ด้วย Write แล้ว `git commit -F`
+- Claude อ่าน token เองไม่ได้ (auto mode กัน "Credential Exploration") → ใช้ไฟล์ dump จากแอปเท่านั้น
+- ถ้า API ไม่มี Balance → **ข้าม step 3 ห้ามเดาตัวเลข** (ห้ามใช้ limit − used แทน)
+- build portable: stop ClaudeMeter ทุกตัวก่อน (mutex ทำให้ตัวใหม่ออกเงียบ) แล้วรันแบบ Hidden
+- ห้าม backtick ใน Bash heredoc → commit ด้วย `git commit -F` จากไฟล์
 
-⑥ log เต็ม: [WORK-LOG-2026-10-14-working-blink-goal-progress.md](WORK-LOG-2026-10-14-working-blink-goal-progress.md) หัวข้อ "รอบ 9"
+⑥ log เต็ม: [WORK-LOG-2026-10-15-usage-credits-menu.md](WORK-LOG-2026-10-15-usage-credits-menu.md)
