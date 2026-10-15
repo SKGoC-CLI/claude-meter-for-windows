@@ -50,7 +50,7 @@ Claude Code's `/usage`, always one click away.
 
 - Tray icon renders your highest usage percentage live, shifting color as you approach the limit; the optional Session + Weekly mode stacks both limits so you catch a draining week at a glance
 - Popup shows a progress bar, reset countdown and exact reset time for every limit window
-- Usage credits displayed as real dollar amounts (e.g. "Usage credits: 6% — $3.13 / $50.00"), with the same data from `extra_usage` and `spend` rows merged into one
+- Monthly spend displayed as real dollar amounts (e.g. "Monthly spend: 6% — $3.13 / $50.00"); purchased usage credits and the cloud credit share one line ("Cloud credit: $94.79 left · Usage credits: $5.00 left"), with the same data from `extra_usage` and `spend` rows merged into one
 - Usage graph plots session remaining over a 12 or 24 hour axis, with hourly ticks, reset markers for both past and upcoming resets, and an adjustable "now" position
 - Credit spending graph shows cumulative month-to-date usage-credit spend up to your monthly limit, with a dashed limit line and live "now" marker; stays accurate even if the meter isn't running (45-day history sampled every 30 minutes)
 - Burn-rate estimate under each limit — "full in ~2h 41m" at your current pace, measured over a window matched to the limit's own length, and kept quiet whenever the limit would reset before it ever fills

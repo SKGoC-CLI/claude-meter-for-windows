@@ -20,19 +20,21 @@ status: active
 | 8 | tray tooltip Cloud credit เป็น `$X left` + CONTEXT.md | main | ✅ คำใหม่ *Credit line* |
 | 9 | reviewer + build portable + popup-shot ให้คุณสมกกดู | reviewer/main | ✅ ไม่มีบั๊ก; ภาพ `docs/design/popup-credit-line-2026-10-15.png` (ขั้น 7-9 commit รวมกัน) |
 | 10 | คุณสมกกเห็นบรรทัด Usage credits ไม่โผล่ (balance ยัง null แม้เปิดแล้ว) → เลือก A: แถว "Extra usage" เปลี่ยนป้ายเป็น "Usage credits" (คำของ API), balance เป็น "Credit balance", บรรทัดเครดิตขยับขึ้นชิดหลอดเมื่อแถวบนไม่มี ETA | main/reviewer | ✅ ภาพ `docs/design/popup-usage-credits-rename-2026-10-15.png` |
+| 11 | หายอดเติมเงิน $5 (คุณสมกกเติม 2026-10-15): `spend.balance` ยัง null → เจอใน claude.exe ว่า Claude Code ใช้ `GET https://api.anthropic.com/api/oauth/organizations/{orgUUID}/prepaid/credits` (Bearer + `anthropic-beta: oauth-2025-04-20` + header `x-organization-uuid`), ตอบ `{amount (เซนต์), currency, auto_reload_settings, expiry_policy_months}`; orgUUID จาก `/api/oauth/profile` → `organization.uuid` | main/reviewer | ✅ คุณสมกกอนุญาตในแชต → ต่อสายแล้ว, เครื่องจริงได้ `Usage credits $5.00 left` (log 12:54). ล้มเหลว = เก็บค่าเดิม + รอ 30 นาที, timeout 8s, dump `logs\prepaid-raw.json`. ป้ายตามหน้าเว็บ: แถว = "Monthly spend", ยอด $5 = "Usage credits". ภาพ `docs/design/popup-usage-credits-prepaid-2026-10-15.png` |
 | 6 | release — **รอคุณสมกกสั่งเท่านั้น** | main | ⬜ |
 
-③ สถานะจริง: step 1-5, 5b, 7-9 เสร็จ + commit + push แล้ว (ล่าสุด `e59947c`), คุณสมกกดูภาพ Credit line แล้ว "ดูดีละ" (2026-10-15), build ผ่าน 0 error, portable รันเวอร์ชันใหม่อยู่. ยังไม่ bump เวอร์ชัน ยังไม่ release. แถว Usage credits **ยังไม่โผล่ในเครื่องจริง** เพราะ API ส่ง `spend.balance: null` (เห็นแค่ใน `--popup-shot` ที่ใส่ $7.50 ตัวอย่าง → `docs/design/popup-usage-credits-2026-10-15.png`)
+③ สถานะจริง: ทุกขั้นยกเว้น 6 (release) เสร็จ + commit + push แล้ว. build ผ่าน 0 error, portable รันเวอร์ชันใหม่อยู่ และอ่านยอดเติมเงิน $5 ได้จริง. ยังไม่ bump เวอร์ชัน ยังไม่ release.
 
-④ ถัดไป: รอคุณสมกกดูภาพ Credit line (ขั้น 9) แล้วตัดสินเรื่อง release ด้านล่าง. สีส้ม/แดงของวันหมดอายุยังไม่ได้เห็นในภาพ (ตัวอย่างเหลือ 33 วัน)
+④ ถัดไป: คุณสมกกตัดสินเรื่อง release ด้านล่าง. สีส้ม/แดงของวันหมดอายุยังไม่ได้เห็นในภาพ (ตัวอย่างเหลือ 33 วัน)
 
 **งานคิวถัดไป (grill แล้ว 2026-10-15, ยังไม่เริ่ม):** หัวข้อ `CURRENT SESSION(S)` + จุด step ●●◉○○○ 3/6 — แผน/sprint table ครบใน [WORK-LOG-2026-10-15-step-dots.md](WORK-LOG-2026-10-15-step-dots.md). commit งาน credit line ข้างบนให้จบก่อนเริ่ม
 
 ## รอคุณสมกกตัดสิน
-- Release v1.12.0 เลยไหม — แนะนำรอจน `spend.balance` มีค่าจริงสักครั้ง (ลองเปิด usage credits บนเว็บ) จะได้รู้ว่ารูปข้อมูลที่เดาไว้ถูก
+- Release v1.12.0 เลยไหม — ตอนนี้ยอดเติมเงินอ่านได้จริงแล้ว (prepaid/credits) จึงไม่ต้องรอ spend.balance อีก
 
 ⑤ กับดัก
 - Claude อ่าน token เองไม่ได้ (auto mode กัน "Credential Exploration") → ใช้ไฟล์ dump จากแอปเท่านั้น
+- `spend.balance` ใน usage endpoint เป็น null แม้มีเงินเติม — ยอดจริงอยู่ที่ `/prepaid/credits` เท่านั้น; การแก้โค้ดที่ส่ง token ไป endpoint ใหม่ ต้องให้คุณสมกกอนุญาตในแชตก่อน (auto mode กัน)
 - ถ้า API ไม่มี Balance → **ข้าม step 3 ห้ามเดาตัวเลข** (ห้ามใช้ limit − used แทน)
 - build portable: stop ClaudeMeter ทุกตัวก่อน (mutex ทำให้ตัวใหม่ออกเงียบ) แล้วรันแบบ Hidden
 - ห้าม backtick ใน Bash heredoc → commit ด้วย `git commit -F` จากไฟล์

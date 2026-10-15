@@ -845,7 +845,7 @@ sealed class TrayAppContext : ApplicationContext
             _history.Add(snapshot);
             NotifyIfNearLimit(snapshot);
             NotifyIfCreditsBurning(snapshot);
-            Log.Info("usage ok: " + string.Join(", ", snapshot.Windows.Select(w => $"{w.Label} {Math.Round(w.Utilization)}%")));
+            Log.Info("usage ok: " + string.Join(", ", snapshot.Windows.Select(w => w.IsWallet ? $"{w.Label} {PopupForm.CreditText(w)}" : $"{w.Label} {Math.Round(w.Utilization)}%")));
         }
         catch (UsageException ex)
         {

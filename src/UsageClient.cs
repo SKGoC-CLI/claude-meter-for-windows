@@ -97,7 +97,65 @@ sealed class UsageClient
         if (windows.Count == 0)
             throw new UsageException("No usage windows in response.");
 
+        // spend.balance stays null even with purchased credits — the balance lives on its
+        // own endpoint (sorts last, so appending keeps the order)
+        if (!windows.Any(w => w.Key == "credit_balance") && await FetchPrepaidDollarsAsync(token) is { } prepaid)
+            windows.Add(new UsageWindow("credit_balance", "Usage credits", 0, null, false, "normal", prepaid));
+
         return new UsageSnapshot(windows, DateTimeOffset.Now);
+    }
+
+    const string ProfileUrl = "https://api.anthropic.com/api/oauth/profile";
+    const string PrepaidUrl = "https://api.anthropic.com/api/oauth/organizations/{0}/prepaid/credits";
+    string? _orgUuid; // from the profile once; cleared on a failed balance call (re-login, org switch)
+    double? _lastPrepaid; // kept through a failed call so the row doesn't flicker away
+    DateTimeOffset _prepaidRetryAt; // back-off: a failing (or unsupported) account isn't asked every poll
+
+    /// <summary>Purchased usage-credit balance (Settings → Usage → "Usage credits"), via the
+    /// same call Claude Code makes for it. Never fails the poll: on any failure it keeps the
+    /// last known value and waits 30 min before asking again.</summary>
+    async Task<double?> FetchPrepaidDollarsAsync(string token)
+    {
+        if (DateTimeOffset.Now < _prepaidRetryAt) return _lastPrepaid;
+        try
+        {
+            // the profile also holds name/email — read the org id only, never dump it
+            _orgUuid ??= (await GetJsonAsync(ProfileUrl, token, null, null))?["organization"]?["uuid"]?.GetValue<string>();
+            var data = _orgUuid is null ? null
+                : await GetJsonAsync(string.Format(PrepaidUrl, Uri.EscapeDataString(_orgUuid)), token, _orgUuid, "prepaid-raw.json");
+            // amount is in cents (Claude Code's own mock fills it from balanceCents)
+            if (data?["amount"] is JsonValue a && a.TryGetValue<double>(out var cents))
+                return _lastPrepaid = cents / 100;
+            _orgUuid = null;
+        }
+        catch (Exception ex) // anything — the usage numbers already in hand must still ship
+        {
+            Log.Warn($"prepaid balance unavailable: {ex.Message}");
+        }
+        _prepaidRetryAt = DateTimeOffset.Now.AddMinutes(30);
+        return _lastPrepaid;
+    }
+
+    async Task<JsonObject?> GetJsonAsync(string url, string token, string? orgUuid, string? dumpName)
+    {
+        using var request = new HttpRequestMessage(HttpMethod.Get, url);
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        request.Headers.TryAddWithoutValidation("anthropic-beta", "oauth-2025-04-20");
+        request.Headers.TryAddWithoutValidation("User-Agent", "claude-code/2.1.202");
+        if (orgUuid is not null) request.Headers.TryAddWithoutValidation("x-organization-uuid", orgUuid);
+
+        // shorter than the client's 30 s: these extras must not hold back the usage numbers
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(8));
+        using var response = await _http.SendAsync(request, cts.Token);
+        string body = await response.Content.ReadAsStringAsync(cts.Token);
+        if (dumpName is not null)
+            try { File.WriteAllText(Path.Combine(Log.Dir, dumpName), $"HTTP {(int)response.StatusCode}\n{body}"); } catch (Exception) { }
+        if (!response.IsSuccessStatusCode)
+        {
+            Log.Warn($"{new Uri(url).AbsolutePath.Split('/').Last()} returned HTTP {(int)response.StatusCode}");
+            return null;
+        }
+        return JsonNode.Parse(body) as JsonObject;
     }
 
     static List<UsageWindow> ParseWindows(JsonObject root)
@@ -164,7 +222,7 @@ sealed class UsageClient
                 ?? (limitDollars is > 0 ? usedDollars / limitDollars * 100 : null);
 
             if (utilization is { } u)
-                windows.Add(new UsageWindow("extra_usage", "Usage credits", u, null,
+                windows.Add(new UsageWindow("extra_usage", "Monthly spend", u, null,
                     false, spend?["severity"]?.GetValue<string>() ?? "normal",
                     usedDollars, limitDollars));
         }
@@ -188,8 +246,8 @@ sealed class UsageClient
             // undocumented field changed type — lose the cloud row, never the whole poll
         }
 
-        // "Credit balance": prepaid spend.balance, shown even when the spend toggle is off
-        // (the spend block itself is the "Usage credits" row above — the API's own name).
+        // "Usage credits": prepaid spend.balance, shown even when the spend toggle is off
+        // (the spend block itself is the "Monthly spend" row above, as Settings names it).
         // Shape assumed like spend.used (amount_minor + exponent); a plain number = dollars.
         try
         {
@@ -201,7 +259,7 @@ sealed class UsageClient
                 _ => null
             };
             if (balance is { } bal)
-                windows.Add(new UsageWindow("credit_balance", "Credit balance", 0, null, false, "normal", bal));
+                windows.Add(new UsageWindow("credit_balance", "Usage credits", 0, null, false, "normal", bal));
         }
         catch (Exception ex) when (ex is InvalidOperationException or FormatException)
         {

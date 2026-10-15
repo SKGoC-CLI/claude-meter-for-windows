@@ -19,9 +19,9 @@ static class PopupShot
             new UsageWindow("five_hour", "Session (5h)", 42, now.AddHours(2).AddMinutes(18)),
             new UsageWindow("seven_day", "Weekly (all models)", 76, now.AddDays(3).AddHours(5)),
             new UsageWindow("seven_day_opus", "Weekly (Opus)", 93, now.AddDays(3).AddHours(5)),
-            new UsageWindow("extra_usage", "Usage credits", 24.8, null, UsedDollars: 12.40, LimitDollars: 50.00),
+            new UsageWindow("extra_usage", "Monthly spend", 24.8, null, UsedDollars: 12.40, LimitDollars: 50.00),
             new UsageWindow("cloud_credit", "Cloud credit", 1.49, now.AddDays(34), UsedDollars: 1.49, LimitDollars: 100),
-            new UsageWindow("credit_balance", "Credit balance", 0, null, UsedDollars: 7.50),
+            new UsageWindow("credit_balance", "Usage credits", 0, null, UsedDollars: 7.50),
         }, now);
 
         var sessions = new[]

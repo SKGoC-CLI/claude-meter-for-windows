@@ -54,23 +54,24 @@
 
 ## Wallet / เครดิต
 
-- **Wallet row / "Usage credits" row** (ป้ายเดิม "Extra usage" — เปลี่ยน 2026-10-15 เพราะ API เรียก
-  ก้อน `spend` ว่า "Usage credits cover you when you hit your plan limits") — แถวเดียวในป๊อปอัปที่รวม `extra_usage` กับ `spend`
+- **Wallet row / "Monthly spend" row** (ป้ายเดิม "Extra usage" — 2026-10-15 ตั้งตามหน้า Settings ที่เรียก
+  `$0.00 of $1 this month` ว่า "Monthly spend limit") — แถวเดียวในป๊อปอัปที่รวม `extra_usage` กับ `spend`
   จาก API (มันคือกระเป๋าเดียวกัน) โชว์เป็นเงิน `$used / $limit`. key = `extra_usage`.
 - **used / limit** — เงินที่ใช้ไปเดือนนี้ (server-side cumulative, รีเซ็ต $0 วันที่ 1) เทียบ
   เพดานรายเดือน. อ่านสด monthly_limit จาก API เสมอ — **ห้าม hardcode** (เคยเป็น $50 ตอนนี้ $100).
-- **Balance / "Credit balance"** (ป้ายเดิม "Usage credits") — ยอดเงินคงเหลือแบบเติมเงิน `spend.balance`
-  (2026-10-15 เปิด usage credits แล้วก็ยังเป็น null, `can_purchase_credits: false`) ในกระเป๋า *usage credits* (หน้าเว็บ Settings โชว์
+- **Balance / "Usage credits"** — ยอดเติมเงินคงเหลือ (Settings โชว์ "Usage credits $5"). `spend.balance` ใน usage
+  endpoint เป็น null เสมอ (แม้เติมแล้ว) → ดึงจาก `GET /api/oauth/organizations/{org}/prepaid/credits` (`amount` = เซนต์)
+  แบบเดียวกับ Claude Code; org จาก `/api/oauth/profile`. ในกระเป๋า *usage credits* (หน้าเว็บ Settings โชว์
   "Usage credits $0" มุมขวา; ซื้อหรือได้โปรโมชันมา ใช้ก่อนเกินโควตา). **ไม่ใช่** `limit − used`
   ของเพดานรายเดือน. 2026-10-02 ยังไม่พบใน OAuth endpoint; 2026-10-15 ตัดสินว่าจะตรวจซ้ำผ่าน
-  `usage-raw.json` ที่แอป dump ไว้ — ถ้ามีจะแสดง `Credit balance: $0.00 left` ใน *Credit line*
+  `usage-raw.json` ที่แอป dump ไว้ — ถ้ามีจะแสดง `Usage credits: $0.00 left` ใน *Credit line*
   (โชว์แม้ $0), ถ้าไม่มี **ห้ามเดาตัวเลข**. (ระวังสับสนกับ *Cloud credit* ข้างล่าง)
 - **Cloud credit** — เครดิตที่ได้มาพร้อมแพ็กเกจ (เช่น $100) ใช้กับ **cloud session** อย่างเดียว
   มี **วันหมดอายุ** ใช้หมดหรือหมดอายุแล้วจะกลับไปกินโควตาปกติ. ไม่ใช่ wallet / usage credits
   (คนละกระเป๋า ไม่รีเซ็ตรายเดือน ไม่มีเพดานรายเดือน). หน้าเว็บเรียก "Cloud session credits".
   แสดงใน *Credit line* (ไม่มีหลอด ตั้งแต่ 2026-10-15). **ห้ามเรียก "promo credit" / "balance"**.
-- **Credit line** — บรรทัดเล็กบรรทัดเดียวท้ายแถวโควตา รวม Cloud credit + Credit balance:
-  `Cloud credit: $98.51 left  ·  Credit balance: $7.50 left` ซ้าย (ขยับขึ้นชิดหลอดแถวบนเมื่อแถวนั้นไม่มีบรรทัด ETA), `expires in 33d (18 Nov)` ขวา
+- **Credit line** — บรรทัดเล็กบรรทัดเดียวท้ายแถวโควตา รวม Cloud credit + Usage credits:
+  `Cloud credit: $98.51 left  ·  Usage credits: $7.50 left` ซ้าย (ขยับขึ้นชิดหลอดแถวบนเมื่อแถวนั้นไม่มีบรรทัด ETA), `expires in 33d (18 Nov)` ขวา
   (สีจาง, ≤7 วันส้ม, ≤1 วันแดง — เตือน "ใกล้หมดอายุแต่เงินยังเหลือ"). ไม่มีหลอด เพราะเครดิตคือ
   ของที่อยากใช้ให้หมด สีตาม % ใช้ไปจึงกลับความหมาย. ในโค้ด `UsageWindow.IsWallet` = สองตัวนี้
   (ชื่อ property เก่า — ไม่ใช่ *Wallet row* ข้างบน).
