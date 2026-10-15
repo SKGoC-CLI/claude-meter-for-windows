@@ -4,6 +4,25 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.12.0] - 2026-10-15
+
+### Added
+- **Usage credits balance.** Purchased prepaid credits show as `Usage credits: $X left`, read
+  from `prepaid/credits` (the endpoint Claude Code uses). A failed read keeps the last value and
+  retries after 30 minutes.
+- **Step segments.** Up to 10 steps draw one short colourless segment each (done light grey,
+  current white and fading while Working, rest dark grey), then a dim `3/6` and the step
+  headline. Over 10 steps keeps `Step 3/14 · <step>`.
+
+### Changed
+- **One credit line**: cloud credit and usage credits on one small line without bars, expiry on
+  the right (amber ≤7 days, red ≤1 day).
+- **The spend row is called Monthly spend.**
+- **CURRENT SESSION(S)** replaces the SESSION CONTEXT header; the tray submenu is *Current session*.
+- **Step names are cut to their headline** at the first `(`, dash, `:`, `·` or `,`; CLI tasks
+  use their short `subject`.
+- **Tray menu regrouped** into *Popup shows*, *Window*, *Tray & alerts* and *App*.
+
 ## [1.11.0] - 2026-10-15
 
 ### Added

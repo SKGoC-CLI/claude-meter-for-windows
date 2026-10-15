@@ -1,34 +1,32 @@
-# NEXT-SESSION — หัวข้อ CURRENT SESSION + จุด step ●●◉○○○
+# NEXT-SESSION — v1.12.0 (credit line + step segments)
 
-status: active
+status: done
 
-> **ห้ามพิมพ์คำต้องห้าม "ab***t" เต็ม ๆ ลงไฟล์ใด ๆ ใน repo** · ห้ามชื่อโปรเจกต์จริงหลุดในภาพ/GIF ที่ขึ้น GitHub
+> **ห้ามพิมพ์คำต้องห้าม "ab***t" เต็ม ๆ ลงไฟล์ใด ๆ ใน repo** · ภาพ/GIF ที่ขึ้น GitHub ต้องเป็น mockup ภาษาอังกฤษ ไม่มีชื่อโปรเจกต์จริง/ข้อความไทย (กฎใหม่ 2026-10-15)
 
-① 2026-10-15 · เริ่มจาก HEAD `19371c8` — ไฟล์นี้อาจเก่า เช็ค `git log --oneline -5` ก่อน
+① 2026-10-15 · release commit หลัง `95bb06b` — ไฟล์นี้อาจเก่า เช็ค `git log --oneline -5` ก่อน
 
-② ขั้นตอน (แผนเต็ม + สิ่งที่ตัดสินแล้ว: [WORK-LOG-2026-10-15-step-dots.md](WORK-LOG-2026-10-15-step-dots.md))
+② ขั้นตอน (รายละเอียด: [WORK-LOG-2026-10-15-step-dots.md](WORK-LOG-2026-10-15-step-dots.md), งาน credit line: WORK-LOG-2026-10-15-usage-credits-menu.md)
 
 | Step | งาน | ใคร | สถานะ |
 |------|-----|-----|-------|
-| 1 | หัวข้อ `CURRENT SESSION` / `CURRENT SESSIONS (n)` + เมนู tray `Current session` + CONTEXT.md | main | ✅ |
-| 2 | จุด step + `3/6` จาง + หัวข้อ, >10 step = แบบเดิม, ส้มกระพริบเฉพาะ Working | main | ✅ `DrawContextBlock` |
-| 3 | TaskCreate ใช้ `subject` ก่อน `activeForm` | main | ✅ self-check ครอบแล้ว |
-| 4 | review + build portable + `--popup-shot` ให้คุณสมกกดู | main | ✅ self-review (diff ~45 บรรทัด), `--goal-selftest` OK, portable ใหม่รันอยู่, ภาพ `docs/design/popup-step-dots-2026-10-15.png` |
-| 5 | ปรับตามภาพ: คุณสมกกว่าจุดซ้ำกับจุดสถานะ → grilling รอบ 2 เลือกแท่งสั้นต่อกัน ▬▬▭ ไม่มีสี (เสร็จเทาอ่อน / กำลังทำขาว / ยังไม่ทำเทาเข้ม) | main | ✅ ภาพ `docs/design/popup-step-segments-2026-10-15.png`, รอคุณสมกกดูของจริง |
-| 5b | grilling รอบ 3: ชื่อขั้นยาวเกิน → ตัดที่เครื่องหมายแรก `(` `—` `:` `·` `,` (`ShortStep` ใน ContextMonitor, ทุกแหล่ง) | main | ✅ selftest ครอบ |
-| 6 | release v1.12.0 (รวมงาน credit line ที่เสร็จแล้ว) — **รอคุณสมกกสั่งเท่านั้น** | main | ⬜ |
+| 1 | หัวข้อ CURRENT SESSION(S) + เมนู Current session | main | ✅ |
+| 2 | จุด step → แท่งสั้นไม่มีสี (grilling รอบ 2) | main | ✅ |
+| 3 | TaskCreate ใช้ subject + ShortStep ตัดหัวข้อ (grilling รอบ 3) | main | ✅ |
+| 4 | reviewer: ไม่มีบั๊กร้ายแรง แก้ข้อ 1 (ShortStep ว่างเมื่อขึ้นต้นด้วยวงเล็บ) | reviewer/main | ✅ |
+| 5 | GIF จากคลิปคุณสมกก 16:17 ทับ "Oliver; Alinity negative query" → "api-server", ชื่อตัวอย่าง PopupShot เป็นชื่อปลอม | main | ✅ docs/demo-v1.12.0.gif 3.9 MB |
+| 6 | release v1.12.0 (คุณสมกกสั่ง "ทำ release ได้เลย") | main | ✅ |
 
-③ สถานะจริง: step 1-4 เสร็จ + commit + push. build 0 error, portable เวอร์ชันใหม่รันอยู่. ยังไม่ bump เวอร์ชัน
+③ สถานะจริง: v1.12.0 commit + push + GitHub release (Latest) พร้อม zip 63.3 MB. portable 1.12.0.0 รันอยู่. ไฟล์กลาง docs/demo-v1.12.0-wm.mp4 ไม่ commit (เหมือนรุ่นก่อน)
 
-④ ถัดไป: คุณสมกกดูแท่งในป๊อปอัปจริง → ผ่านแล้วค่อย release (step 6)
+④ ถัดไป: ไม่มีงานค้าง — sprint จบ
 
 ## รอคุณสมกกตัดสิน
-- (ไม่มีตอนนี้ — release รอสั่งหลังงานจุด step)
+- (ไม่มี)
 
 ⑤ กับดัก
-- ตัวอย่างใน `PopupShot.cs` ห้ามใช้ชื่อโปรเจกต์/ลูกค้าจริง
-- ส้มกระพริบต้องไม่ทำให้ `_anim` วิ่งตลอดตอน popup ซ่อน
-- build portable: stop ClaudeMeter ทุกตัวก่อน (mutex ทำให้ตัวใหม่ออกเงียบ) แล้วรันแบบ Hidden
-- ห้าม backtick ใน Bash heredoc → commit ด้วย `git commit -F` จากไฟล์
+- Bash tool ในเครื่องนี้ล่มกลาง session ("claude-xxxx-cwd: No such file") → ใช้ PowerShell แทนได้
+- ห้าม backtick ใน Bash heredoc (เกือบโดนอีกรอบวันนี้) → เขียนสคริปต์ด้วย Write แล้วรัน
+- reviewer ข้อ 2 (ตัดที่ `: ` และ `, ` อาจตัดเกิน เช่น "Add A, B" → "Add A") = ตั้งใจตามที่คุณสมกกเลือก; ข้อ 3 (10 แท่งบน DPI สูงอาจชนข้อความอายุ) ยังไม่แก้
 
 ⑥ log เต็ม: [WORK-LOG-2026-10-15-step-dots.md](WORK-LOG-2026-10-15-step-dots.md)

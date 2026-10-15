@@ -368,8 +368,10 @@ static class ContextMonitor
     /// "release v1.12.0 (incl. X) — wait for go" cell shows as "release v1.12.0".</summary>
     static string ShortStep(string text)
     {
+        text = text.Trim();
         int cut = StepSeparators.Select(s => text.IndexOf(s, StringComparison.Ordinal)).Where(i => i > 0).DefaultIfEmpty(-1).Min();
-        return cut > 0 ? text[..cut].TrimEnd() : text;
+        string head = cut > 0 ? text[..cut].TrimEnd() : text;
+        return head.Length > 0 ? head : text;
     }
 
     /// <summary>Runnable check, `--goal-selftest`: replays both tool styles, incrementally, from a temp transcript.</summary>

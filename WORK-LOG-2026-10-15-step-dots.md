@@ -64,6 +64,15 @@
 | 1 | ตัดยังไง | **A** — ตัดที่เครื่องหมายแรก `(` `—` `–` `:` `·` `,` ใช้กับทุกแหล่ง (update_plan / TaskCreate / NEXT-SESSION); ยังยาวเกิน = `…` เหมือนเดิม |
 ทำแล้ว: `ContextMonitor.ShortStep` + เคสใน `--goal-selftest`
 
+## release v1.12.0 (2026-10-15 ~16:30)
+คุณสมกก: "ดูดีมาก ทำ release ได้เลย ถ้ารูปไหนมีข้อมูลฉันให้ mockup เป็นภาษาอังกฤษเสมอ" (จำไว้ใน memory แล้ว)
+- grilling: รูป release → คุณสมกกอัดคลิปเอง `docs/Recording 2026-10-15 161731.mp4` (1010x938, 37 วิ)
+- ทับชื่อจริง "Oliver; Alinity negative query" → "api-server" ทั้งคลิป: overlay PNG ทำด้วย GDI+ (Segoe UI Bold 16.25px, สี #8c8c8c พื้น #1e1e1e, กล่อง 176,476 460x28) ปรับขนาดตัวอักษรให้กว้างเท่าแถว "web · Opus · High"; สคริปต์อยู่ scratchpad (ไม่ commit)
+- scale 1280 + ลายน้ำ v1.12.0 y=h-th-70 → `docs/demo-v1.12.0.gif` 3.9 MB; ตรวจเฟรม 1/18/35 วิ ไม่มีชื่อจริง
+- `PopupShot.cs` ชื่อตัวอย่าง: CORSAIR XENEON EDGE Claude App → home-dashboard, design-archive → api-server; `docs/popup-v1.12.0.png`
+- csproj 1.12.0, CHANGELOG, docs/RELEASE_NOTES_v1.12.0.md, README (hero GIF/ภาพ + ชื่อเมนู Current session)
+- reviewer: ไม่มี blocker; แก้ ShortStep ให้คืนข้อความเดิมถ้าตัดแล้วว่าง
+
 ## ทำแล้ว 2026-10-15 (บ่าย)
 - step 1-4 เสร็จใน commit เดียว: หัวข้อ CURRENT SESSION(S), เมนู Current session, จุด step ใน PopupForm.DrawContextBlock (>10 ขั้น = Step x/y แบบเดิม), TaskCreate ใช้ subject ก่อน, CONTEXT.md
 - ภาพ docs/design/popup-step-dots-2026-10-15.png
