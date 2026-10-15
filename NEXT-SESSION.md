@@ -16,11 +16,14 @@ status: active
 | 4 | เมนูคลิกขวา 4 กลุ่ม: Popup shows / Window / Tray & alerts / App ("Show limits" → "Limits") | main | ✅ |
 | 5 | reviewer + build portable + screenshot ป๊อปอัป ให้คุณสมกกดู | reviewer/main | ✅ reviewer: ไม่มีบั๊กร้ายแรง แก้ข้อ 1 (CreateDirectory) แล้ว |
 | 5b | คุณสมกกเลือก C (2026-10-15): แถว Usage credits เป็นบรรทัดเล็ก (small font) ใต้ Cloud credit ไม่มีที่ว่าง | main | ✅ ใต้ Cloud = ขยับขึ้น S(18) สูง S(10); ใต้แถวอื่น (อาจมี ETA) = สูง S(28). ภาพ `docs/design/popup-usage-credits-small-2026-10-15.png` |
+| 7 | (grilling 2) เอาหลอด Cloud credit ออก → Cloud + Usage credits รวมบรรทัดเล็กบรรทัดเดียว, expiry ชิดขวา สีจาง/ส้ม ≤7d/แดง ≤1d, ลบ tuck ของ 5b | main | ✅ `DrawCreditLine` / `CreditLineText` |
+| 8 | tray tooltip Cloud credit เป็น `$X left` + CONTEXT.md | main | ✅ คำใหม่ *Credit line* |
+| 9 | reviewer + build portable + popup-shot ให้คุณสมกกดู | reviewer/main | ✅ ไม่มีบั๊ก; ภาพ `docs/design/popup-credit-line-2026-10-15.png` (ขั้น 7-9 commit รวมกัน) |
 | 6 | release — **รอคุณสมกกสั่งเท่านั้น** | main | ⬜ |
 
 ③ สถานะจริง: step 1-5 เสร็จ + commit แล้ว, build ผ่าน 0 error, portable รันเวอร์ชันใหม่อยู่. ยังไม่ bump เวอร์ชัน ยังไม่ release. แถว Usage credits **ยังไม่โผล่ในเครื่องจริง** เพราะ API ส่ง `spend.balance: null` (เห็นแค่ใน `--popup-shot` ที่ใส่ $7.50 ตัวอย่าง → `docs/design/popup-usage-credits-2026-10-15.png`)
 
-④ ถัดไป: รอคุณสมกกดูภาพบรรทัดเล็ก (5b) แล้วตัดสินเรื่อง release ด้านล่าง
+④ ถัดไป: รอคุณสมกกดูภาพ Credit line (ขั้น 9) แล้วตัดสินเรื่อง release ด้านล่าง. สีส้ม/แดงของวันหมดอายุยังไม่ได้เห็นในภาพ (ตัวอย่างเหลือ 33 วัน)
 
 ## รอคุณสมกกตัดสิน
 - Release v1.12.0 เลยไหม — แนะนำรอจน `spend.balance` มีค่าจริงสักครั้ง (ลองเปิด usage credits บนเว็บ) จะได้รู้ว่ารูปข้อมูลที่เดาไว้ถูก

@@ -125,12 +125,8 @@ sealed class PopupForm : Form
     // the ETA line sits at y+S(38), just under the bar; the extra height is breathing room
     // *below* it, so it reads as part of its own row instead of the next row's label
     int RowHeight => _showEta ? S(66) : S(58);
-    // the prepaid balance is one small text line, no bar — tucks under the cloud credit
-    // right under the cloud credit (which never has an ETA line) it moves S(18) up into
-    // that row's empty space below the bar; elsewhere an ETA line could sit there
-    int RowHeightFor(IReadOnlyList<UsageWindow> ws, int i) =>
-        ws[i].Key != CreditBalanceKey ? RowHeight : TucksUnderCloud(ws, i) ? S(10) : S(28);
-    static bool TucksUnderCloud(IReadOnlyList<UsageWindow> ws, int i) => i > 0 && ws[i - 1].Key == CloudCreditKey;
+    // cloud credit + usage credits share one small text line, no bars (sorted last)
+    int CreditLineHeight => _snapshot?.Windows.Any(w => w.IsWallet) == true ? S(28) : 0;
 
     // never shorter than the minimize button's hit area, even with the logo off,
     // so "−" never lands on top of the first row's "resets …" text
@@ -305,20 +301,26 @@ sealed class PopupForm : Form
         // worst-case ETA string, used below so the ETA line's width is always budgeted for
         float etaW = ShowEta ? g.MeasureString("full in ~23h 59m", _smallFont).Width : 0;
         float widest = 0;
-        foreach (var w in _snapshot?.Windows ?? Array.Empty<UsageWindow>())
+        if (CreditLineHeight > 0)
+        {
+            var (left, right, _) = CreditLineText();
+            widest = g.MeasureString(left, _smallFont).Width
+                + (right is null ? 0 : S(16) + g.MeasureString(right, _smallFont).Width);
+        }
+        foreach (var w in _snapshot?.Windows.Where(w => !w.IsWallet) ?? Array.Empty<UsageWindow>())
         {
             float labelW = g.MeasureString(w.Label + ":", _labelFont).Width;
-            float pctW = g.MeasureString(w.Key is CloudCreditKey or CreditBalanceKey ? ValueText(w) : "100%", _valueFont).Width;
+            float pctW = g.MeasureString("100%", _valueFont).Width;
             float resetW = 0;
             if (w.ResetsAt is { } resets)
             {
                 var remaining = resets - DateTimeOffset.Now;
                 if (remaining > TimeSpan.Zero)
-                    resetW = g.MeasureString(ResetText(w, resets, remaining), _smallFont).Width;
+                    resetW = g.MeasureString(ResetText(resets, remaining), _smallFont).Width;
             }
             else if (w.Key == "five_hour")
                 resetW = g.MeasureString(NextUseHint, _smallFont).Width;
-            else if (w.Key != CloudCreditKey && w.UsedDollars is { } used && w.LimitDollars is { } limit)
+            else if (w.UsedDollars is { } used && w.LimitDollars is { } limit)
                 resetW = g.MeasureString(MoneyText(used, limit), _smallFont).Width;
             widest = Math.Max(widest, labelW + S(2) + pctW + S(16) + resetW);
             // the ETA line sits below (same row as the collision-fallback reset text)
@@ -349,22 +351,41 @@ sealed class PopupForm : Form
     static string MoneyText(double used, double limit) => $"${used:0.00} / ${limit:0.00}";
 
     const string CloudCreditKey = "cloud_credit";
-    const string CreditBalanceKey = "credit_balance"; // prepaid balance: value only, no bar
+    const string CreditBalanceKey = "credit_balance"; // prepaid balance
 
-    /// <summary>Big number beside the label: percent, except the cloud credit, which reads
-    /// as dollars left (same as claude.ai's "$98 of $100 left").</summary>
-    static string ValueText(UsageWindow w) =>
+    /// <summary>A credit's dollars left: the balance as-is, the cloud credit as limit − used
+    /// (same as claude.ai's "$98 of $100 left").</summary>
+    internal static string CreditText(UsageWindow w) =>
         w.Key == CreditBalanceKey && w.UsedDollars is { } bal ? $"${bal:0.00} left"
-        : w.Key == CloudCreditKey && w.UsedDollars is { } used && w.LimitDollars is { } limit
-            ? $"${Math.Max(0, limit - used):0.00} left"
-            : $"{Math.Round(w.Utilization)}%";
+        : w.UsedDollars is { } used && w.LimitDollars is { } limit ? $"${Math.Max(0, limit - used):0.00} left"
+        : $"{Math.Round(w.Utilization)}%";
 
-    // the cloud credit's ResetsAt is when the credit expires, not a window reset
-    static string ResetText(UsageWindow w, DateTimeOffset resets, TimeSpan remaining) =>
-        w.Key != CloudCreditKey ? ResetText(resets, remaining)
-        : remaining.TotalHours >= 24
-            ? $"expires in {(int)remaining.TotalDays}d ({resets:d MMM})"
-            : $"expires in {(int)remaining.TotalHours}h {remaining.Minutes}m ({resets:HH:mm})";
+    /// <summary>The credit line: "Cloud credit: $X left · Usage credits: $Y left" on the left,
+    /// the cloud credit's expiry right-aligned — muted, orange within 7 days, red within 1.</summary>
+    (string Left, string? Right, Color RightColor) CreditLineText()
+    {
+        var credits = _snapshot?.Windows.Where(w => w.IsWallet).ToList() ?? new();
+        string left = string.Join("  ·  ", credits.Select(w => $"{w.Label}: {CreditText(w)}"));
+        // the cloud credit's ResetsAt is when it expires, not a window reset
+        if (credits.FirstOrDefault(w => w.Key == CloudCreditKey)?.ResetsAt is not { } exp)
+            return (left, null, MutedColor);
+        var rem = exp - DateTimeOffset.Now;
+        if (rem <= TimeSpan.Zero) return (left, null, MutedColor);
+        string right = rem.TotalHours >= 24
+            ? $"expires in {(int)rem.TotalDays}d ({exp:d MMM})"
+            : $"expires in {(int)rem.TotalHours}h {rem.Minutes}m ({exp:HH:mm})";
+        return (left, right, rem.TotalDays <= 1 ? Theme.Danger : rem.TotalDays <= 7 ? Theme.Warning : MutedColor);
+    }
+
+    void DrawCreditLine(Graphics g, int y, int pad, int contentWidth)
+    {
+        var (left, right, rightColor) = CreditLineText();
+        using var labelBrush = new SolidBrush(LabelColor);
+        g.DrawString(left, _smallFont, labelBrush, pad, y);
+        if (right is null) return;
+        using var rightBrush = new SolidBrush(rightColor);
+        g.DrawString(right, _smallFont, rightBrush, pad + contentWidth - g.MeasureString(right, _smallFont).Width, y);
+    }
 
     static string ResetText(DateTimeOffset resets, TimeSpan remaining) =>
         remaining.TotalHours >= 24
@@ -546,7 +567,7 @@ sealed class PopupForm : Form
 
         int rows = _snapshot?.Windows.Count ?? 0;
         // zero rows with data and no error means every limit is hidden by choice
-        int body = rows > 0 ? Enumerable.Range(0, rows).Sum(i => RowHeightFor(_snapshot!.Windows, i))
+        int body = rows > 0 ? _snapshot!.Windows.Count(w => !w.IsWallet) * RowHeight + CreditLineHeight
             : (_snapshot is not null && _error is null) ? S(4)
             : S(64); // space for error/loading text
         if (_showFixLogin) body += S(48);               // room for the fix-login button
@@ -653,11 +674,15 @@ sealed class PopupForm : Form
         }
         else
         {
-            var ws = _snapshot.Windows;
-            for (int i = 0; i < ws.Count; i++)
+            foreach (var w in _snapshot.Windows.Where(w => !w.IsWallet))
             {
-                DrawRow(g, ws[i], TucksUnderCloud(ws, i) ? y - S(18) : y, pad, contentWidth);
-                y += RowHeightFor(ws, i);
+                DrawRow(g, w, y, pad, contentWidth);
+                y += RowHeight;
+            }
+            if (CreditLineHeight > 0)
+            {
+                DrawCreditLine(g, y, pad, contentWidth);
+                y += CreditLineHeight;
             }
         }
 
@@ -772,15 +797,10 @@ sealed class PopupForm : Form
     void DrawRow(Graphics g, UsageWindow w, int y, int pad, int contentWidth)
     {
         using var labelBrush = new SolidBrush(LabelColor);
-        if (w.Key == CreditBalanceKey)
-        {
-            g.DrawString($"{w.Label}: {ValueText(w)}", _smallFont, labelBrush, pad, y);
-            return;
-        }
         g.DrawString(w.Label + ":", _labelFont, labelBrush, pad, y);
 
         var barColor = Theme.ColorFor(w.Utilization);
-        string pct = ValueText(w);
+        string pct = $"{Math.Round(w.Utilization)}%";
         using var pctBrush = new SolidBrush(barColor);
         var labelSize = g.MeasureString(w.Label + ":", _labelFont);
         float pctX = pad + labelSize.Width + S(2); // ~1 character gap
@@ -792,7 +812,7 @@ sealed class PopupForm : Form
             var remaining = resets - DateTimeOffset.Now;
             if (remaining > TimeSpan.Zero)
             {
-                string resetText = ResetText(w, resets, remaining);
+                string resetText = ResetText(resets, remaining);
                 using var mutedBrush = new SolidBrush(MutedColor);
                 var size = g.MeasureString(resetText, _smallFont);
                 float resetX = pad + contentWidth - size.Width;
@@ -810,7 +830,7 @@ sealed class PopupForm : Form
             var size = g.MeasureString(NextUseHint, _smallFont);
             g.DrawString(NextUseHint, _smallFont, mutedBrush, pad + contentWidth - size.Width, y + S(3));
         }
-        else if (w.Key != CloudCreditKey && w.UsedDollars is { } used && w.LimitDollars is { } limit)
+        else if (w.UsedDollars is { } used && w.LimitDollars is { } limit)
         {
             // wallet row has no reset time, so its slot is free for the dollar amounts
             using var mutedBrush = new SolidBrush(MutedColor);

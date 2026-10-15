@@ -56,3 +56,27 @@ Exit
 - Step 4: เมนู 4 กลุ่ม + README อัปเดต
 - Step 5: reviewer ความเสี่ยงต่ำ; แก้ CreateDirectory แล้ว. ข้อเล็กที่ปล่อยไว้: สีตัวเลขแถว balance ไม่เปลี่ยนตามยอด, log บรรทัด "usage ok" เขียน "Usage credits 0%", แถวโผล่ในเมนู Limits ให้ซ่อนได้ (ตั้งใจ)
 - ย้อนกลับ: `git revert` ทีละ commit ได้ (ทุก step แยก commit)
+
+- Step 5b (`980d77d`): คุณสมกกเลือก C ในข้อค้างตัดสิน → แถว Usage credits กลายเป็นบรรทัดเล็ก
+
+## Grilling 2 (2026-10-15): เอาหลอดออกจากแถว Cloud credit
+โควตาตอนเริ่ม (จากมิเตอร์): 5h 14% · 7d 24%
+
+| ข้อ | คำถาม | คุณสมกกเลือก |
+|----|------|-------------|
+| 1 | เอาหลอดออกแล้วแถวหน้าตาแบบไหน | **C. รวม Cloud credit + Usage credits เป็นบรรทัดเล็กบรรทัดเดียว** (ผมแนะนำ A = บรรทัดเล็กแยกกัน 2 บรรทัด) |
+| 2 | วันหมดอายุไปอยู่ไหน | **A. ชิดขวาบรรทัดเดียวกัน** |
+| 3 | สีเตือน | **A. วันหมดอายุเหลือ ≤7 วัน = ส้ม (Warning), ≤1 วัน = แดง (Danger)**, ปกติสีจาง; ตัวเลข $ ไม่เปลี่ยนสีตาม % อีก |
+| 4 | tooltip ไอคอน tray | **A. `Cloud credit: $98.51 left`** แทน `2%` |
+
+ร่างหน้าตา: ซ้าย `Cloud credit: $98.51 left · Usage credits: $7.50 left` ขวา `expires in 33d (18 Nov)`
+- ไม่มี Usage credits (null) → เหลือแค่ส่วน Cloud credit · ไม่มี Cloud credit → เหลือแค่ Usage credits ไม่มีวันหมดอายุ
+- ซ่อน Cloud credit ในเมนู Limits ได้เหมือนเดิม
+
+### Sprint (รอคุณสมกกยืนยันก่อนเริ่ม)
+| Step | งาน | ใคร | % 5h (ประมาณ) | หยุดตรงนี้ได้ = |
+|------|-----|-----|------|------|
+| 1 | PopupForm: วาด cloud_credit + credit_balance เป็นบรรทัดเดียว, สีวันหมดอายุ, ลบ logic "tuck" ของ 5b | main | 4 | ป๊อปอัปใหม่ build ผ่าน |
+| 2 | tray tooltip เป็น $ + CONTEXT.md อัปเดตคำนิยาม Cloud credit | main | 1 | tooltip ถูก |
+| 3 | reviewer + build portable + popup-shot ให้ดู | reviewer/main | 3 | พร้อมให้ตรวจด้วยตา |
+% เป็นค่าประมาณ. ทั้ง 3 ขั้นเล็ก ไม่มีขั้นที่ทิ้งได้
