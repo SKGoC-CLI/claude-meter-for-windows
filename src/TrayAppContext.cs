@@ -1020,7 +1020,7 @@ sealed class TrayAppContext : ApplicationContext
 
         string tooltip = _lastSnapshot is null
             ? "Claude Meter — " + (_lastError is null ? "loading…" : "error")
-            : string.Join("\n", _lastSnapshot.Windows.Select(w => w.IsWallet
+            : string.Join("\n", _lastSnapshot.Windows.Where(w => w.Key != "limit_resets").Select(w => w.IsWallet
                 ? $"{w.Label}: {PopupForm.CreditText(w)}"
                 : $"{w.Label}: {Math.Round(w.Utilization)}%"));
         // NotifyIcon.Text caps at 127 chars

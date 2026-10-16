@@ -4,6 +4,14 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+- **Limit resets line.** When the account holds free limit resets, a small line under the credit
+  line reads `Limit resets: 2 of 3 left` with `expires in 12d (28 Oct)` on the right (several
+  grants add up, with the soonest as `next expires`). Hidden when none are left; can be turned
+  off under Show limits. Kept out of the tray icon, tooltip and alerts.
+
 ## [1.12.0] - 2026-10-15
 
 ### Added

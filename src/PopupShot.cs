@@ -22,6 +22,7 @@ static class PopupShot
             new UsageWindow("extra_usage", "Monthly spend", 24.8, null, UsedDollars: 12.40, LimitDollars: 50.00),
             new UsageWindow("cloud_credit", "Cloud credit", 1.49, now.AddDays(34), UsedDollars: 1.49, LimitDollars: 100),
             new UsageWindow("credit_balance", "Usage credits", 0, null, UsedDollars: 7.50),
+            new UsageWindow("limit_resets", "Limit resets", 0, now.AddDays(12), ResetsLeft: 2, ResetsTotal: 3, ResetGrants: 1),
         }, now);
 
         var sessions = new[]

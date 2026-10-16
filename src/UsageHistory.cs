@@ -37,7 +37,7 @@ sealed class UsageHistory
         double now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
         foreach (var w in snapshot.Windows)
         {
-            if (w.Key == "credit_balance") continue; // no utilization to chart
+            if (w.Key is "credit_balance" or "limit_resets") continue; // no utilization to chart
             if (!_data.TryGetValue(w.Key, out var list))
                 _data[w.Key] = list = new();
             list.Add(new[] { now, w.Utilization });

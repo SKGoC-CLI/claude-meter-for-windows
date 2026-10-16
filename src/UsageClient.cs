@@ -14,10 +14,14 @@ sealed record UsageWindow(
     bool IsActive = false,      // server marks the limit currently binding
     string Severity = "normal",
     double? UsedDollars = null,  // wallet row only: month-to-date spend / cap, in dollars
-    double? LimitDollars = null)
+    double? LimitDollars = null,
+    int? ResetsLeft = null,      // limit-resets row only: free resets left / granted, over live grants
+    int? ResetsTotal = null,
+    int ResetGrants = 0)
 {
-    /// <summary>Wallet rows (cloud credit, usage-credit balance) are money, never a blocking limit.</summary>
-    public bool IsWallet => Key is "cloud_credit" or "credit_balance";
+    /// <summary>Small-line rows (cloud credit, usage-credit balance, limit resets) — never a
+    /// blocking limit, so kept out of the bars, tray icon, alerts and ETA.</summary>
+    public bool IsWallet => Key is "cloud_credit" or "credit_balance" or "limit_resets";
 }
 
 sealed record UsageSnapshot(IReadOnlyList<UsageWindow> Windows, DateTimeOffset FetchedAt);
@@ -45,7 +49,9 @@ sealed class UsageException : Exception
 /// </summary>
 sealed class UsageClient
 {
-    const string UsageUrl = "https://api.anthropic.com/api/oauth/usage";
+    // cedar_ember=1 adds the limit-resets block (null without it), as Claude Code asks for it;
+    // never skip_spend=1 like Claude Code does — the Monthly spend row needs that block
+    const string UsageUrl = "https://api.anthropic.com/api/oauth/usage?cedar_ember=1";
 
     readonly HttpClient _http;
     readonly CredentialStore _credentials;
@@ -266,9 +272,34 @@ sealed class UsageClient
             // unknown balance shape — lose this row only
         }
 
+        // "Limit resets": free resets of a hit limit, in grants (codename cedar_ember).
+        // Only grants with resets left and not yet expired count; none = no row.
+        try
+        {
+            if (root["cedar_ember"]?["grants"] is JsonArray grants)
+            {
+                var now = DateTimeOffset.Now;
+                var live = grants.OfType<JsonObject>()
+                    // read as double: GetValue<int> throws on "2.0"
+                    .Select(g => (Left: (int)(g["resets_left"]?.GetValue<double>() ?? 0),
+                                  Total: (int)(g["resets_total"]?.GetValue<double>() ?? 0),
+                                  Ends: ParseResetTime(g["ends_at"])))
+                    .Where(g => g.Left > 0 && (g.Ends is null || g.Ends > now))
+                    .ToList();
+                if (live.Count > 0)
+                    windows.Add(new UsageWindow("limit_resets", "Limit resets", 0, live.Min(g => g.Ends),
+                        ResetsLeft: live.Sum(g => g.Left), ResetsTotal: live.Sum(g => Math.Max(g.Total, g.Left)),
+                        ResetGrants: live.Count));
+            }
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or FormatException)
+        {
+            // undocumented block changed shape — lose this row only
+        }
+
         // Session first, plain weekly second, model-scoped after, wallet last.
         return windows
-            .OrderBy(w => w.Key switch { "five_hour" => 0, "seven_day" => 1, "extra_usage" => 8, "cloud_credit" => 9, "credit_balance" => 10, _ => 2 })
+            .OrderBy(w => w.Key switch { "five_hour" => 0, "seven_day" => 1, "extra_usage" => 8, "cloud_credit" => 9, "credit_balance" => 10, "limit_resets" => 11, _ => 2 })
             .ThenBy(w => w.Label, StringComparer.Ordinal)
             .ToList();
     }

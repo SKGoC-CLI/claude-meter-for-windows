@@ -34,4 +34,7 @@
 
 ## สถานะ
 - grilling เสร็จ, CONTEXT.md เพิ่มคำว่า **Limit reset** แล้ว
-- ยังไม่เขียนโค้ด — รอคุณสมกกยืนยันว่าเข้าใจตรงกัน
+- sprint เสร็จทุก step (2026-10-16): โค้ดใน UsageClient / PopupForm / TrayAppContext (tooltip ไม่โชว์) / UsageHistory (ไม่เก็บ) / PopupShot (ตัวอย่าง 2 of 3)
+- ผลจริงจาก API: `cedar_ember` = `{eligible:false, ineligible_reason:"surface", grants:[]}` → ไม่มีตั๋ว บรรทัดซ่อน. `surface` อาจหมายถึงตั๋วผูกกับ client บางตัว — ถ้าคุณสมกกเห็นตั๋วใน Claude Code แต่มิเตอร์ไม่ขึ้น ให้ดูตรงนี้ก่อน
+- reviewer: ไม่มีบั๊กร้ายแรง แก้ข้อ 1 (resets_left เป็น 2.0 จะทำแถวหาย → อ่านเป็น double). ไม่แก้: ส่วน "of N" นับเฉพาะชุดที่ยังใช้ได้, param ไม่มีเอกสาร ถ้าเซิร์ฟเวอร์เลิกรับจะทำ poll ทั้งก้อนพัง (วันนี้ตอบ 200)
+- ย้อนกลับ: `git revert` commit นี้ + ก๊อป `bin\portable-v1.12.0-backup\ClaudeMeter.exe` ทับ `portable\`
