@@ -102,3 +102,7 @@
   (แอป desktop = `update_plan`, CLI = TaskCreate/TaskUpdate) ก่อน ถ้าไม่มีหรือเสร็จครบแล้วใช้ตาราง ✅/⬜ ใน `NEXT-SESSION.md`
   ของโฟลเดอร์ session (เฉพาะ `status: active`) ไม่มีทั้งคู่ = ไม่แสดง. รายการที่เสร็จครบ (หลัง wrap_up) = ซ่อน. ปิดได้ที่เมนู Current session → Show step progress.
   **ไม่ใช่** % context (นั่นคือ context window เต็มแค่ไหน). (ทำแล้ว 2026-10-15, ยังไม่ release)
+- **Session name** — บรรทัดแรกของ session = `<ชื่อโปรเจกต์> · <model · effort>` แล้วตามด้วย %. ชื่อยาว
+  **ไม่ทำให้ popup กว้างขึ้น** (คิดความกว้างชื่อเพดานราว 30 ตัวอักษร) และตัด **เฉพาะชื่อโปรเจกต์** ตามที่ว่างจริง (pixel)
+  ต่อ `…` — `· Opus · Medium`, % และ token ชิดขวาอยู่ครบเสมอ ไม่มีวันซ้อนกัน (ตัดสิน 2026-10-17,
+  [WORK-LOG-2026-10-17-session-name-limit.md](WORK-LOG-2026-10-17-session-name-limit.md)).

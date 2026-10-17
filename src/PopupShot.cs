@@ -29,7 +29,7 @@ static class PopupShot
         {
             new SessionContext("App Claude Meter", "Opus · High", 169_000, 200_000, now.AddHours(-3), now, SessionState.Working,
                 new Goal(2, 6, "Draw the goal progress row")),
-            new SessionContext("api-server", "Sonnet · Medium", 48_000, 200_000, now.AddMinutes(-40), now, SessionState.Waiting),
+            new SessionContext("printer-driver-crash-after-wake-from-sleep-investigation", "Sonnet · Medium", 48_000, 200_000, now.AddMinutes(-40), now, SessionState.Waiting),
             new SessionContext("home-dashboard", "Opus · Low", 135_000, 1_000_000, now.AddHours(-3), now, SessionState.Idle),
         };
 

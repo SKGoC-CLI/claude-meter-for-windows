@@ -338,10 +338,11 @@ sealed class PopupForm : Form
         }
 
         // session-context line 1 must fit too: bold "project · model" + % on the
-        // left, "current / capacity" tokens right-aligned (same layout as DrawContextBlock)
+        // left, "current / capacity" tokens right-aligned (same layout as DrawContextBlock);
+        // a long project name never widens the popup past ~30 chars — DrawContextBlock cuts it
         foreach (var s in _sessions)
         {
-            float nameW = g.MeasureString($"{s.Project} · {s.Model}", _smallBoldFont).Width;
+            float nameW = g.MeasureString($"{Truncate(s.Project, 30)} · {s.Model}", _smallBoldFont).Width;
             float pctW = g.MeasureString("100%", _smallBoldFont).Width;
             float tokW = g.MeasureString(TokensText(s) + (s.State == SessionState.Idle ? " · 23h old" : ""), _smallFont).Width;
             widest = Math.Max(widest, StateDotSize + S(5) + nameW + S(6) + pctW + S(16) + tokW);
@@ -1012,18 +1013,27 @@ sealed class PopupForm : Form
         }
         float nameX = pad + dot + S(5);
 
-        using var labelBrush = new SolidBrush(idle ? MutedColor : LabelColor);
-        string name = $"{ctx.Project} · {ctx.Model}";
-        g.DrawString(name, _smallBoldFont, labelBrush, nameX, y);
-        var nameSize = g.MeasureString(name, _smallBoldFont);
-        string pct = $"{Math.Round(ctx.Percent)}%";
-        g.DrawString(pct, _smallBoldFont, idle ? mutedBrush : pctBrush, nameX + nameSize.Width + S(6), y);
-
         // Idle = name line only, so its age rides after the tokens
         string ageText = AgeText(ctx);
         string tokens = TokensText(ctx) + (idle ? $" · {ageText}" : "");
         var tokSize = g.MeasureString(tokens, _smallFont);
         g.DrawString(tokens, _smallFont, mutedBrush, pad + contentWidth - tokSize.Width, y);
+
+        // a long project name is cut to the room left before % and the tokens ("…");
+        // " · model · effort" always stays whole
+        using var labelBrush = new SolidBrush(idle ? MutedColor : LabelColor);
+        string pct = $"{Math.Round(ctx.Percent)}%";
+        float maxNameW = pad + contentWidth - tokSize.Width - S(16) - S(6)
+            - g.MeasureString(pct, _smallBoldFont).Width - nameX;
+        string project = ctx.Project, name = $"{project} · {ctx.Model}";
+        while (project.Length > 1 && g.MeasureString(name, _smallBoldFont).Width > maxNameW)
+        {
+            project = project[..^1];
+            name = $"{project.TrimEnd()}… · {ctx.Model}";
+        }
+        g.DrawString(name, _smallBoldFont, labelBrush, nameX, y);
+        var nameSize = g.MeasureString(name, _smallBoldFont);
+        g.DrawString(pct, _smallBoldFont, idle ? mutedBrush : pctBrush, nameX + nameSize.Width + S(6), y);
 
         if (idle) return;
 
