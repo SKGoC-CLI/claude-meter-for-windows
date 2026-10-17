@@ -33,7 +33,7 @@ git commit -m "Add screenshot"
 ### 3. Push โค้ดขึ้นไป
 GitHub จะโชว์คำสั่งให้ copy — หรือใช้ชุดนี้ (แทน `<USERNAME>` ด้วยชื่อบัญชีคุณ):
 ```powershell
-cd "D:\Onedrive\Desktop\App Claude Meter"
+cd "C:\Users\SKGoC\Projects\App Claude Meter"
 git remote add origin https://github.com/SKGoC-CLI/claude-meter-for-windows.git
 git push -u origin main
 ```

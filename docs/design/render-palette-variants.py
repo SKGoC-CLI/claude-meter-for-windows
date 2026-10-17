@@ -14,7 +14,7 @@ to start unless src/ is clean — commit or stash first.
 import subprocess, sys, shutil
 from pathlib import Path
 
-REPO = Path(r"D:\Onedrive\Desktop\App Claude Meter")
+REPO = Path(r"C:\Users\SKGoC\Projects\App Claude Meter")
 OUT = Path(sys.argv[1])
 OUT.mkdir(parents=True, exist_ok=True)
 
