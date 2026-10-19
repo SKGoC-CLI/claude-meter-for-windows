@@ -106,3 +106,12 @@
   **ไม่ทำให้ popup กว้างขึ้น** (คิดความกว้างชื่อเพดานราว 30 ตัวอักษร) และตัด **เฉพาะชื่อโปรเจกต์** ตามที่ว่างจริง (pixel)
   ต่อ `…` — `· Opus · Medium`, % และ token ชิดขวาอยู่ครบเสมอ ไม่มีวันซ้อนกัน (ตัดสิน 2026-10-17,
   [WORK-LOG-2026-10-17-session-name-limit.md](WORK-LOG-2026-10-17-session-name-limit.md)).
+
+## อัปเดต
+
+- **Update check** — การเช็กว่ามี release ใหม่บน GitHub ไหม. อัตโนมัติวันละครั้ง (toggle `Check for updates`,
+  setting `CheckUpdates`) หรือกดเอง `Check for updates now` (ข้าม throttle). **แค่เช็ก ไม่โหลดอะไร**.
+- **Self-update** — กด `Update now` ในหน้าต่างถาม แล้ว app โหลด zip → ตรวจ sha256 + เวอร์ชัน → วางทับ exe เดิม
+  → เปิดตัวใหม่เอง. **ต้องให้ผู้ใช้กดยืนยันเสมอ ไม่มีอัปเดตเงียบ**. ตัวเก่าระหว่างทางชื่อ `ClaudeMeter.old.exe`
+  และถูกลบทันทีที่ตัวใหม่เปิดขึ้น (ADR 0003, [WORK-LOG-2026-10-19-self-update.md](WORK-LOG-2026-10-19-self-update.md)).
+  **ห้ามเรียก "auto-update"** ในหน้าจอ เพราะจะเข้าใจว่าอัปเดตเองโดยไม่ถาม.
