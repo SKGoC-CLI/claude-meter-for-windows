@@ -468,7 +468,8 @@ sealed class TrayAppContext : ApplicationContext
 
         // these can show balloon tips, so they must come after _trayIcon exists
         ApplyHotkey();
-        if (_settings.CheckUpdates) _ = CheckUpdatesAsync(notifyBalloon: true);
+        if (Environment.GetCommandLineArgs().Contains("--check-updates-now")) _ = CheckUpdatesAsync(notifyBalloon: false, manual: true); // same as the menu item; for testing the prompt
+        else if (_settings.CheckUpdates) _ = CheckUpdatesAsync(notifyBalloon: true);
 
         _pollTimer = new System.Windows.Forms.Timer { Interval = PollIntervalMs };
         _pollTimer.Tick += async (_, _) => await RefreshAsync();

@@ -13,8 +13,8 @@ status: active
 | 1 | `Updater.cs` โหลด/sha256/เวอร์ชัน/rename วางทับ + `Program.cs` `--updated` รอ mutex + ลบ `.old.exe` | main (เขียนเอง — โค้ดเสี่ยงสูง) | ✅ `src/Updater.cs` |
 | 2 | เมนู `Check for updates now`, `⬆ Update to vX` + balloon → dialog Update now / What's new / Later, Downloading % | main | ✅ TaskDialog ใน `TrayAppContext.cs` |
 | 3 | reviewer + main re-review (โหลดไฟล์มารัน = high-stakes) | reviewer/main | ✅ แก้ข้อ 1-4,6-11 (swap ในโฟลเดอร์เดียวกัน, timeout, Task.Run, retry ลบ .old, Esc); ไม่แก้ 5,12,13 (ช่วง swap เสี้ยววิ / same-user malware) |
-| 4 | ทดสอบตัว 1.11.9 อัปเดตไป v1.12.0 จริง + เคส sha ผิด + screenshot | main | ✅ headless ผ่านทั้งก่อน/หลังแก้ review; ⬜ หน้าต่าง TaskDialog ยังไม่เห็นกับตา |
-| 5 | bump 1.13.0 + CHANGELOG/README | main | ✅ + `docs/RELEASE_NOTES_v1.13.0.md`; portable + `ClaudeMeter-portable.zip` (sha256 16C4F965…) build แล้ว, portable 1.13.0 รันอยู่ |
+| 4 | ทดสอบตัว 1.11.9 อัปเดตไป v1.12.0 จริง + เคส sha ผิด + screenshot | main | ✅ headless ผ่านทั้งก่อน/หลังแก้ review; หน้าต่างถาม = `docs/design/update-prompt-v1.13.0.png` (เปิดด้วย `--check-updates-now`, ถ่ายด้วย PrintWindow ไม่แตะจอ) |
+| 5 | bump 1.13.0 + CHANGELOG/README | main | ✅ + `docs/RELEASE_NOTES_v1.13.0.md`; portable + `ClaudeMeter-portable.zip` (sha256 DE78337F…) build แล้ว, portable 1.13.0 รันอยู่ |
 | 6 | **ถามคุณสมกกก่อน** → release v1.13.0 + rebuild portable | main | ⬜ |
 
 ③ สถานะจริง: step 1-2 เสร็จ build ผ่าน. ทดสอบ headless แล้ว (`--update-selftest [badsha]`, ผลอยู่ใน log):
