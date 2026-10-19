@@ -110,7 +110,9 @@ sealed class TrayAppContext : ApplicationContext
     HotkeyWindow? _hotkeyWindow;
     DateTimeOffset _lastUpdateCheck = DateTimeOffset.MinValue;
     DateTime _lastLogCleanup = DateTime.Now; // startup cleanup already ran in Program.Main
-    string? _updateUrl;
+    ReleaseInfo? _latestRelease;
+    bool _updating;
+    const string UpdateBalloonPrefix = "New version ";
     readonly AppSettings _settings = AppSettings.Load();
     readonly UsageHistory _history = new();
     readonly HashSet<string> _notified = new();
@@ -210,7 +212,7 @@ sealed class TrayAppContext : ApplicationContext
             Checked = _settings.CheckUpdates,
         };
 
-        _updateAvailableItem = new ToolStripMenuItem("⬆ Update available…", null, (_, _) => OpenUpdatePage())
+        _updateAvailableItem = new ToolStripMenuItem("⬆ Update available…", null, (_, _) => PromptUpdate())
         {
             Visible = false,
         };
@@ -409,6 +411,7 @@ sealed class TrayAppContext : ApplicationContext
         var appMenu = new ToolStripMenuItem("App");
         appMenu.DropDownItems.Add(_autostartItem);
         appMenu.DropDownItems.Add(_updateCheckItem);
+        appMenu.DropDownItems.Add(new ToolStripMenuItem("Check for updates now", null, async (_, _) => await CheckUpdatesAsync(notifyBalloon: false, manual: true)));
         appMenu.DropDownItems.Add(new ToolStripMenuItem("Open log folder", null, (_, _) => OpenLogFolder()));
         appMenu.DropDownItems.Add(new ToolStripMenuItem("About…", null, (_, _) => ShowAbout()));
 
@@ -457,6 +460,10 @@ sealed class TrayAppContext : ApplicationContext
         _trayIcon.MouseClick += (_, e) =>
         {
             if (e.Button == MouseButtons.Left) TogglePopup();
+        };
+        _trayIcon.BalloonTipClicked += (_, _) =>
+        {
+            if (_trayIcon.BalloonTipText.StartsWith(UpdateBalloonPrefix)) PromptUpdate();
         };
 
         // these can show balloon tips, so they must come after _trayIcon exists
@@ -726,46 +733,98 @@ sealed class TrayAppContext : ApplicationContext
         }
     }
 
-    const string LatestReleaseApi = "https://api.github.com/repos/SKGoC-CLI/claude-meter-for-windows/releases/latest";
-
-    async Task CheckUpdatesAsync(bool notifyBalloon)
+    async Task CheckUpdatesAsync(bool notifyBalloon, bool manual = false)
     {
-        if (DateTimeOffset.Now - _lastUpdateCheck < TimeSpan.FromHours(20)) return;
+        if (_updating) return;
+        if (!manual && DateTimeOffset.Now - _lastUpdateCheck < TimeSpan.FromHours(20)) return;
         _lastUpdateCheck = DateTimeOffset.Now;
+        ReleaseInfo? release = null;
         try
         {
-            using var request = new HttpRequestMessage(HttpMethod.Get, LatestReleaseApi);
-            request.Headers.TryAddWithoutValidation("User-Agent", "ClaudeMeter");
-            using var response = await _http.SendAsync(request);
-            if (!response.IsSuccessStatusCode) return; // repo or release may not exist yet
-
-            var root = JsonNode.Parse(await response.Content.ReadAsStringAsync());
-            string? tag = root?["tag_name"]?.GetValue<string>();
-            string? url = root?["html_url"]?.GetValue<string>();
-            if (tag is null || url is null) return;
-            if (!Version.TryParse(tag.TrimStart('v', 'V'), out var remote)) return;
-
-            var current = Assembly.GetExecutingAssembly().GetName().Version ?? new Version(0, 0);
-            if (remote <= current) return;
-
-            _updateUrl = url;
-            _updateAvailableItem.Text = $"⬆ Update available: {tag}";
-            _updateAvailableItem.Visible = true;
-            if (notifyBalloon)
-                _trayIcon.ShowBalloonTip(5000, "Claude Meter", $"New version {tag} is available.", ToolTipIcon.Info);
+            release = await Updater.GetLatestAsync(_http);
         }
-        catch
+        catch (Exception ex)
         {
-            // update check is best-effort; never disturb the app
+            Log.Warn($"update check failed: {ex.Message}"); // best-effort; never disturb the app
+        }
+
+        if (release is null || release.Version <= Updater.Current)
+        {
+            if (manual)
+                _trayIcon.ShowBalloonTip(4000, "Claude Meter", release is null
+                    ? "Couldn't check for updates. Try again later."
+                    : $"You're up to date (v{Updater.Current}).", ToolTipIcon.Info);
+            return;
+        }
+
+        _latestRelease = release;
+        _updateAvailableItem.Text = $"⬆ Update to {release.Tag}…";
+        _updateAvailableItem.Visible = true;
+        if (manual) PromptUpdate();
+        else if (notifyBalloon)
+            _trayIcon.ShowBalloonTip(5000, "Claude Meter", $"{UpdateBalloonPrefix}{release.Tag} is available. Click to update.", ToolTipIcon.Info);
+    }
+
+    TaskDialogPage? _updatePage; // non-null while the prompt is open
+
+    void PromptUpdate()
+    {
+        if (_latestRelease is not { } release || _updating || _updatePage is not null) return;
+        var update = new TaskDialogButton("Update now");
+        var whatsNew = new TaskDialogButton("What's new") { AllowCloseDialog = false };
+        whatsNew.Click += (_, _) => OpenUrl(release.PageUrl);
+        _updatePage = new TaskDialogPage
+        {
+            Caption = "Claude Meter",
+            Heading = $"Claude Meter {release.Tag} is available",
+            Text = $"You have v{Updater.Current}. Update now? The app restarts by itself in a few seconds.",
+            Icon = TaskDialogIcon.Information,
+            Buttons = { update, whatsNew, new TaskDialogButton("Later") },
+            DefaultButton = update,
+        };
+        TaskDialogButton result;
+        try { result = TaskDialog.ShowDialog(_updatePage, TaskDialogStartupLocation.CenterScreen); }
+        finally { _updatePage = null; }
+        if (result == update) _ = RunUpdateAsync(release);
+    }
+
+    async Task RunUpdateAsync(ReleaseInfo release)
+    {
+        _updating = true;
+        _updateAvailableItem.Enabled = false;
+        _updateAvailableItem.Text = $"Downloading {release.Tag}… 0%";
+        var progress = new Progress<int>(p => _updateAvailableItem.Text = $"Downloading {release.Tag}… {p}%");
+        try
+        {
+            await Updater.InstallAsync(release, progress);
+            ExitThread(); // the new exe waits for this process to release the single-instance mutex
+            return;
+        }
+        catch (Exception ex)
+        {
+            Log.Error("self-update failed", ex);
+            _updating = false;
+            _updateAvailableItem.Enabled = true;
+            _updateAvailableItem.Text = $"⬆ Update to {release.Tag}…";
+            string why = ex is InvalidOperationException ? ex.Message : $"Unexpected error: {ex.Message}";
+            var open = new TaskDialogButton("Open download page");
+            var page = new TaskDialogPage
+            {
+                Caption = "Claude Meter",
+                Heading = "Update failed",
+                Text = why + "\n\nYou can also download the update manually.",
+                Icon = TaskDialogIcon.Warning,
+                Buttons = { open, TaskDialogButton.Close },
+            };
+            if (TaskDialog.ShowDialog(page, TaskDialogStartupLocation.CenterScreen) == open) OpenUrl(release.PageUrl);
         }
     }
 
-    void OpenUpdatePage()
+    static void OpenUrl(string url)
     {
-        if (_updateUrl is null) return;
         try
         {
-            Process.Start(new ProcessStartInfo(_updateUrl) { UseShellExecute = true });
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
         }
         catch
         {

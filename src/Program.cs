@@ -27,7 +27,15 @@ static class Program
             return;
         }
 
-        using var mutex = new Mutex(initiallyOwned: true, "ClaudeMeter_SingleInstance", out bool createdNew);
+        var mutex = new Mutex(initiallyOwned: true, "ClaudeMeter_SingleInstance", out bool createdNew);
+        // after a self-update the old process may still be shutting down: give it ~15 s
+        for (int i = 0; !createdNew && args.Contains(Updater.UpdatedArg) && i < 60; i++)
+        {
+            mutex.Dispose();
+            Thread.Sleep(250);
+            mutex = new Mutex(initiallyOwned: true, "ClaudeMeter_SingleInstance", out createdNew);
+        }
+        using var _ = mutex;
         if (!createdNew)
         {
             return; // another instance is already running
@@ -39,6 +47,7 @@ static class Program
         TaskScheduler.UnobservedTaskException += (_, e) => { Log.Error("Unobserved task exception", e.Exception); e.SetObserved(); };
 
         Log.CleanupOldLogs();
+        Updater.CleanupAfterUpdate();
         Log.Info($"=== Claude Meter v{Assembly.GetExecutingAssembly().GetName().Version?.ToString(3)} starting ===");
 
         ApplicationConfiguration.Initialize();
