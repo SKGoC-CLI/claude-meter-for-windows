@@ -53,5 +53,11 @@ temp หาย. ทดสอบ sha ผิดด้วยการแก้ค�
 | 6 | **ถามคุณสมกกก่อน** → build zip, release v1.13.0, rebuild portable | main | 2 | จบ |
 
 ## สถานะ
-- grilling เสร็จ 2026-10-19 ยังไม่ได้เขียนโค้ด
+- grilling เสร็จ 2026-10-19
+- **สปรินต์เสร็จ + release v1.13.0 แล้ว (2026-10-19)**: commits 7ff1cb4 → eb70863, tag v1.13.0
+  - step 1-2 main เขียนเอง (ไม่ใช้ coder: โค้ดโหลดไฟล์มารันแทนตัวเอง เสี่ยงสูง)
+  - reviewer เจอ 13 ข้อ แก้ 10: แตก exe ลงโฟลเดอร์ app (rename ข้าม volume ไม่ได้ atomic), timeout 10 นาทีครอบการอ่าน body, install บน Task.Run, retry ลบ .old 10×300ms, log ตอน --updated รอ mutex ไม่ทัน, CanSelfUpdate (ไม่มี digest/โฟลเดอร์เขียนไม่ได้ → เปิดหน้าเว็บ), AllowCancel, สถานะ "installed — restart" ถ้าเปิดตัวใหม่ไม่ขึ้น
+  - ทดสอบ: sha ผิด → ยกเลิก exe ไม่แตะ; 1.11.9 → v1.12.0 จริง ~4 วิ; cleanup ลบ .old + temp; รูปหน้าต่าง `docs/design/update-prompt-v1.13.0.png`
+  - release: digest GitHub = `de78337f…` ตรงกับไฟล์, public 200
+- ย้อนกลับ: ลบ release/tag v1.13.0 บน GitHub (ต้องถามคุณสมกก) + `git revert` 7ff1cb4..eb70863; portable ตัวเก่าโหลด v1.12.0 จาก GitHub
 - บันทึก: ADR `docs/adr/0003-self-update-rename-in-place.md`, CONTEXT.md หมวด "อัปเดต"
