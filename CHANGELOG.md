@@ -4,13 +4,24 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.13.0] - 2026-10-19
 
 ### Added
+- **One-click update.** *App → Check for updates now* checks GitHub right away; when a new
+  version exists, the menu item, the balloon and the check open a prompt — **Update now /
+  What's new / Later**. Update now downloads `ClaudeMeter-portable.zip`, verifies its SHA-256
+  against the digest GitHub publishes, checks the exe's version matches the release, swaps the
+  exe in place and restarts (no script or console window). Any failed check leaves the current
+  exe untouched and offers the download page. Installs in a non-writable folder go straight to
+  the page. This is the last version you need to download by hand.
 - **Limit resets line.** When the account holds free limit resets, a small line under the credit
   line reads `Limit resets: 2 of 3 left` with `expires in 12d (28 Oct)` on the right (several
   grants add up, with the soonest as `next expires`). Hidden when none are left; can be turned
   off under Show limits. Kept out of the tray icon, tooltip and alerts.
+
+### Fixed
+- **Long session names no longer overlap the tokens or widen the popup.** Only the project name
+  is shortened with `…`; `· model · effort`, the percentage and the token count always stay whole.
 
 ## [1.12.0] - 2026-10-15
 

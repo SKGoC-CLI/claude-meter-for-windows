@@ -64,7 +64,8 @@ Claude Code's `/usage`, always one click away.
 - Dark and light themes, three popup sizes, five opacity levels with full opacity restored on hover
 - Usage alert notifications at any threshold from 50 to 95 percent, plus a credit-burn notification when usage credits start being consumed (at most once per 2 hours)
 - One-click login recovery when the Claude session expires, plus local diagnostic logs for troubleshooting
-- Global hotkey to toggle the popup — Ctrl+Alt+U by default, seven combos to pick from — plus autostart with Windows, automatic update check, single instance
+- Global hotkey to toggle the popup — Ctrl+Alt+U by default, seven combos to pick from — plus autostart with Windows, single instance
+- One-click update — a daily check (or *App → Check for updates now*) offers **Update now**: the app downloads the release, verifies its SHA-256 against GitHub, swaps itself and restarts in a few seconds
 - Every preference persists across restarts
 
 ## Download
@@ -74,6 +75,10 @@ a single self-contained exe, no .NET installation required.
 
 > Windows SmartScreen may warn because the exe is not code-signed:
 > click **More info → Run anyway**.
+
+From v1.13.0 on, updates install from inside the app (*App → Check for updates now*), so
+this download is a one-time step. Keep the exe in a folder you can write to (not Program Files)
+for that to work; otherwise the update opens this page instead.
 
 ## Requirements
 
