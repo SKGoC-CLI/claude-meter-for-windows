@@ -44,6 +44,7 @@ static class Program
         using var _ = mutex;
         if (!createdNew)
         {
+            if (args.Contains(Updater.UpdatedArg)) Log.Warn("self-update: previous instance did not exit within 15 s; not starting");
             return; // another instance is already running
         }
 

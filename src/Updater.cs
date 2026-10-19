@@ -70,6 +70,18 @@ static class Updater
     /// must exit this process. Throws InvalidOperationException with a user-facing message
     /// on any failure, leaving the installed exe untouched.
     /// </summary>
+    /// <summary>
+    /// False when clicking Update could only fail (no asset/checksum, unwritable folder such as
+    /// Program Files) — the UI then sends the user to the release page instead.
+    /// </summary>
+    public static bool CanSelfUpdate(ReleaseInfo release) =>
+        release.ZipUrl is not null && release.ZipUrl.StartsWith(DownloadPrefix, StringComparison.Ordinal)
+        && !string.IsNullOrEmpty(release.Sha256)
+        && Environment.ProcessPath is { } exe && IsWritable(Path.GetDirectoryName(exe)!);
+
+    /// <summary>Set when the new exe is in place but could not be started; this process now runs from .old.exe.</summary>
+    public static bool InstalledPendingRestart { get; private set; }
+
     public static async Task InstallAsync(ReleaseInfo release, IProgress<int> progress)
     {
         if (release.ZipUrl is null || !release.ZipUrl.StartsWith(DownloadPrefix, StringComparison.Ordinal))
@@ -84,34 +96,42 @@ static class Updater
 
         Directory.CreateDirectory(TempDir);
         string zipPath = Path.Combine(TempDir, AssetName);
-        string newExe = Path.Combine(TempDir, "ClaudeMeter.new.exe");
+        // extracted next to the app so the final swap is a same-volume rename, never a copy
+        string newExe = Path.Combine(dir, Path.GetFileNameWithoutExtension(target) + ".new.exe");
 
-        // own client: the shared one has a 30 s timeout, too short for ~65 MB on a slow line
-        using (var http = new HttpClient { Timeout = TimeSpan.FromMinutes(10) })
+        // own client: the shared one has a 30 s timeout, too short for ~65 MB on a slow line;
+        // the token also bounds the body read, which HttpClient.Timeout does not cover
+        using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+        try
         {
+            using var http = new HttpClient { Timeout = Timeout.InfiniteTimeSpan };
             http.DefaultRequestHeaders.TryAddWithoutValidation("User-Agent", "ClaudeMeter");
-            using var response = await http.GetAsync(release.ZipUrl, HttpCompletionOption.ResponseHeadersRead);
+            using var response = await http.GetAsync(release.ZipUrl, HttpCompletionOption.ResponseHeadersRead, cts.Token);
             if (!response.IsSuccessStatusCode)
                 throw new InvalidOperationException($"Download failed (HTTP {(int)response.StatusCode}).");
             long? total = response.Content.Headers.ContentLength;
             if (total > MaxZipBytes) throw new InvalidOperationException("The download is unexpectedly large.");
 
-            await using var src = await response.Content.ReadAsStreamAsync();
+            await using var src = await response.Content.ReadAsStreamAsync(cts.Token);
             await using var dst = File.Create(zipPath);
             var buffer = new byte[81920];
             long done = 0;
             int read, lastPct = -1;
-            while ((read = await src.ReadAsync(buffer)) > 0)
+            while ((read = await src.ReadAsync(buffer, cts.Token)) > 0)
             {
                 done += read;
                 if (done > MaxZipBytes) throw new InvalidOperationException("The download is unexpectedly large.");
-                await dst.WriteAsync(buffer.AsMemory(0, read));
+                await dst.WriteAsync(buffer.AsMemory(0, read), cts.Token);
                 if (total > 0)
                 {
                     int pct = (int)(done * 100 / total.Value);
                     if (pct != lastPct) progress.Report(lastPct = pct);
                 }
             }
+        }
+        catch (OperationCanceledException)
+        {
+            throw new InvalidOperationException("The download timed out.");
         }
 
         string actual;
@@ -120,29 +140,36 @@ static class Updater
         if (!actual.Equals(release.Sha256, StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("The download is corrupted (checksum mismatch).");
 
-        using (var zip = ZipFile.OpenRead(zipPath))
-        {
-            var entry = zip.Entries.FirstOrDefault(e => e.FullName == ExeName)
-                ?? throw new InvalidOperationException($"{ExeName} is missing from the package.");
-            entry.ExtractToFile(newExe, overwrite: true);
-        }
-
-        var fv = FileVersionInfo.GetVersionInfo(newExe);
-        var got = new Version(fv.FileMajorPart, fv.FileMinorPart, fv.FileBuildPart);
-        if (got != release.Version)
-            throw new InvalidOperationException($"The package contains v{got}, expected {release.Tag}.");
-
         string old = OldPath(target);
-        if (File.Exists(old)) File.Delete(old); // leftover from a run whose cleanup failed
-        File.Move(target, old); // Windows allows renaming a running exe, just not overwriting it
         try
         {
-            File.Move(newExe, target);
+            using (var zip = ZipFile.OpenRead(zipPath))
+            {
+                var entry = zip.Entries.FirstOrDefault(e => e.FullName == ExeName)
+                    ?? throw new InvalidOperationException($"{ExeName} is missing from the package.");
+                entry.ExtractToFile(newExe, overwrite: true);
+            }
+
+            var fv = FileVersionInfo.GetVersionInfo(newExe);
+            var got = new Version(fv.FileMajorPart, fv.FileMinorPart, fv.FileBuildPart);
+            if (got != release.Version)
+                throw new InvalidOperationException($"The package contains v{got}, expected {release.Tag}.");
+
+            if (File.Exists(old)) File.Delete(old); // leftover from a run whose cleanup failed
+            File.Move(target, old); // Windows allows renaming a running exe, just not overwriting it
+            try
+            {
+                File.Move(newExe, target); // same folder → atomic rename
+            }
+            catch
+            {
+                File.Move(old, target);
+                throw;
+            }
         }
-        catch
+        finally
         {
-            File.Move(old, target);
-            throw;
+            TryDelete(newExe); // gone after a successful move; a leftover on any failure
         }
 
         Log.Info($"self-update: installed {release.Tag}, restarting");
@@ -153,6 +180,7 @@ static class Updater
         catch (Exception ex)
         {
             Log.Error("self-update: installed but restart failed", ex);
+            InstalledPendingRestart = true;
             throw new InvalidOperationException($"{release.Tag} is installed but could not start. Exit and open Claude Meter again.");
         }
     }
@@ -182,20 +210,31 @@ static class Updater
     /// <summary>Best-effort removal of what a previous update left behind.</summary>
     public static void CleanupAfterUpdate()
     {
-        try
+        if (Environment.ProcessPath is { } exe && File.Exists(OldPath(exe)))
         {
-            if (Environment.ProcessPath is { } exe && File.Exists(OldPath(exe)))
-            {
-                File.Delete(OldPath(exe));
-                Log.Info("self-update: removed previous version");
-            }
+            // the old process may still be unloading its image for a moment after releasing the mutex
+            for (int i = 0; i < 10 && !TryDelete(OldPath(exe)); i++) Thread.Sleep(300);
+            if (File.Exists(OldPath(exe))) Log.Warn("self-update: could not remove old exe yet; retry next start");
+            else Log.Info("self-update: removed previous version");
         }
-        catch (Exception ex) { Log.Warn($"self-update: could not remove old exe: {ex.Message}"); }
         try
         {
             if (Directory.Exists(TempDir)) Directory.Delete(TempDir, recursive: true);
         }
         catch { }
+    }
+
+    static bool TryDelete(string path)
+    {
+        try
+        {
+            File.Delete(path); // no-op when missing
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     static string OldPath(string exe) =>

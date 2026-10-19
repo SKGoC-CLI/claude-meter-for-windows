@@ -735,7 +735,13 @@ sealed class TrayAppContext : ApplicationContext
 
     async Task CheckUpdatesAsync(bool notifyBalloon, bool manual = false)
     {
-        if (_updating) return;
+        if (_updating || Updater.InstalledPendingRestart)
+        {
+            if (manual) _trayIcon.ShowBalloonTip(4000, "Claude Meter", _updating
+                ? "An update is already downloading."
+                : "The update is installed. Exit and open Claude Meter again.", ToolTipIcon.Info);
+            return;
+        }
         if (!manual && DateTimeOffset.Now - _lastUpdateCheck < TimeSpan.FromHours(20)) return;
         _lastUpdateCheck = DateTimeOffset.Now;
         ReleaseInfo? release = null;
@@ -770,6 +776,11 @@ sealed class TrayAppContext : ApplicationContext
     void PromptUpdate()
     {
         if (_latestRelease is not { } release || _updating || _updatePage is not null) return;
+        if (!Updater.CanSelfUpdate(release))
+        {
+            OpenUrl(release.PageUrl); // e.g. installed under Program Files: the old download-it-yourself path
+            return;
+        }
         var update = new TaskDialogButton("Update now");
         var whatsNew = new TaskDialogButton("What's new") { AllowCloseDialog = false };
         whatsNew.Click += (_, _) => OpenUrl(release.PageUrl);
@@ -781,6 +792,7 @@ sealed class TrayAppContext : ApplicationContext
             Icon = TaskDialogIcon.Information,
             Buttons = { update, whatsNew, new TaskDialogButton("Later") },
             DefaultButton = update,
+            AllowCancel = true, // Esc / title-bar X = Later
         };
         TaskDialogButton result;
         try { result = TaskDialog.ShowDialog(_updatePage, TaskDialogStartupLocation.CenterScreen); }
@@ -796,7 +808,8 @@ sealed class TrayAppContext : ApplicationContext
         var progress = new Progress<int>(p => _updateAvailableItem.Text = $"Downloading {release.Tag}… {p}%");
         try
         {
-            await Updater.InstallAsync(release, progress);
+            // off the UI thread: extracting ~70 MB would freeze the tray and popup for seconds
+            await Task.Run(() => Updater.InstallAsync(release, progress));
             ExitThread(); // the new exe waits for this process to release the single-instance mutex
             return;
         }
@@ -804,8 +817,10 @@ sealed class TrayAppContext : ApplicationContext
         {
             Log.Error("self-update failed", ex);
             _updating = false;
-            _updateAvailableItem.Enabled = true;
-            _updateAvailableItem.Text = $"⬆ Update to {release.Tag}…";
+            _updateAvailableItem.Enabled = !Updater.InstalledPendingRestart;
+            _updateAvailableItem.Text = Updater.InstalledPendingRestart
+                ? $"{release.Tag} installed — restart Claude Meter"
+                : $"⬆ Update to {release.Tag}…";
             string why = ex is InvalidOperationException ? ex.Message : $"Unexpected error: {ex.Message}";
             var open = new TaskDialogButton("Open download page");
             var page = new TaskDialogPage
