@@ -157,6 +157,28 @@ static class Updater
         }
     }
 
+    /// <summary>
+    /// --update-selftest [badsha]: install the latest release over this exe with no UI,
+    /// result in the log. "badsha" forces a checksum mismatch, which must leave the exe untouched.
+    /// </summary>
+    public static void SelfTest(bool badSha)
+    {
+        try
+        {
+            using var http = new HttpClient();
+            var release = GetLatestAsync(http).GetAwaiter().GetResult()
+                ?? throw new InvalidOperationException("no release found");
+            if (badSha) release = release with { Sha256 = new string('0', 64) };
+            Log.Info($"update-selftest: v{Current} -> {release.Tag} (badsha={badSha})");
+            InstallAsync(release, new Progress<int>()).GetAwaiter().GetResult();
+            Log.Info("update-selftest: installed and restarted");
+        }
+        catch (Exception ex)
+        {
+            Log.Info($"update-selftest: failed: {ex.Message}");
+        }
+    }
+
     /// <summary>Best-effort removal of what a previous update left behind.</summary>
     public static void CleanupAfterUpdate()
     {

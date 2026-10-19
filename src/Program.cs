@@ -19,6 +19,12 @@ static class Program
             return;
         }
 
+        if (args.Contains("--update-selftest"))
+        {
+            Updater.SelfTest(badSha: args.Contains("badsha"));
+            return;
+        }
+
         if (args.Contains("--popup-shot"))
         {
             ApplicationConfiguration.Initialize();

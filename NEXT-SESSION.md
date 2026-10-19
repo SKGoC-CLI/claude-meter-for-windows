@@ -17,7 +17,9 @@ status: active
 | 5 | bump 1.13.0 + CHANGELOG/README | main/doc-writer | ⬜ |
 | 6 | **ถามคุณสมกกก่อน** → release v1.13.0 + rebuild portable | main | ⬜ |
 
-③ สถานะจริง: step 1-2 เสร็จ build ผ่าน ยังไม่ได้ review/ทดสอบ. ของค้างไม่ release: Limit resets + ตัดชื่อ session ยาว (จะรวมใน v1.13.0)
+③ สถานะจริง: step 1-2 เสร็จ build ผ่าน. ทดสอบ headless แล้ว (`--update-selftest [badsha]`, ผลอยู่ใน log):
+sha ผิด → ยกเลิก exe ไม่ถูกแตะ ✅ / 1.11.9 → v1.12.0 จริง วางทับ + เปิดใหม่เอง ✅ (~4 วิ) / ตัวใหม่ลบ `.old.exe` + temp ตอนเปิด ✅.
+ยังไม่ได้ดูหน้าต่าง TaskDialog กับตา (ไม่เปิดหน้าต่างทับเกมคุณสมกก). portable ของคุณสมกกรันอยู่ตามเดิม. ของค้างไม่ release: Limit resets + ตัดชื่อ session ยาว (จะรวมใน v1.13.0)
 
 ④ ถัดไป: step 3 review
 
