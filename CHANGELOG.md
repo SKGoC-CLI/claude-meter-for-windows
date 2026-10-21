@@ -4,7 +4,7 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.13.1] - 2026-10-21
 
 ### Fixed
 - **Stuck on "stale" after the Claude Desktop update of 2026-10-20.** Desktop moved its login
