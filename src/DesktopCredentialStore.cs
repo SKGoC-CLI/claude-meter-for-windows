@@ -30,7 +30,8 @@ static class DesktopCredentialStore
         {
             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Claude"),
         };
-        var packages = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Packages");
+        var local = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+        var packages = Path.Combine(local, "Packages");
         if (Directory.Exists(packages))
             try
             {
@@ -40,6 +41,12 @@ static class DesktopCredentialStore
             // Enumeration can fail transiently (package being installed/removed, ACL hiccup).
             // Everything else here is File.Exists/GetLastWriteTimeUtc, which never throw —
             // keep this method no-throw so Exists (→ HasAnyLogin) can never raise from a read.
+            catch (Exception) { }
+        // 2026-10-20 Desktop update moved the data out of the package to
+        // %LOCALAPPDATA%\Claude-Data\claude_<package id> (same files, Local State included).
+        var claudeData = Path.Combine(local, "Claude-Data");
+        if (Directory.Exists(claudeData))
+            try { roots.AddRange(Directory.GetDirectories(claudeData)); }
             catch (Exception) { }
 
         return roots

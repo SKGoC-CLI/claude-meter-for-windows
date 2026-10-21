@@ -19,6 +19,8 @@ status: done
 
 ③ สถานะจริง: release แล้ว, push ครบ, portable 1.13.0 รันอยู่. **ยังไม่เคยเห็นการอัปเดตจาก v1.13.0 → รุ่นถัดไปของจริง** (ทดสอบได้แค่ 1.11.9 → 1.12.0) จะได้เห็นตอนออก v1.13.1/v1.14.0
 
+**2026-10-21 hotfix (ยังไม่ release):** meter ค้าง "stale" ตั้งแต่ 23:56 คืน 20 ต.ค. — Claude Desktop อัปเดตแล้วย้ายโฟลเดอร์ login ไป `%LOCALAPPDATA%\Claude-Data\claude_<pkg>\` (ที่เดิมเหลือแค่ไฟล์ `.user-data-left.*`) → เพิ่มที่ค้นใน `DesktopCredentialStore.FindDataDir` + portable สร้างใหม่แล้วรันอยู่ (log 08:02 `usage ok`). exe เก่าอยู่ `bin\portable-v1.13.0-backup\`. ผู้ใช้คนอื่นที่ใช้แต่ Desktop ก็ค้างเหมือนกัน → ควรออก v1.13.1
+
 ④ ถัดไป: ไม่มีงานค้างของสปรินต์นี้. ตอนออกรุ่นถัดไป: กด App → Check for updates now บน portable เพื่อยืนยันว่าอัปเดตเองได้จริง
 
 ⑤ กับดัก

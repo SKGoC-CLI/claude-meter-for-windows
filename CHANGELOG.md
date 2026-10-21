@@ -4,6 +4,13 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+- **Stuck on "stale" after the Claude Desktop update of 2026-10-20.** Desktop moved its login
+  data to `%LOCALAPPDATA%\Claude-Data\`; the meter now looks there too, so usage refreshes
+  again for people who only use the Desktop app.
+
 ## [1.13.0] - 2026-10-19
 
 ### Added
