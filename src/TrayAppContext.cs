@@ -534,8 +534,8 @@ sealed class TrayAppContext : ApplicationContext
         _popup.Pinned = pinned;
         _popup.ClickThrough = pinned && _settings.ClickThrough;
 
+        // turning it off just drops the popup to a normal window — it stays open where it is
         if (pinned && !_popup.Visible) _popup.ShowNearTray();
-        else if (!pinned && _popup.Visible) _popup.Hide();
     }
 
     void OnToggleMiniMode(object? sender, EventArgs e)
@@ -547,7 +547,7 @@ sealed class TrayAppContext : ApplicationContext
         if (_settings.MiniMode)
         {
             _pinBeforeMini = _settings.AlwaysOnTop; // remember so turning mini off restores it
-            SetPinned(true); // a non-pinned bar vanishes on focus loss and is useless
+            SetPinned(true); // a tiny bar that other windows can cover is useless
         }
         else
         {

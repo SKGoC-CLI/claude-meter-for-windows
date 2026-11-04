@@ -4,6 +4,14 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [Unreleased]
+
+### Changed
+- **With "Always on top" off, the popup is now a normal window.** You can drag it anywhere,
+  it remembers where you left it, and it stays open when you click another app (other windows
+  can cover it). Clicking the tray icon or pressing the hotkey brings a covered popup back to
+  the front; a second press hides it. Turning "Always on top" off no longer closes the popup.
+
 ## [1.13.1] - 2026-10-21
 
 ### Fixed

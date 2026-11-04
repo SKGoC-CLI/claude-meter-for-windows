@@ -40,10 +40,21 @@ sealed class PopupForm : Form
     /// <summary>Pulse period multiplier (Session alerts → Speed).</summary>
     public double AlertMul = 1;
 
-    /// <summary>Always-on-top mode: no auto-hide on focus loss, draggable, remembers position.</summary>
-    public bool Pinned { get; set; }
+    bool _pinned;
+    DateTime _deactivatedAt = DateTime.MinValue;
+    Point _dragStart;
 
-    /// <summary>Where the user last dragged the pinned popup; null = default corner.</summary>
+    /// <summary>Always-on-top mode: the popup floats above other windows (and may be
+    /// click-through). Off, it is an ordinary window: still draggable, still stays open when
+    /// focus moves elsewhere — it just lets other windows cover it (asked 2026-11-04: the old
+    /// unpinned popup could not be dragged and vanished on every focus loss).</summary>
+    public bool Pinned
+    {
+        get => _pinned;
+        set { _pinned = value; TopMost = value; }
+    }
+
+    /// <summary>Where the user last dragged the popup; null = default corner above the tray.</summary>
     public Point? PinnedLocation { get; set; }
 
     /// <summary>Raised after the user finishes dragging the pinned popup.</summary>
@@ -116,8 +127,8 @@ sealed class PopupForm : Form
         _fixLoginButton.Visible = _showFixLogin && !_miniMode;
         if (Visible)
         {
-            if (!Pinned) Reposition();
-            else ClampToScreen();
+            if (PinnedLocation is null) Reposition(); // default spot re-anchors above the tray
+            else ClampToScreen();                     // a dragged popup stays put, on-screen
         }
         Invalidate();
     }
@@ -493,7 +504,7 @@ sealed class PopupForm : Form
     protected override void OnDeactivate(EventArgs e)
     {
         base.OnDeactivate(e);
-        if (!Pinned) Hide();
+        _deactivatedAt = DateTime.UtcNow; // ToggleNearTray uses this to tell "behind other windows" from "just clicked away"
     }
 
     protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
@@ -538,12 +549,10 @@ sealed class PopupForm : Form
             return;
         }
 
-        if (Pinned)
-        {
-            // hand the drag to Windows: the whole form acts as a title bar
-            ReleaseCapture();
-            SendMessage(Handle, WM_NCLBUTTONDOWN, HTCAPTION, 0);
-        }
+        // hand the drag to Windows: the whole form acts as a title bar (pinned or not)
+        _dragStart = Location;
+        ReleaseCapture();
+        SendMessage(Handle, WM_NCLBUTTONDOWN, HTCAPTION, 0);
     }
 
     protected override void OnMouseMove(MouseEventArgs e)
@@ -560,7 +569,9 @@ sealed class PopupForm : Form
     protected override void WndProc(ref Message m)
     {
         base.WndProc(ref m);
-        if (m.Msg == WM_EXITSIZEMOVE && Pinned)
+        // WM_EXITSIZEMOVE fires on a plain click too; only a real move counts as "the user placed it",
+        // or one click would freeze the default above-the-tray spot as a saved position
+        if (m.Msg == WM_EXITSIZEMOVE && Location != _dragStart)
         {
             PinnedLocation = Location;
             UserMoved?.Invoke();
@@ -587,8 +598,8 @@ sealed class PopupForm : Form
 
         if (Visible)
         {
-            if (!Pinned) Reposition();      // unpinned popup re-anchors above the tray
-            else ClampToScreen();           // pinned popup stays put, but must not grow off-screen
+            if (PinnedLocation is null) Reposition(); // default spot re-anchors above the tray
+            else ClampToScreen();                     // dragged popup stays put, but must not grow off-screen
         }
         Invalidate();
     }
@@ -624,15 +635,25 @@ sealed class PopupForm : Form
 
     public void ToggleNearTray()
     {
+        // An unpinned popup can sit open but covered by other windows. Clicking the tray icon
+        // always steals focus first, so "deactivated just now" = it was in front → hide;
+        // "deactivated a while ago" = it was buried → bring it forward instead.
+        if (Visible && !Pinned && (DateTime.UtcNow - _deactivatedAt).TotalMilliseconds > 400 && ActiveForm != this)
+        {
+            Activate();
+            BringToFront();
+            return;
+        }
         if (Visible) Hide();
         else ShowNearTray();
     }
 
     void Reposition()
     {
-        if (Pinned && PinnedLocation is { } p && IsVisibleOnAnyScreen(p))
+        if (PinnedLocation is { } p && IsVisibleOnAnyScreen(p))
         {
             Location = p;
+            ClampToScreen(); // it may have grown (rows, scale) since it was dragged there
             return;
         }
         var area = Screen.PrimaryScreen!.WorkingArea;
