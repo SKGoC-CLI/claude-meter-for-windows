@@ -4,7 +4,7 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [1.13.2] - 2026-11-04
 
 ### Changed
 - **With "Always on top" off, the popup is now a normal window.** You can drag it anywhere,
