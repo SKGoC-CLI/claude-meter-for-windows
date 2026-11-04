@@ -1,35 +1,30 @@
-# NEXT-SESSION — Self-update (กดปุ่มแล้วอัปเดตตัวเอง) → v1.13.0
+# NEXT-SESSION — Popup ลากได้เมื่อปิด Always on top → v1.13.2
 
 status: done
 
 > **ห้ามพิมพ์คำต้องห้าม "ab***t" เต็ม ๆ ลงไฟล์ใด ๆ ใน repo** · ภาพ/GIF ที่ขึ้น GitHub ต้องเป็น mockup ภาษาอังกฤษ ไม่มีชื่อโปรเจกต์จริง/ข้อความไทย
 
-① 2026-10-19 · เริ่มจาก `6666441`, release ที่ tag `v1.13.0` — ไฟล์นี้อาจเก่า เช็ค `git log --oneline -5` ก่อน
+① 2026-11-04 · commit ล่าสุดตอนเขียน `0cb36a3` (+ commit zzz นี้) · tag `v1.13.2` — ไฟล์นี้อาจเก่า เช็ก `git log --oneline -5` ก่อนเชื่อ
 
-② ขั้นตอน (ตัดสินใจครบใน grilling — ดู WORK-LOG)
+② งานใน session นี้
 
-| Step | งาน | ใคร | สถานะ |
-|------|-----|-----|-------|
-| 1 | `Updater.cs` โหลด/sha256/เวอร์ชัน/rename วางทับ + `Program.cs` `--updated` รอ mutex + ลบ `.old.exe` | main (เขียนเอง — โค้ดเสี่ยงสูง) | ✅ |
-| 2 | เมนู `Check for updates now`, `⬆ Update to vX` + balloon → TaskDialog Update now / What's new / Later | main | ✅ |
-| 3 | reviewer + main re-review | reviewer/main | ✅ แก้ข้อ 1-4,6-11; ไม่แก้ 5,12,13 (ช่วง swap เสี้ยววิ / same-user malware) |
-| 4 | ทดสอบ 1.11.9 → v1.12.0 จริง + sha ผิด + รูปหน้าต่าง | main | ✅ `docs/design/update-prompt-v1.13.0.png` |
-| 5 | bump 1.13.0 + CHANGELOG/README/release note | main | ✅ |
-| 6 | release v1.13.0 + rebuild portable | main | ✅ https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.13.0 — digest บน GitHub = sha256 ไฟล์ (de78337f…), หน้า release + zip ตอบ 200 แบบไม่ล็อกอิน |
+| ขั้น | งาน | สถานะ |
+|---|---|---|
+| 1 | ปิด Always on top → popup เป็นหน้าต่างปกติ: ลากได้, จำตำแหน่ง, ไม่ซ่อนเมื่อหลุดโฟกัส, ไม่ลอยทับ (`src/PopupForm.cs`, `src/TrayAppContext.cs`) | ✅ `3c7a9d0` |
+| 2 | tray/Ctrl+U ตอนโดนบัง = ดึงขึ้นหน้า, กดซ้ำ = ซ่อน · ปิด Always on top ไม่ปิดหน้าต่าง | ✅ |
+| 3 | reviewer: แก้คลิกเฉย ๆ ไม่บันทึกตำแหน่ง + clamp ตำแหน่งที่จำไว้ให้อยู่ในจอ | ✅ |
+| 4 | bump 1.13.2 + CHANGELOG + `docs/RELEASE_NOTES_v1.13.2.md` + release | ✅ `4771aae` https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.13.2 |
+| 5 | อัปเดต portable จริงด้วย self-update 1.13.1 → 1.13.2 | ✅ log 23:17:58 |
 
-③ สถานะจริง: release แล้ว, push ครบ, portable 1.13.0 รันอยู่. **ยังไม่เคยเห็นการอัปเดตจาก v1.13.0 → รุ่นถัดไปของจริง** (ทดสอบได้แค่ 1.11.9 → 1.12.0) จะได้เห็นตอนออก v1.13.1/v1.14.0
+③ สถานะจริง: ทดสอบในแอปจริงผ่าน (ลาก 300×200px, หลุดโฟกัสยังอยู่, ไม่มี TOPMOST, hotkey ดึงขึ้น/ซ่อน) · คุณสมกกดูภาพแล้วบอก "ดีละ" · digest GitHub = sha256 zip `9f8ee661…`, หน้า/zip 200 · portable (`C:\Users\User\Projects\App Claude Meter\portable`) = 1.13.2 รันอยู่ · exe 1.13.1 สำรองที่ `App Claude Meter\bin\portable-v1.13.1-backup\` · ทุก commit ผ่าน reviewer แล้ว · push ครบ
 
-**2026-10-21 hotfix → RELEASED v1.13.1** (https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.13.1 · digest = sha256 zip 9dbdc4e8… · หน้า/zip 200 ไม่ล็อกอิน · **อัปเดตเองจาก 1.13.0 → 1.13.1 ทดสอบผ่านของจริง** ด้วย `--update-selftest` ในโฟลเดอร์ scratch · portable = 1.13.1 รันอยู่) · สรุปส่งต่อโปรเจกต์อื่น: [docs/DESKTOP-LOGIN-MOVED-2026-10-20.md](docs/DESKTOP-LOGIN-MOVED-2026-10-20.md) · รายละเอียดเดิม: meter ค้าง "stale" ตั้งแต่ 23:56 คืน 20 ต.ค. — Claude Desktop อัปเดตแล้วย้ายโฟลเดอร์ login ไป `%LOCALAPPDATA%\Claude-Data\claude_<pkg>\` (ที่เดิมเหลือแค่ไฟล์ `.user-data-left.*`) → เพิ่มที่ค้นใน `DesktopCredentialStore.FindDataDir` + portable สร้างใหม่แล้วรันอยู่ (log 08:02 `usage ok`). exe เก่าอยู่ `bin\portable-v1.13.0-backup\`. ผู้ใช้คนอื่นที่ใช้แต่ Desktop ก็ค้างเหมือนกัน → ควรออก v1.13.1
-
-**2026-11-04 → RELEASED v1.13.2** (https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.13.2 · digest = sha256 zip 9f8ee661… · หน้า/zip 200): ปิด Always on top → popup เป็นหน้าต่างปกติ ลากได้/จำตำแหน่ง/ไม่ซ่อนเมื่อหลุดโฟกัส (ไม่ลอยทับ) · tray/Ctrl+U ตอนโดนบัง = ดึงขึ้นหน้า กดซ้ำ = ซ่อน · ไฟล์ `src/PopupForm.cs`, `src/TrayAppContext.cs` · ทดสอบจริง (ลาก/หลุดโฟกัส/hotkey) ผ่าน · **อัปเดตเองจาก 1.13.1 → 1.13.2 บน portable จริงผ่าน** (`--update-selftest`, log 23:17:58) · exe 1.13.1 สำรองไว้ที่ `App Claude Meter\bin\portable-v1.13.1-backup\` · build portable: `dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true` (ลืม Compression = exe 162MB แทน 72MB) · โฟลเดอร์ `App Claude Meter` คือ clone ที่สองของ repo เดียวกัน (ที่อยู่ของ portable)
-
-④ ถัดไป: ไม่มีงานค้างของสปรินต์นี้. ตอนออกรุ่นถัดไป: กด App → Check for updates now บน portable เพื่อยืนยันว่าอัปเดตเองได้จริง
+④ ถัดไป: ไม่มีงานค้าง · ไอเดียรอบหน้า (ถ้าอยากทำ): เมนู "Reset position" ให้หน้าต่างกลับมุมขวาล่าง · กดไอคอนถาดค้าง >0.4 วิ ตอนหน้าต่างอยู่หน้า → ครั้งแรกไม่ซ่อน (จุดเล็ก รู้แล้ว)
 
 ⑤ กับดัก
-- ทดสอบอัปเดตในโฟลเดอร์ทดสอบแยก **ห้ามใช้ `portable\`** (จะถูกวางทับ) — `--update-selftest [badsha]` (ไม่มีหน้าต่าง ผลใน log), `--check-updates-now` (เปิดหน้าต่างถาม)
-- ทดสอบต้องหยุด meter ตัวที่รันอยู่ก่อน (single-instance mutex) แล้วเปิดกลับ
-- asset ต้องชื่อ `ClaudeMeter-portable.zip`, exe อยู่ราก zip, FileVersion = tag — ไม่งั้นอัปเดตจะเปิดหน้าเว็บแทน
-- ห้าม backtick ใน Bash heredoc → ใช้ Write + `git commit -F` (พลาดซ้ำ 2 ครั้งในสปรินต์นี้)
-- ถ่ายรูปหน้าต่างด้วย PowerShell ต้อง `SetProcessDPIAware` ไม่งั้นรูปโดนครอป
+- `App Claude Meter` = clone ที่สองของ repo เดียวกัน เป็นที่อยู่ของ portable ที่รันจริง (ไม่ใช่ repo นี้)
+- build portable ต้องมี `/p:EnableCompressionInSingleFile=true` — ลืม = exe 162MB แทน 72MB: `dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true /p:EnableCompressionInSingleFile=true`
+- ไอคอน meter อยู่ในถาดซ่อน (^) — `Shell_NotifyIconGetRect` คืนตำแหน่งปุ่ม ^ คลิกแล้วไม่โดนไอคอน → ทดสอบด้วย hotkey Ctrl+U แทน
+- ทดสอบที่ต้องแก้ `settings.json` → สำรองก่อน แล้วคืนหลังทดสอบ (หยุด meter ก่อน เพราะมี single-instance mutex)
+- `--update-selftest` บน portable จริง = อัปเดตจริงทันที ไม่มีหน้าต่างถาม (ใช้ได้เมื่อตั้งใจอัปเดต — สำรอง exe ก่อน)
 
-⑥ log เต็ม: [WORK-LOG-2026-10-19-self-update.md](WORK-LOG-2026-10-19-self-update.md)
+⑥ log เต็มของงานก่อนหน้า: [WORK-LOG-2026-10-19-self-update.md](WORK-LOG-2026-10-19-self-update.md) · งานนี้บันทึกใน CHANGELOG `[1.13.2]` + ไฟล์นี้
