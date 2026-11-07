@@ -4,6 +4,18 @@ All notable changes to Claude Usage Meter for Windows are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [1.14.0] - 2026-11-08
+
+### Added
+- **Teal blinking dot for sessions with a background task.** When a session has finished its
+  turn but something it started is still running (a Monitor, a command run in the background,
+  or an agent launched in the background), CURRENT SESSIONS shows a teal dot that blinks more
+  slowly than the green Working one. Line 2 names the task (`⟳ <task>`, or `⟳ 2 bg: <first>`).
+  The dot clears when the task finishes, fails, is killed or stopped, or passes its own timeout
+  (3 h for tasks without one). Working and Asking still take priority.
+- Such a session now stays in the list past the usual 30 minutes of quiet, until its tasks end
+  (at most 3 h). A session that stopped mid-turn is still dropped after 30 minutes as before.
+
 ## [1.13.2] - 2026-11-04
 
 ### Changed
