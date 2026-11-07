@@ -443,6 +443,7 @@ sealed class TrayAppContext : ApplicationContext
         if (_settings.PinnedX is { } px && _settings.PinnedY is { } py)
             _popup.PinnedLocation = new Point(px, py);
         _popup.FixLoginRequested += OpenLoginTerminal;
+        _popup.UpdateClicked += (_, _) => PromptUpdate();
         _popup.UserMoved += () =>
         {
             _settings.PinnedX = _popup.PinnedLocation?.X;
@@ -757,6 +758,7 @@ sealed class TrayAppContext : ApplicationContext
 
         if (release is null || release.Version <= Updater.Current)
         {
+            if (release is not null) _popup.NewerVersion = null;
             if (manual)
                 _trayIcon.ShowBalloonTip(4000, "Claude Meter", release is null
                     ? "Couldn't check for updates. Try again later."
@@ -765,6 +767,7 @@ sealed class TrayAppContext : ApplicationContext
         }
 
         _latestRelease = release;
+        _popup.NewerVersion = release.Version;
         _updateAvailableItem.Text = $"⬆ Update to {release.Tag}…";
         _updateAvailableItem.Visible = true;
         if (manual) PromptUpdate();

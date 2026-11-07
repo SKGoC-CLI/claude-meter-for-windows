@@ -37,11 +37,13 @@ static class PopupShot
             new SessionContext("home-dashboard", "Opus · Low", 135_000, 1_000_000, now.AddHours(-3), now, SessionState.Idle),
         };
 
-        foreach (bool light in new[] { true, false })
+        var newer = new Version(Updater.Current.Major, Updater.Current.Minor, Updater.Current.Build + 1);
+        foreach (var (light, update) in new[] { (true, false), (false, false), (true, true), (false, true) })
         {
             Theme.Light = light;
             using var popup = new PopupForm
             {
+                NewerVersion = update ? newer : null,
                 Pinned = true,
                 ShowLogo = true,
                 ShowEta = true,
@@ -75,7 +77,7 @@ static class PopupShot
                 g.DrawRectangle(pen, 0, 0, bmp.Width - 1, bmp.Height - 1);
             }
 
-            string path = Path.Combine(outDir, light ? "popup-light.png" : "popup-dark.png");
+            string path = Path.Combine(outDir, $"popup-{(light ? "light" : "dark")}{(update ? "-update" : "")}.png");
             bmp.Save(path);
             popup.Hide();
             Console.WriteLine($"{path}  {bmp.Width}x{bmp.Height}");

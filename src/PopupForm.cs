@@ -69,6 +69,16 @@ sealed class PopupForm : Form
     bool _showRemainingGraph;
     bool _showCreditGraph;
     bool _showLogo;
+    Rectangle _versionRect; // header version label, hit-testable only while an update hint shows
+    Version? _newerVersion;
+
+    /// <summary>Newer GitHub release, if any; turns the header version into a clickable update hint.</summary>
+    public Version? NewerVersion
+    {
+        get => _newerVersion;
+        set { _newerVersion = value; Invalidate(); }
+    }
+    public event EventHandler? UpdateClicked;
     bool _miniMode;
     bool _showEta;
 
@@ -549,6 +559,13 @@ sealed class PopupForm : Form
             return;
         }
 
+        // update hint: a click, not a drag
+        if (_versionRect.Contains(e.Location))
+        {
+            UpdateClicked?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
         // hand the drag to Windows: the whole form acts as a title bar (pinned or not)
         _dragStart = Location;
         ReleaseCapture();
@@ -558,6 +575,7 @@ sealed class PopupForm : Form
     protected override void OnMouseMove(MouseEventArgs e)
     {
         base.OnMouseMove(e);
+        Cursor = _versionRect.Contains(e.Location) ? Cursors.Hand : Cursors.Default;
         bool hover = MinimizeRect().Contains(e.Location);
         if (hover != _minimizeHover)
         {
@@ -678,6 +696,7 @@ sealed class PopupForm : Form
         g.Clear(Background);
         _workingDotRects.Clear(); // rebuilt below by every Working dot (stays empty in mini mode)
 
+        _versionRect = Rectangle.Empty; // rebuilt by DrawVersionLabel (not drawn in mini mode)
         if (_miniMode)
         {
             DrawMiniBar(g);
@@ -706,7 +725,10 @@ sealed class PopupForm : Form
             var titleSize = g.MeasureString("Claude Usage Meter", _headerFont);
             g.DrawString("Claude Usage Meter", _headerFont, titleBrush,
                 pad + logoSize + S(8), y + (logoSize - titleSize.Height) / 2f);
+            DrawVersionLabel(g, pad + logoSize + S(8) + titleSize.Width + S(6), y, logoSize);
         }
+        else
+            DrawVersionLabel(g, pad, y, HeaderHeight);
         y += HeaderHeight;
 
         if (_snapshot is not null && _error is null && _snapshot.Windows.Count == 0)
@@ -765,6 +787,20 @@ sealed class PopupForm : Form
 
         // drawn last so it stays on top even over the fix-login error view
         DrawMinimizeButton(g);
+    }
+
+    /// <summary>"v1.14.0" in the header; "v1.14.0 → v1.14.1" in the warning colour (clickable) when a newer release exists.</summary>
+    void DrawVersionLabel(Graphics g, float x, float bandTop, int bandHeight)
+    {
+        bool newer = NewerVersion is not null && NewerVersion > Updater.Current;
+        string text = $"v{Updater.Current.ToString(3)}" + (newer ? $" → v{NewerVersion!.ToString(3)}" : "");
+        var size = g.MeasureString(text, _smallFont);
+        float ty = bandTop + (bandHeight - size.Height) / 2f;
+        using var brush = new SolidBrush(newer ? Theme.Warning : MutedColor);
+        g.DrawString(text, _smallFont, brush, x, ty);
+        _versionRect = newer
+            ? Rectangle.Ceiling(new RectangleF(x, ty, size.Width, size.Height))
+            : Rectangle.Empty;
     }
 
     /// <summary>Hit area for the "−" button, shared by paint and hit-testing so they can't drift.
