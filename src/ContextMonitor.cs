@@ -12,12 +12,14 @@ sealed record SessionContext(
     DateTimeOffset StartedAt,
     DateTimeOffset LastActive,
     SessionState State = SessionState.Working,
-    Goal? Goal = null)
+    Goal? Goal = null,
+    int BgCount = 0,
+    string? BgTask = null)
 {
     public double Percent => Math.Clamp(Tokens * 100.0 / WindowSize, 0, 100);
 }
 
-enum SessionState { Working, Asking, Waiting, Idle }
+enum SessionState { Working, Asking, Background, Waiting, Idle }
 
 /// <summary>The session's step list: Done of Total finished; Current = the step being worked on (null when all done).</summary>
 sealed record Goal(int Done, int Total, string? Current);
@@ -38,9 +40,13 @@ static class ContextMonitor
     /// <summary>Sessions with no conversation activity for this long are dropped (even Working: a crashed one must go).</summary>
     public static readonly TimeSpan DropAfter = TimeSpan.FromMinutes(30);
 
+    /// <summary>A background task with no known timeout counts as live for this long; also how far back a quiet transcript is still looked at.</summary>
+    public static readonly TimeSpan BackgroundCap = TimeSpan.FromHours(3);
+
     /// <summary>
     /// Active sessions (transcripts written within <paramref name="maxIdle"/> — a cheap
-    /// LastWriteTime pre-filter; the real cut is DropAfter on the last transcript timestamp),
+    /// LastWriteTime pre-filter, widened to BackgroundCap so a quiet session with a live background
+    /// task is still seen; the real cut is DropAfter on the last transcript timestamp unless a task is live),
     /// sorted and capped to <paramref name="max"/>. sort: "active" (most-recent first) | "name" | "context".
     /// </summary>
     public static IReadOnlyList<SessionContext> GetActive(TimeSpan maxIdle, int max, string sort)
@@ -51,7 +57,7 @@ static class ContextMonitor
 
             var sessions = Directory.EnumerateFiles(ProjectsDir, "*.jsonl", SearchOption.AllDirectories)
                 .Select(p => new FileInfo(p))
-                .Where(f => DateTime.Now - f.LastWriteTime < maxIdle && f.Length > 0)
+                .Where(f => DateTime.Now - f.LastWriteTime < (maxIdle > BackgroundCap ? maxIdle : BackgroundCap) && f.Length > 0)
                 // subagent transcripts end on a tool call by design (never "Waiting") and
                 // aren't sessions the user answers — the parent session already shows the work
                 .Where(f => f.Directory?.Name != "subagents")
@@ -74,6 +80,8 @@ static class ContextMonitor
             return Array.Empty<SessionContext>(); // best-effort; never disturb the app
         }
     }
+
+    internal static SessionContext? ParseForTest(FileInfo file) => Parse(file);
 
     static SessionContext? Parse(FileInfo file)
     {
@@ -111,16 +119,18 @@ static class ContextMonitor
                 (ended, asking, lastTs) = Classify(ReadChunk(file, fromEnd: true, 2 * 1024 * 1024), file.Length <= 2 * 1024 * 1024);
             var active = lastTs ?? new DateTimeOffset(file.LastWriteTime);
             var age = DateTimeOffset.Now - active;
-            if (age > DropAfter) return null;
-            var state = !ended ? SessionState.Working : asking ? SessionState.Asking : age <= WaitingFor ? SessionState.Waiting : SessionState.Idle;
+            var (planGoal, bg) = SyncTranscript(file);
+            if (age > DropAfter && bg.Count == 0) return null; // a live background task keeps the row
+            var state = !ended ? SessionState.Working : asking ? SessionState.Asking : bg.Count > 0 ? SessionState.Background
+                : age <= WaitingFor ? SessionState.Waiting : SessionState.Idle;
 
             // effort lives on every user line ("effort":"medium"); absent on old transcripts
             string? effort = LastString(tail, "\"effort\":\\s*\"([a-z]+)\"");
             string model = FriendlyModel(modelId);
             if (effort is { Length: > 0 }) model += " · " + (effort == "xhigh" ? "XHigh" : char.ToUpper(effort[0]) + effort[1..]);
 
-            var goal = ReadPlan(file) ?? (cwd.Length > 0 ? ReadNextSession(cwd.Replace("\\\\", "\\")) : null);
-            return new SessionContext(project, model, tokens, window, startedAt, active, state, goal);
+            var goal = planGoal ?? (cwd.Length > 0 ? ReadNextSession(cwd.Replace("\\\\", "\\")) : null);
+            return new SessionContext(project, model, tokens, window, startedAt, active, state, goal, bg.Count, bg.Count > 0 ? bg[0].Desc : null);
         }
         catch
         {
@@ -217,22 +227,29 @@ static class ContextMonitor
     {
         public long Pos;
         public readonly List<(string Text, string Status)> Steps = new();
+        public readonly Dictionary<string, BgTask> Bg = new();                       // task id -> background task
+        public readonly Dictionary<string, (string Name, string? Desc, long TimeoutMs)> Pending = new(); // tool_use id -> launch call
     }
+
+    sealed record BgTask(string Desc, DateTimeOffset Started, DateTimeOffset Deadline);
 
     static readonly Dictionary<string, Plan> Plans = new(StringComparer.OrdinalIgnoreCase);
 
-    static Goal? ReadPlan(FileInfo file)
+    static Goal? ReadPlan(FileInfo file) => SyncTranscript(file).Goal;
+
+    /// <summary>Reads the file's new bytes, then returns the step list and the background tasks still live now (earliest-started first).</summary>
+    static (Goal? Goal, List<BgTask> Live) SyncTranscript(FileInfo file)
     {
         Plan plan;
         lock (Plans)
             if (!Plans.TryGetValue(file.FullName, out plan!)) Plans[file.FullName] = plan = new Plan();
         lock (plan)
         {
-            if (file.Length == plan.Pos) return ToGoal(plan.Steps); // nothing new since last poll
+            if (file.Length == plan.Pos) return Snapshot(plan); // nothing new since last poll
             try
             {
                 using var fs = new FileStream(file.FullName, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-                if (fs.Length < plan.Pos) { plan.Pos = 0; plan.Steps.Clear(); } // rewritten
+                if (fs.Length < plan.Pos) { plan.Pos = 0; plan.Steps.Clear(); plan.Bg.Clear(); plan.Pending.Clear(); } // rewritten
                 fs.Seek(plan.Pos, SeekOrigin.Begin);
                 // 1 MB chunks, so a 37 MB transcript's first read never holds the whole file;
                 // only complete lines are consumed — a half-written last line waits for next time
@@ -246,7 +263,7 @@ static class ContextMonitor
                     {
                         line.Write(buf, start, nl - start);
                         plan.Pos += line.Length + 1;
-                        if (line.Length > 0) ApplyIfPlanLine(plan.Steps, Encoding.UTF8.GetString(line.GetBuffer(), 0, (int)line.Length));
+                        if (line.Length > 0) ApplyIfPlanLine(plan, Encoding.UTF8.GetString(line.GetBuffer(), 0, (int)line.Length));
                         line.SetLength(0);
                     }
                     line.Write(buf, start, read - start);
@@ -256,41 +273,126 @@ static class ContextMonitor
             {
                 // goal is extra: a locked/rotating file must not drop the session row
             }
-            return ToGoal(plan.Steps);
+            return Snapshot(plan);
         }
     }
 
-    static void ApplyIfPlanLine(List<(string Text, string Status)> steps, string line)
+    static (Goal?, List<BgTask>) Snapshot(Plan plan)
     {
-        if (line.Contains("\"tool_use\"") && (line.Contains("update_plan") || line.Contains("wrap_up") || line.Contains("\"name\":\"Task")))
-            ApplyPlanLine(steps, line);
+        var now = DateTimeOffset.Now; // expiry is judged at poll time, not parse time
+        return (ToGoal(plan.Steps), plan.Bg.Values.Where(t => t.Deadline > now).OrderBy(t => t.Started).ToList());
     }
 
-    static void ApplyPlanLine(List<(string Text, string Status)> steps, string line)
+    static readonly string[] BgMarkers = { "\"taskId\"", "\"backgroundTaskId\"", "async_launched", "task-notification", "TaskStop" };
+    static readonly Regex NotificationRx = new(@"<task-id>\s*([^<\s]+)\s*</task-id>[\s\S]*?<status>\s*(completed|failed|killed)\s*</status>", RegexOptions.Compiled);
+
+    static void ApplyIfPlanLine(Plan plan, string line)
     {
+        // cheap substring prefilter: most lines of a 30 MB transcript are neither plan nor background-task lines
+        bool tool = line.Contains("\"tool_use\"");
+        bool planLine = tool && (line.Contains("update_plan") || line.Contains("wrap_up") || line.Contains("\"name\":\"Task"));
+        bool launchLine = tool && (line.Contains("\"name\":\"Monitor\"")
+            || (line.Contains("\"run_in_background\":true") && (line.Contains("\"name\":\"Bash\"") || line.Contains("\"name\":\"Agent\""))));
+        bool bgLine = false;
+        foreach (var m in BgMarkers) if (line.Contains(m)) { bgLine = true; break; }
+        if (!planLine && !launchLine && !bgLine) return;
         try
         {
             using var doc = JsonDocument.Parse(line);
             var root = doc.RootElement;
+            if (root.ValueKind != JsonValueKind.Object) return;
             if (root.TryGetProperty("isSidechain", out var sc) && sc.ValueKind == JsonValueKind.True) return;
-            if (!root.TryGetProperty("message", out var msg) || msg.ValueKind != JsonValueKind.Object
-                || !msg.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array) return;
+            if (planLine) ApplyPlanLine(plan.Steps, root);
+            if (launchLine || bgLine) ApplyBgLine(plan, root);
+        }
+        catch (JsonException) { } // a line we can't read just doesn't move the plan
+    }
+
+    /// <summary>Background tasks: launch call (assistant) + its result (user) start one; a task-notification or TaskStop ends it.</summary>
+    static void ApplyBgLine(Plan plan, JsonElement root)
+    {
+        if (!root.TryGetProperty("message", out var msg) || msg.ValueKind != JsonValueKind.Object
+            || !msg.TryGetProperty("content", out var content)) return;
+        string? type = Str(root, "type");
+
+        if (type == "assistant" && content.ValueKind == JsonValueKind.Array)
+        {
             foreach (var b in content.EnumerateArray())
             {
                 if (b.ValueKind != JsonValueKind.Object || Str(b, "type") != "tool_use"
                     || !b.TryGetProperty("input", out var input) || input.ValueKind != JsonValueKind.Object) continue;
                 string name = Str(b, "name") ?? "";
-                if (name.EndsWith("update_plan", StringComparison.Ordinal)) ApplyUpdatePlan(steps, input);
-                else if (name.EndsWith("__wrap_up", StringComparison.Ordinal)) // the app checks the list off
-                    for (int i = 0; i < steps.Count; i++) { if (steps[i].Status != "deleted") steps[i] = (steps[i].Text, "completed"); }
-                else if (name == "TaskCreate")
-                    steps.Add((Str(input, "subject") ?? Str(input, "activeForm") ?? "", "pending"));
-                else if (name == "TaskUpdate" && int.TryParse(Str(input, "taskId"), out int id) && id >= 1 && id <= steps.Count
-                         && Str(input, "status") is { } st)
-                    steps[id - 1] = (steps[id - 1].Text, st);
+                if (name == "TaskStop")
+                {
+                    if ((Str(input, "task_id") ?? Str(input, "shell_id")) is { } sid) plan.Bg.Remove(sid);
+                    continue;
+                }
+                bool bg = name == "Monitor"
+                    || (name is "Bash" or "Agent" && input.TryGetProperty("run_in_background", out var rb) && rb.ValueKind == JsonValueKind.True);
+                if (!bg || Str(b, "id") is not { } id) continue;
+                if (plan.Pending.Count > 200) plan.Pending.Clear(); // launches whose result never came
+                plan.Pending[id] = (name, Str(input, "description"), input.TryGetProperty("timeout_ms", out var to) && to.TryGetInt64(out long ms) ? ms : 0);
             }
+            return;
         }
-        catch (JsonException) { } // a line we can't read just doesn't move the plan
+        if (type != "user") return;
+
+        // end: <task-notification> in the user line's text
+        var texts = new List<string>();
+        if (content.ValueKind == JsonValueKind.String) texts.Add(content.GetString() ?? "");
+        else if (content.ValueKind == JsonValueKind.Array)
+            foreach (var b in content.EnumerateArray())
+                if (b.ValueKind == JsonValueKind.Object && Str(b, "text") is { } tx) texts.Add(tx);
+        foreach (var t in texts)
+            if (t.Contains("task-notification"))
+                foreach (Match m in NotificationRx.Matches(t)) plan.Bg.Remove(m.Groups[1].Value);
+
+        // start: the launch call's tool result
+        if (!root.TryGetProperty("toolUseResult", out var tur) || tur.ValueKind != JsonValueKind.Object) return;
+        (string Name, string? Desc, long TimeoutMs) call = default;
+        if (content.ValueKind == JsonValueKind.Array)
+            foreach (var b in content.EnumerateArray())
+                if (b.ValueKind == JsonValueKind.Object && Str(b, "tool_use_id") is { } tid && plan.Pending.Remove(tid, out call)) break;
+
+        string? taskId = null;
+        long timeoutMs = 0;
+        bool persistent = tur.TryGetProperty("persistent", out var pe) && pe.ValueKind == JsonValueKind.True;
+        string fallback = call.Name ?? "";
+        if (Str(tur, "backgroundTaskId") is { } bid) { taskId = bid; if (fallback.Length == 0) fallback = "Bash"; }
+        else if (Str(tur, "status") == "async_launched" && Str(tur, "agentId") is { } aid) { taskId = aid; if (fallback.Length == 0) fallback = "Agent"; }
+        else if (Str(tur, "taskId") is { } mid && (call.Name == "Monitor" || tur.TryGetProperty("timeoutMs", out _))) // other tools' results carry a taskId too
+        {
+            taskId = mid;
+            if (fallback.Length == 0) fallback = "Monitor";
+            timeoutMs = tur.TryGetProperty("timeoutMs", out var tm) && tm.TryGetInt64(out long v) ? v : call.TimeoutMs;
+        }
+        if (taskId is null) return;
+
+        var started = root.TryGetProperty("timestamp", out var ts) && ts.ValueKind == JsonValueKind.String
+            && DateTimeOffset.TryParse(ts.GetString(), out var parsed) ? parsed : DateTimeOffset.Now;
+        var deadline = started + (timeoutMs > 0 && !persistent ? TimeSpan.FromMilliseconds(Math.Min(timeoutMs, BackgroundCap.TotalMilliseconds)) : BackgroundCap);
+        string desc = call.Desc ?? Str(tur, "description") ?? fallback;
+        plan.Bg[taskId] = new BgTask(string.IsNullOrWhiteSpace(desc) ? fallback : desc, started, deadline);
+    }
+
+    static void ApplyPlanLine(List<(string Text, string Status)> steps, JsonElement root)
+    {
+        if (!root.TryGetProperty("message", out var msg) || msg.ValueKind != JsonValueKind.Object
+            || !msg.TryGetProperty("content", out var content) || content.ValueKind != JsonValueKind.Array) return;
+        foreach (var b in content.EnumerateArray())
+        {
+            if (b.ValueKind != JsonValueKind.Object || Str(b, "type") != "tool_use"
+                || !b.TryGetProperty("input", out var input) || input.ValueKind != JsonValueKind.Object) continue;
+            string name = Str(b, "name") ?? "";
+            if (name.EndsWith("update_plan", StringComparison.Ordinal)) ApplyUpdatePlan(steps, input);
+            else if (name.EndsWith("__wrap_up", StringComparison.Ordinal)) // the app checks the list off
+                for (int i = 0; i < steps.Count; i++) { if (steps[i].Status != "deleted") steps[i] = (steps[i].Text, "completed"); }
+            else if (name == "TaskCreate")
+                steps.Add((Str(input, "subject") ?? Str(input, "activeForm") ?? "", "pending"));
+            else if (name == "TaskUpdate" && int.TryParse(Str(input, "taskId"), out int id) && id >= 1 && id <= steps.Count
+                     && Str(input, "status") is { } st)
+                steps[id - 1] = (steps[id - 1].Text, st);
+        }
     }
 
     /// <summary>items = new list; advance = finish the in_progress step, start the next pending; done:[n] / start:n are 1-based.</summary>
@@ -422,6 +524,74 @@ static class ContextMonitor
         foreach (var s in GetActive(TimeSpan.FromHours(2), 12, "active"))
             Console.WriteLine($"{s.Project}: {s.Goal}");
         Console.WriteLine("goal selftest OK");
+    }
+
+    /// <summary>Runnable check, `--bg-selftest`: background-task tracking through the real parse path.</summary>
+    public static void BgSelfTest()
+    {
+        var dir = Directory.CreateTempSubdirectory("bg-selftest").FullName;
+        int n = 0;
+        string Iso(TimeSpan ago) => (DateTimeOffset.UtcNow - ago).ToString("yyyy-MM-ddTHH:mm:ss.fffZ");
+        string Tail(string ts) => "\"timestamp\":\"" + ts + "\",\"cwd\":\"C:\\\\x\\\\proj\"";
+        string Use(string ts, string name, string input, string id) =>
+            "{\"type\":\"assistant\"," + Tail(ts) + ",\"message\":{\"model\":\"claude-opus-4-7\",\"stop_reason\":\"tool_use\",\"usage\":{\"input_tokens\":100,\"cache_read_input_tokens\":5000},\"content\":[{\"type\":\"tool_use\",\"id\":\"" + id + "\",\"name\":\"" + name + "\",\"input\":" + input + "}]}}\n";
+        string Res(string ts, string id, string tur) =>
+            "{\"type\":\"user\"," + Tail(ts) + ",\"message\":{\"content\":[{\"type\":\"tool_result\",\"tool_use_id\":\"" + id + "\",\"content\":\"ok\"}]},\"toolUseResult\":" + tur + "}\n";
+        string End(string ts) =>
+            "{\"type\":\"assistant\"," + Tail(ts) + ",\"message\":{\"model\":\"claude-opus-4-7\",\"stop_reason\":\"end_turn\",\"usage\":{\"input_tokens\":100,\"cache_read_input_tokens\":5000},\"content\":[{\"type\":\"text\",\"text\":\"done\"}]}}\n";
+        string Note(string ts, string id, string status) =>
+            "{\"type\":\"user\"," + Tail(ts) + ",\"message\":{\"role\":\"user\",\"content\":\"<task-notification>\\n<task-id>" + id + "</task-id>\\n<status>" + status + "</status>\\n</task-notification>\"}}\n";
+        string Mon(string ts, string tid, string id, string desc, long timeoutMs) =>
+            Use(ts, "Monitor", "{\"command\":\"tail\",\"description\":\"" + desc + "\",\"timeout_ms\":" + timeoutMs + "}", tid)
+            + Res(ts, tid, "{\"taskId\":\"" + id + "\",\"timeoutMs\":" + timeoutMs + ",\"persistent\":false}");
+        string Bash(string ts, string tid, string id, string desc) =>
+            Use(ts, "Bash", "{\"command\":\"sleep\",\"run_in_background\":true,\"description\":\"" + desc + "\"}", tid)
+            + Res(ts, tid, "{\"stdout\":\"\",\"stderr\":\"\",\"interrupted\":false,\"backgroundTaskId\":\"" + id + "\"}");
+
+        SessionContext? Run(string text, string? append = null)
+        {
+            string path = Path.Combine(dir, $"s{n++}.jsonl");
+            File.WriteAllText(path, text);
+            if (append is not null) { ParseForTest(new FileInfo(path)); File.AppendAllText(path, append); } // second poll reads only the new bytes
+            return ParseForTest(new FileInfo(path));
+        }
+        void Expect(SessionContext? c, SessionState? state, int count, string? task, string what)
+        {
+            if (state is null) { if (c is not null) throw new Exception($"{what}: got {c.State}, want dropped"); return; }
+            if (c is null || c.State != state || c.BgCount != count || c.BgTask != task)
+                throw new Exception($"{what}: got {(c is null ? "null" : $"{c.State}/{c.BgCount}/{c.BgTask}")}, want {state}/{count}/{task}");
+        }
+        try
+        {
+            var t1 = Iso(TimeSpan.FromMinutes(5));
+            var t2 = Iso(TimeSpan.FromMinutes(4));
+            string start = Mon(t1, "toolu_1", "mon1", "queue.log: errors", 600_000 * 6) + End(t2);
+            Expect(Run(start), SessionState.Background, 1, "queue.log: errors", "monitor + end_turn");
+            foreach (var st in new[] { "completed", "failed", "killed" })
+                Expect(Run(start, Note(Iso(TimeSpan.FromMinutes(2)), "mon1", st) + End(Iso(TimeSpan.FromMinutes(1)))), SessionState.Waiting, 0, null, "notification " + st);
+            Expect(Run(start, Use(Iso(TimeSpan.FromMinutes(1)), "TaskStop", "{\"task_id\":\"mon1\"}", "toolu_s") + End(Iso(TimeSpan.FromMinutes(1)))),
+                SessionState.Waiting, 0, null, "TaskStop");
+            Expect(Run(Mon(Iso(TimeSpan.FromMinutes(20)), "toolu_1", "mon1", "old", 600_000) + End(Iso(TimeSpan.FromMinutes(19)))),
+                SessionState.Idle, 0, null, "monitor timeout elapsed");
+            Expect(Run(Bash(Iso(TimeSpan.FromHours(4)), "toolu_1", "bg1", "old bash") + End(Iso(TimeSpan.FromMinutes(5)))),
+                SessionState.Waiting, 0, null, "bash 4h old");
+            Expect(Run(Bash(Iso(TimeSpan.FromMinutes(9)), "toolu_1", "bg1", "first") + Bash(Iso(TimeSpan.FromMinutes(8)), "toolu_2", "bg2", "second") + End(t2)),
+                SessionState.Background, 2, "first", "two tasks");
+            string agent = Use(Iso(TimeSpan.FromMinutes(9)), "Agent", "{\"description\":\"wire pose\",\"run_in_background\":true}", "toolu_a")
+                + Res(Iso(TimeSpan.FromMinutes(9)), "toolu_a", "{\"isAsync\":true,\"status\":\"async_launched\",\"agentId\":\"a97\",\"description\":\"wire pose\"}");
+            Expect(Run(agent + End(t2)), SessionState.Background, 1, "wire pose", "agent");
+            Expect(Run(start.Replace("\"stop_reason\":\"end_turn\"", "\"stop_reason\":\"tool_use\"")), SessionState.Working, 1, "queue.log: errors", "turn not ended");
+            Expect(Run(start + Use(Iso(TimeSpan.FromMinutes(3)), "AskUserQuestion", "{\"questions\":[]}", "toolu_q")),
+                SessionState.Asking, 1, "queue.log: errors", "asking");
+
+            var q1 = Iso(TimeSpan.FromMinutes(45));
+            string quiet = Mon(q1, "toolu_1", "mon1", "gpu queue", 3 * 3_600_000L) + End(Iso(TimeSpan.FromMinutes(44)));
+            Expect(Run(quiet), SessionState.Background, 1, "gpu queue", "45 min quiet");
+            Expect(Run(quiet, Note(Iso(TimeSpan.FromMinutes(41)), "mon1", "completed") + End(Iso(TimeSpan.FromMinutes(40)))), null, 0, null, "45 min quiet + done");
+            Expect(Run(start, "{\"type\":\"user\",\"message\":{\"content\":\"<task-notif"), SessionState.Background, 1, "queue.log: errors", "half-written last line");
+        }
+        finally { Directory.Delete(dir, true); }
+        Console.WriteLine("bg selftest OK");
     }
 
     static string? Str(JsonElement e, string prop) =>

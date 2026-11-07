@@ -1007,12 +1007,13 @@ sealed class PopupForm : Form
         y += S(5);
 
         // line 1: bold session name, then percent (left); current/capacity tokens (right)
-        // session state dot: green working / amber waiting for you / grey idle (row dimmed)
+        // session state dot: green working / amber asking or waiting for you / teal background task (slow blink) / grey idle (row dimmed)
         bool idle = ctx.State == SessionState.Idle;
         var dotColor = ctx.State switch
         {
             SessionState.Working => Theme.Success,
             SessionState.Asking or SessionState.Waiting => Theme.Warning,
+            SessionState.Background => Theme.Info,
             _ => MutedColor,
         };
         int dot = StateDotSize;
@@ -1021,10 +1022,10 @@ sealed class PopupForm : Form
         {
             var oldMode = g.SmoothingMode;
             g.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.AntiAlias;
-            if (ctx.State is SessionState.Working or SessionState.Asking)
+            if (ctx.State is SessionState.Working or SessionState.Asking or SessionState.Background)
             {
-                // fade 100% → 25% → 100% (Working 1.4 s, Asking 1 s); _anim repaints just this rect at ~30 fps
-                double p = IconRenderer.WorkingPulse((int)((ctx.State == SessionState.Asking ? 1000 : 1400) * AlertMul));
+                // fade 100% → 25% → 100% (Working 1.4 s, Asking 1 s, Background 2 s); _anim repaints just this rect at ~30 fps
+                double p = IconRenderer.WorkingPulse((int)((ctx.State == SessionState.Asking ? 1000 : ctx.State == SessionState.Background ? 2000 : 1400) * AlertMul));
                 dotColor = Color.FromArgb(255 - (int)(191 * p), dotColor);
                 _workingDotRects.Add(Rectangle.Ceiling(RectangleF.Inflate(dotRect, 1, 1)));
             }
@@ -1062,6 +1063,10 @@ sealed class PopupForm : Form
         float ageW = g.MeasureString(ageText, _tinyFont).Width;
         g.DrawString(ageText, _tinyFont, mutedBrush, pad + contentWidth - ageW, line2Y);
 
+        // background tasks: "⟳ <task>" / "⟳ N bg: <first>" rides on line 2 after the step text
+        string? bgText = ctx.State == SessionState.Background && ctx.BgCount > 0
+            ? ctx.BgCount > 1 ? $"⟳ {ctx.BgCount} bg: {ctx.BgTask}" : $"⟳ {ctx.BgTask}" : null;
+
         // line 2, ≤10 steps: ▬▬▬▭▭▭ 3/6  <step> — colourless so it never reads as the state dot:
         // done muted, current label-bright (fades while Working), rest track
         if (ctx.Goal is { Total: > 0 and <= 10 } dg)
@@ -1085,12 +1090,20 @@ sealed class PopupForm : Form
             string frac = $"{Math.Min(dg.Done + 1, dg.Total)}/{dg.Total}";
             g.DrawString(frac, _tinyFont, mutedBrush, x + S(4), line2Y);
             float tx = x + S(4) + g.MeasureString(frac, _tinyFont).Width + S(4);
+            float avail = Math.Max(0, pad + contentWidth - ageW - S(12) - tx);
+            using var cf = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter };
+            float bgW = bgText is null ? 0 : Math.Min(g.MeasureString(bgText, _tinyFont).Width, avail / 2);
+            float curW = 0;
             if (!string.IsNullOrWhiteSpace(dg.Current))
             {
                 using var curBrush = new SolidBrush(LabelColor);
-                using var cf = new StringFormat(StringFormatFlags.NoWrap) { Trimming = StringTrimming.EllipsisCharacter };
-                g.DrawString(dg.Current, _tinyFont, curBrush,
-                    new RectangleF(tx, line2Y, Math.Max(0, pad + contentWidth - ageW - S(12) - tx), S(16)), cf);
+                curW = Math.Min(g.MeasureString(dg.Current, _tinyFont).Width, Math.Max(0, avail - (bgW > 0 ? bgW + S(8) : 0)));
+                g.DrawString(dg.Current, _tinyFont, curBrush, new RectangleF(tx, line2Y, curW, S(16)), cf);
+            }
+            if (bgText is not null)
+            {
+                float bx = tx + curW + (curW > 0 ? S(8) : 0);
+                g.DrawString(bgText, _tinyFont, mutedBrush, new RectangleF(bx, line2Y, Math.Max(0, tx + avail - bx), S(16)), cf);
             }
         }
         else
@@ -1101,7 +1114,9 @@ sealed class PopupForm : Form
             {
                 string head = $"Step {Math.Min(goal.Done + 1, goal.Total)}/{goal.Total}";
                 line2 = string.IsNullOrWhiteSpace(goal.Current) ? head : $"{head} · {goal.Current}";
+                if (bgText is not null) line2 += " · " + bgText;
             }
+            else if (bgText is not null) line2 = bgText;
             else
             {
                 long compactAt = (long)(ctx.WindowSize * 0.8);

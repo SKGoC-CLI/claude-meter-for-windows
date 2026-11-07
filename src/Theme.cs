@@ -22,6 +22,7 @@ static class Theme
     public static Color Accent => Light ? ColorTranslator.FromHtml("#005FB8") : IconRenderer.Accent;
     public static Color Warning => Light ? ColorTranslator.FromHtml("#9D5D00") : IconRenderer.Warning;
     public static Color Danger => Light ? ColorTranslator.FromHtml("#C42B1C") : IconRenderer.Danger;
+    public static Color Info => Light ? ColorTranslator.FromHtml("#0D7F78") : ColorTranslator.FromHtml("#2DD4BF"); // background-task teal
     public static Color Success => Light ? ColorTranslator.FromHtml("#0F7B0F") : ColorTranslator.FromHtml("#6bcb77");
 
     /// <summary>Severity colour for a utilization percentage — same thresholds as
