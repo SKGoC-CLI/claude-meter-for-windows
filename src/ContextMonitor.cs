@@ -119,8 +119,10 @@ static class ContextMonitor
                 (ended, asking, lastTs) = Classify(ReadChunk(file, fromEnd: true, 2 * 1024 * 1024), file.Length <= 2 * 1024 * 1024);
             var active = lastTs ?? new DateTimeOffset(file.LastWriteTime);
             var age = DateTimeOffset.Now - active;
+            if (age > BackgroundCap) return null; // dead for longer than any task can live: skip the full read
             var (planGoal, bg) = SyncTranscript(file);
-            if (age > DropAfter && bg.Count == 0) return null; // a live background task keeps the row
+            // a live background task keeps an ended turn's row; a mid-turn one past DropAfter crashed and must go
+            if (age > DropAfter && !(ended && bg.Count > 0)) return null;
             var state = !ended ? SessionState.Working : asking ? SessionState.Asking : bg.Count > 0 ? SessionState.Background
                 : age <= WaitingFor ? SessionState.Waiting : SessionState.Idle;
 
@@ -283,8 +285,9 @@ static class ContextMonitor
         return (ToGoal(plan.Steps), plan.Bg.Values.Where(t => t.Deadline > now).OrderBy(t => t.Started).ToList());
     }
 
-    static readonly string[] BgMarkers = { "\"taskId\"", "\"backgroundTaskId\"", "async_launched", "task-notification", "TaskStop" };
-    static readonly Regex NotificationRx = new(@"<task-id>\s*([^<\s]+)\s*</task-id>[\s\S]*?<status>\s*(completed|failed|killed)\s*</status>", RegexOptions.Compiled);
+    static readonly string[] BgMarkers = { "\"taskId\"", "\"backgroundTaskId\"", "async_launched", "task-notification", "TaskStop", "KillShell" };
+    // id and status must come from the same notification: never skip past its closing tag
+    static readonly Regex NotificationRx = new(@"<task-id>\s*([^<\s]+)\s*</task-id>(?:(?!</task-notification>)[\s\S])*?<status>\s*(completed|failed|killed)\s*</status>", RegexOptions.Compiled);
 
     static void ApplyIfPlanLine(Plan plan, string line)
     {
@@ -322,7 +325,7 @@ static class ContextMonitor
                 if (b.ValueKind != JsonValueKind.Object || Str(b, "type") != "tool_use"
                     || !b.TryGetProperty("input", out var input) || input.ValueKind != JsonValueKind.Object) continue;
                 string name = Str(b, "name") ?? "";
-                if (name == "TaskStop")
+                if (name is "TaskStop" or "KillShell")
                 {
                     if ((Str(input, "task_id") ?? Str(input, "shell_id")) is { } sid) plan.Bg.Remove(sid);
                     continue;
@@ -371,7 +374,7 @@ static class ContextMonitor
         var started = root.TryGetProperty("timestamp", out var ts) && ts.ValueKind == JsonValueKind.String
             && DateTimeOffset.TryParse(ts.GetString(), out var parsed) ? parsed : DateTimeOffset.Now;
         var deadline = started + (timeoutMs > 0 && !persistent ? TimeSpan.FromMilliseconds(Math.Min(timeoutMs, BackgroundCap.TotalMilliseconds)) : BackgroundCap);
-        string desc = call.Desc ?? Str(tur, "description") ?? fallback;
+        string desc = Regex.Replace(call.Desc ?? Str(tur, "description") ?? fallback, @"\s+", " ").Trim(); // one line in the popup
         plan.Bg[taskId] = new BgTask(string.IsNullOrWhiteSpace(desc) ? fallback : desc, started, deadline);
     }
 
@@ -589,6 +592,13 @@ static class ContextMonitor
             Expect(Run(quiet), SessionState.Background, 1, "gpu queue", "45 min quiet");
             Expect(Run(quiet, Note(Iso(TimeSpan.FromMinutes(41)), "mon1", "completed") + End(Iso(TimeSpan.FromMinutes(40)))), null, 0, null, "45 min quiet + done");
             Expect(Run(start, "{\"type\":\"user\",\"message\":{\"content\":\"<task-notif"), SessionState.Background, 1, "queue.log: errors", "half-written last line");
+            // crashed mid-turn with a live task: still dropped after DropAfter, as before
+            Expect(Run(Mon(Iso(TimeSpan.FromMinutes(45)), "toolu_1", "mon1", "gpu queue", 3 * 3_600_000L)), null, 0, null, "crashed mid-turn");
+            Expect(Run(start, Use(Iso(TimeSpan.FromMinutes(1)), "KillShell", "{\"shell_id\":\"mon1\"}", "toolu_k") + End(Iso(TimeSpan.FromMinutes(1)))),
+                SessionState.Waiting, 0, null, "KillShell");
+            // a notification without status must not borrow the next one's
+            Expect(Run(start, "{\"type\":\"user\"," + Tail(Iso(TimeSpan.FromMinutes(2))) + ",\"message\":{\"content\":\"<task-notification><task-id>mon1</task-id></task-notification><task-notification><task-id>zz</task-id><status>completed</status></task-notification>\"}}\n"
+                + End(Iso(TimeSpan.FromMinutes(1)))), SessionState.Background, 1, "queue.log: errors", "status-less notification");
         }
         finally { Directory.Delete(dir, true); }
         Console.WriteLine("bg selftest OK");

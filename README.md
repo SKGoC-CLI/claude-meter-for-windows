@@ -54,7 +54,7 @@ Claude Code's `/usage`, always one click away.
 - Usage graph plots session remaining over a 12 or 24 hour axis, with hourly ticks, reset markers for both past and upcoming resets, and an adjustable "now" position
 - Credit spending graph shows cumulative month-to-date usage-credit spend up to your monthly limit, with a dashed limit line and live "now" marker; stays accurate even if the meter isn't running (45-day history sampled every 30 minutes)
 - Burn-rate estimate under each limit — "full in ~2h 41m" at your current pace, measured over a window matched to the limit's own length, and kept quiet whenever the limit would reset before it ever fills
-- Session state dots in CURRENT SESSION(S): green while Working, amber when Waiting for you or Asking a question, grey when Idle
+- Session state dots in CURRENT SESSION(S): green while Working, amber when Waiting for you or Asking a question, teal (blinking) when the turn has ended but a background task (Monitor / background command / background agent) is still running, grey when Idle
 - Step progress per session — a row of segments `▬▬▬▭▭▭ 3/6  <step headline>` (over 10 steps: `Step 3/14 · <step>`), read from the session's task list (Claude desktop app plan, or TaskCreate/TaskUpdate in the CLI), falling back to an active `NEXT-SESSION.md` sprint table; toggle under *Current session → Show step progress*
 - Session alerts: the tray digits dim while a session is Working and the tray turns orange while one is Asking; speed and each effect can be set under *Current session → Session alerts*
 - Effort level shown next to each session's model, e.g. "Opus · High"
