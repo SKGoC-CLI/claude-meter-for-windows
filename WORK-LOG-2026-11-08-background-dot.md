@@ -60,3 +60,9 @@
   | 03 | แถวไม่หายที่ 30 นาทีถ้ายังมีงาน | 01 |
   | 04 | ข้อความ `⟳` บรรทัด 2 | 01 |
 - ปิดท้าย: reviewer → รันแอป screenshot มืด/สว่าง → commit
+
+## Release v1.14.0 (2026-11-08)
+- commit 29eb222, tag v1.14.0, https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.14.0
+- zip 63.1 MB sha256 02fc52da...969d (ตรงกับ digest ของ GitHub), exe 1.14.0.0 selftest ผ่าน
+- ย้อนกลับ: ลบ release + tag v1.14.0 (ถามคุณสมกกก่อน) แล้ว git revert 1afbaee..29eb222
+

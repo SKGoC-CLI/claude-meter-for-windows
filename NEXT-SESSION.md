@@ -20,7 +20,7 @@ status: done
 ③ สถานะจริง: ทุกขั้น commit แล้ว · `dotnet build` 0 error 0 warning · `--bg-selftest` (เพิ่ม 3 เคสจากรีวิว) + `--goal-selftest` ผ่าน · ผ่าน reviewer · ภาพจาก `--popup-shot` ถูกต้องทั้งสองธีม · **ยังไม่ได้ลองกับ meter ตัวจริงที่รันอยู่ (portable ใน `App Claude Meter` ยังเป็น 1.13.2)** · ยังไม่ bump เวอร์ชัน/CHANGELOG/release (release = ถามคุณสมกกก่อน)
 · resume tasks `resume-claude-meter-bg-1/2/3` ตั้งไว้ที่ 03:35 / 08:50 / 14:05 (8 พ.ย.)
 
-④ ถัดไป: bump 1.14.0 + CHANGELOG + `docs/RELEASE_NOTES_v1.14.0.md` commit แล้ว · zip พร้อมที่ `%TEMP%\cm-release\ClaudeMeter-portable.zip` (sha256 `02FC52DA…969D`, exe 1.14.0.0, 68.5 MB) · **รอคุณสมกกอนุมัติ publish** แล้ว `git tag v1.14.0` + `gh release create v1.14.0 <zip> -F docs/RELEASE_NOTES_v1.14.0.md` → อัปเดต meter ผ่าน App → Check for updates now · ทดสอบซ้ำ: `dotnet build` แล้ว `bin\Debug\net8.0-windows\ClaudeMeter.exe --bg-selftest` · ภาพ: `ClaudeMeter.exe --popup-shot <dir>`
+④ ถัดไป: bump 1.14.0 + CHANGELOG + `docs/RELEASE_NOTES_v1.14.0.md` commit แล้ว · zip พร้อมที่ `%TEMP%\cm-release\ClaudeMeter-portable.zip` (sha256 `02FC52DA…969D`, exe 1.14.0.0, 68.5 MB) · ✅ **release v1.14.0 ขึ้นแล้ว** (คุณสมกกอนุมัติ 2026-11-08) https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.14.0 — digest ตรง, latest = v1.14.0, zip 200 · เหลือ: คุณสมกกกด App → Check for updates now → Update now ใน meter ที่รันอยู่ (1.13.2) · ทดสอบซ้ำ: `dotnet build` แล้ว `bin\Debug\net8.0-windows\ClaudeMeter.exe --bg-selftest` · ภาพ: `ClaudeMeter.exe --popup-shot <dir>`
 
 ⑤ กับดัก
 - เครื่องใหม่ (2026-11-08): meter ที่รันจริงคือ `bin\Release\net8.0-windows\win-x64\ClaudeMeter.exe` **ใน repo นี้** — publish ต้องใส่ `"/p:OutputPath=$env:TEMP\cm-bin\"` ไม่งั้นไฟล์ล็อก (อย่าปิด meter เอง)
