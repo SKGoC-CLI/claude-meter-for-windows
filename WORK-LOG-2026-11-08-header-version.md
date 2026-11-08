@@ -20,3 +20,9 @@
 | 2 | TrayAppContext: ส่ง release ใหม่ให้ popup + ผูกคลิกกับหน้าต่างอัปเดตเดิม; PopupShot เพิ่มภาพแบบมีอัปเดต | coder | ได้ |
 | 3 | reviewer + screenshot มืด/สว่างให้คุณสมกกดู | reviewer / main model | ได้ — รอรอบแก้ |
 | 4 | commit (+ release 1.14.1 ถ้าสั่ง) | main model | จบ |
+
+## ผล (2026-11-08)
+- โค้ด commit 2619c86 (รีวิว diff โดย main model เพราะ 5h 81%), bump d21a6a7, tag v1.14.1
+- https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.14.1 - zip sha256 1e87018b...3efc ตรง digest, exe 1.14.1.0 selftest ผ่าน
+- ยังไม่ได้ลองคลิกปุ่มเหลืองจริง (จะเห็นได้ตอนมี release ถัดไป) และยังไม่ได้ถ่ายแบบปิดโลโก้
+

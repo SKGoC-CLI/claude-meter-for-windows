@@ -15,7 +15,7 @@ status: done
 
 ③ สถานะจริง: commit แล้ว · build 0 error/0 warning · `--bg-selftest` ผ่าน · ภาพ `--popup-shot` 4 ไฟล์ถูกต้อง (เลขต่อชื่อ, มีอัปเดต = เหลือง `v1.14.0 → v1.14.1`) · ยังไม่ได้ลองคลิกจริงในแอป · ยังไม่ได้ถ่ายแบบปิดโลโก้ · resume tasks ลบแล้ว · ยังไม่ release 1.14.1 (ต้องถามก่อน)
 
-④ ถัดไป: bump 1.14.1 + CHANGELOG + `docs/RELEASE_NOTES_v1.14.1.md` commit แล้ว · zip `%TEMP%\cm-release\ClaudeMeter-portable.zip` (sha256 `1E87018B…3EFC`, exe 1.14.1.0) · **รอคุณสมกกอนุมัติ publish** แล้ว `git tag v1.14.1` + `gh release create v1.14.1 <zip> --title v1.14.1 -F docs/RELEASE_NOTES_v1.14.1.md --verify-tag` · ทดสอบ: `dotnet build "/p:OutputPath=$env:TEMP\cm-bin\"` แล้ว `ClaudeMeter.exe --popup-shot <dir>`
+④ ถัดไป: bump 1.14.1 + CHANGELOG + `docs/RELEASE_NOTES_v1.14.1.md` commit แล้ว · zip `%TEMP%\cm-release\ClaudeMeter-portable.zip` (sha256 `1E87018B…3EFC`, exe 1.14.1.0) · ✅ **release v1.14.1 ขึ้นแล้ว** (คุณสมกกอนุมัติ 2026-11-08) https://github.com/SKGoC-CLI/claude-meter-for-windows/releases/tag/v1.14.1 — digest ตรง, latest = v1.14.1, zip 200 · เหลือ: คุณสมกกกดอัปเดต meter ในเครื่อง แล้วดูเลขที่หัว popup · ทดสอบ: `dotnet build "/p:OutputPath=$env:TEMP\cm-bin\"` แล้ว `ClaudeMeter.exe --popup-shot <dir>`
 
 ⑤ กับดัก
 - meter ที่รันจริงคือ `bin\Release\net8.0-windows\win-x64\ClaudeMeter.exe` ใน repo นี้ — build Release ต้องใส่ `"/p:OutputPath=$env:TEMP\cm-bin\"` ไม่งั้นไฟล์ล็อก (อย่าปิด meter เอง)
